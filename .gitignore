@@ -1,0 +1,41 @@
+# Virtual environments
+.venv/
+*/.venv/
+venv/
+env/
+ENV/
+
+# Python bytecode & cache
+__pycache__/
+*/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Testing & coverage
+.pytest_cache/
+*/.pytest_cache/
+.coverage
+htmlcov/
+
+# Environments & secrets
+.env
+.env.*
+*.key
+*.secret
+
+# Training dataset tiles (raw images & masks ~1.5GB)
+dataset 1/images/
+dataset 1/masks/
+
+# Citizen report photo uploads (runtime data)
+uploads/citizen_reports/*
+!uploads/citizen_reports/.gitkeep
+
+# IDE & OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
