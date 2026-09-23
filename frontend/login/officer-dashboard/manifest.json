@@ -1,0 +1,21 @@
+{
+  "name": "MPLADS Officer Verification Dashboard",
+  "short_name": "MPLADS Vigilance",
+  "description": "Decision-support verification workspace for MPLAD Scheme auditors",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#080C14",
+  "theme_color": "#0D1322",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

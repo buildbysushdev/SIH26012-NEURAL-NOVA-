@@ -1,0 +1,11 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/citizen-portal/(.*)", "destination": "/citizen-portal/$1" },
+    { "source": "/citizen-portal", "destination": "/citizen-portal/index.html" },
+    { "source": "/citizen_portal/(.*)", "destination": "/citizen-portal/$1" },
+    { "source": "/citizen_portal", "destination": "/citizen-portal/index.html" },
+    { "source": "/officer-dashboard/(.*)", "destination": "/officer-dashboard/$1" },
+    { "source": "/officer-dashboard", "destination": "/officer-dashboard/index.html" }
+  ]
+}

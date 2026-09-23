@@ -1,0 +1,353 @@
+/* ==========================================================================
+   OFFICER VERIFICATION DASHBOARD — LAYOUT & SHELL
+   High-density, professional case management workspace
+   ========================================================================== */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  font-family: var(--font-sans);
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* App Wrapper */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--bg-app);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   TOP NAVIGATION HEADER
+   ───────────────────────────────────────────────────────────────────────── */
+.app-header {
+  height: 52px;
+  background-color: var(--bg-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--spacing-6);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(8px);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+
+.brand-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  text-decoration: none;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.brand-emblem {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, #1E3A8A, #2563EB);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: var(--text-xs);
+  letter-spacing: -0.5px;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.4);
+}
+
+.brand-title-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.brand-sub {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  letter-spacing: 0.2px;
+}
+
+.header-divider {
+  width: 1px;
+  height: 20px;
+  background-color: var(--border-default);
+}
+
+.header-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.breadcrumb-item {
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.breadcrumb-item:hover {
+  color: var(--text-primary);
+}
+
+.breadcrumb-sep {
+  color: var(--text-tertiary);
+}
+
+.breadcrumb-current {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Header Center (Quick Search) */
+.header-center {
+  flex: 1;
+  max-width: 440px;
+  margin: 0 var(--spacing-6);
+}
+
+.quick-search-box {
+  position: relative;
+  width: 100%;
+}
+
+.quick-search-input {
+  width: 100%;
+  height: 32px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 0 var(--spacing-3) 0 32px;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  outline: none;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.quick-search-input:focus {
+  border-color: var(--accent-primary);
+  background-color: var(--bg-tertiary);
+}
+
+.quick-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  pointer-events: none;
+  font-size: 13px;
+}
+
+/* Header Right (Officer HUD) */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.sync-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.sync-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--status-verified);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+
+.sync-status-badge.offline .sync-status-dot {
+  background-color: var(--risk-mid);
+  box-shadow: 0 0 6px rgba(234, 179, 8, 0.6);
+}
+
+.officer-hud-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  font-size: var(--text-xs);
+}
+
+.officer-id {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.officer-jurisdiction {
+  color: var(--text-tertiary);
+  border-left: 1px solid var(--border-default);
+  padding-left: var(--spacing-2);
+}
+
+.btn-header-action {
+  height: 30px;
+  padding: 0 var(--spacing-3);
+  background-color: var(--accent-subtle);
+  color: var(--accent-primary);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-header-action:hover {
+  background-color: var(--accent-primary);
+  color: #FFFFFF;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   MAIN VIEW CONTAINER
+   ───────────────────────────────────────────────────────────────────────── */
+.main-view-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-6);
+  max-width: 1600px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.view-panel {
+  display: none;
+  animation: fadeIn 150ms ease-out forwards;
+}
+
+.view-panel.active {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   GLOBAL TOAST NOTIFICATIONS
+   ───────────────────────────────────────────────────────────────────────── */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  min-width: 320px;
+  max-width: 440px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-3) var(--spacing-4);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  animation: toastSlideIn 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.toast.toast-success {
+  border-color: var(--status-verified-border);
+  background: linear-gradient(to right, rgba(16, 185, 129, 0.08), var(--bg-secondary));
+}
+
+.toast.toast-warning {
+  border-color: var(--risk-high-border);
+  background: linear-gradient(to right, rgba(245, 158, 11, 0.08), var(--bg-secondary));
+}
+
+.toast.toast-error {
+  border-color: var(--integrity-error-border);
+  background: linear-gradient(to right, rgba(239, 68, 68, 0.08), var(--bg-secondary));
+}
+
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .app-header {
+    padding: 0 var(--spacing-4);
+  }
+  .main-view-container {
+    padding: var(--spacing-4);
+  }
+  .header-center {
+    max-width: 260px;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-center {
+    display: none;
+  }
+  .officer-jurisdiction {
+    display: none;
+  }
+}

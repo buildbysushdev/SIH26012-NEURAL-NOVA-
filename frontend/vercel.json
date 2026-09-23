@@ -1,0 +1,14 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/citizen-portal", "destination": "/citizen-portal/index.html" },
+    { "source": "/citizen-portal/(.*)", "destination": "/citizen-portal/$1" },
+    { "source": "/citizen_portal", "destination": "/citizen-portal/index.html" },
+    { "source": "/citizen_portal/(.*)", "destination": "/citizen-portal/$1" },
+    { "source": "/officer-dashboard", "destination": "/officer-dashboard/index.html" },
+    { "source": "/officer-dashboard/(.*)", "destination": "/officer-dashboard/$1" },
+    { "source": "/login", "destination": "/login/index.html" },
+    { "source": "/login/(.*)", "destination": "/login/$1" }
+  ]
+}
