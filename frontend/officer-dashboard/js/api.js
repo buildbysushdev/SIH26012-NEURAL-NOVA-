@@ -168,6 +168,50 @@ export const ApiClient = {
   },
 
   /**
+   * Saves DISHA physical inspection checklist to backend and Supabase cloud.
+   * @param {string} workId
+   * @param {Object} checklistState
+   * @returns {Promise<Object>}
+   */
+  async saveChecklist(workId, checklistState) {
+    if (!workId) return null;
+    try {
+      const res = await fetch(`${API_BASE_URL}/checklist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          work_id: workId.trim(),
+          ...checklistState,
+        }),
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (err) {
+      console.warn('Checklist cloud sync warning:', err);
+      return null;
+    }
+  },
+
+  /**
+   * Retrieves saved DISHA physical inspection checklist from backend/Supabase.
+   * @param {string} workId
+   * @returns {Promise<Object|null>}
+   */
+  async getChecklist(workId) {
+    if (!workId) return null;
+    try {
+      const params = new URLSearchParams({ work_id: workId.trim() });
+      const res = await fetch(`${API_BASE_URL}/checklist?${params.toString()}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.checklist || null;
+    } catch (err) {
+      console.warn('Checklist cloud fetch warning:', err);
+      return null;
+    }
+  },
+
+  /**
    * Submits an officer on-site field evidence capture.
    * Uses standard FormData for photo file, GPS, timestamp, and SHA-256 seal.
    * @param {FormData} formData

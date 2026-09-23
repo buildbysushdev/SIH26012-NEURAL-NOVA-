@@ -14,6 +14,8 @@ import pandas as pd
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
+import supabase_sync
+
 router = APIRouter(tags=["Officer Feedback"])
 
 FEEDBACK_CSV = Path("officer_feedback.csv")
@@ -184,6 +186,16 @@ def submit_officer_feedback(req: FeedbackRequest):
                     new_score = min(100.0, round(old_score + 5.0, 1))
                     _MAIN_DF_REF.loc[mask, "risk_score"] = new_score
                     updated_score = new_score
+
+    # Sync officer feedback & audit log to Supabase
+    record["new_risk_score"] = updated_score
+    supabase_sync.sync_officer_feedback(record)
+    supabase_sync.sync_audit_log(
+        officer_id=record["officer_id"],
+        action=f"FEEDBACK_{req.verdict.upper()}",
+        work_id=work_id,
+        meta={"notes": req.officer_notes, "new_risk_score": updated_score}
+    )
 
     return {
         "status": "success",

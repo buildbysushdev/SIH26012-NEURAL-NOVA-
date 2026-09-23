@@ -373,7 +373,17 @@ export const DetailView = {
   },
 
   async loadChecklistState(workId) {
-    const saved = await OfficerDB.getChecklist(workId);
+    let saved = await OfficerDB.getChecklist(workId);
+
+    // Also fetch latest statutory state from backend / Supabase cloud
+    try {
+      const cloud = await ApiClient.getChecklist(workId);
+      if (cloud && (cloud.chk_exists || cloud.chk_specs || cloud.chk_duplicate || cloud.chk_citizen || cloud.chk_plaque || cloud.chk_photo || cloud.officer_notes)) {
+        saved = cloud;
+        await OfficerDB.saveChecklist(workId, saved);
+      }
+    } catch (_) {}
+
     const cb1 = document.getElementById('chk-exists');
     const cb2 = document.getElementById('chk-specs');
     const cb3 = document.getElementById('chk-duplicate');
@@ -415,9 +425,16 @@ export const DetailView = {
       chk_plaque: cb5 ? cb5.checked : false,
       chk_photo: cb6 ? cb6.checked : false,
       officer_notes: notes ? notes.value : '',
+      updated_at: new Date().toISOString(),
     };
 
+    // 1. Offline-first local IndexedDB persistence
     await OfficerDB.saveChecklist(this.currentWorkId, state);
+
+    // 2. Cloud synchronization to Supabase via backend API
+    ApiClient.saveChecklist(this.currentWorkId, state).catch(err => {
+      console.warn('Background checklist cloud sync deferred:', err);
+    });
   },
 
   updatePdfButton(workId) {

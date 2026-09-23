@@ -13,6 +13,9 @@ from typing import Optional, List, Dict, Any
 import pandas as pd
 from fastapi import APIRouter, Form, File, UploadFile, HTTPException, Request, status
 
+import hashlib
+import supabase_sync
+
 router = APIRouter(tags=["Citizen Reports"])
 
 # ---------------------------------------------------------------------------
@@ -73,6 +76,7 @@ def _validate_image_bytes(contents: bytes, filename: str) -> str:
     )
 
 import verification_pipeline
+import supabase_sync
 
 UPLOADS_DIR = Path("uploads/citizen_reports")
 REPORTS_CSV = Path("citizen_reports.csv")
@@ -204,6 +208,7 @@ async def submit_citizen_report(
     # Save photo if uploaded — validate real MIME type from magic bytes
     photo_filename = None
     photo_bytes = None
+    photo_url = None
     if photo and photo.filename:
         contents = await photo.read()
         if len(contents) > 0:
@@ -214,6 +219,19 @@ async def submit_citizen_report(
                 f.write(contents)
             photo_filename = unique_name
             photo_bytes = contents
+
+            # Upload to Supabase Storage 'citizen-evidence' bucket
+            mime = "image/png" if safe_ext == ".png" else "image/jpeg"
+            photo_url = supabase_sync.upload_photo_evidence(photo_filename, photo_bytes, mime_type=mime)
+
+            # Record cryptographic SHA-256 seal for chain of custody
+            photo_hash = hashlib.sha256(photo_bytes).hexdigest()
+            supabase_sync.sync_photo_hash(
+                photo_id=photo_filename,
+                work_id=work_id,
+                sha256_hash=photo_hash,
+                source="citizen"
+            )
 
     # Sanitise optional text field to prevent script injection
     clean_category = category.strip()[:100] if category else ""
@@ -294,6 +312,10 @@ async def submit_citizen_report(
     except Exception:
         pass
 
+    # Cloud synchronization to Supabase
+    supabase_sync.sync_citizen_report(new_record, photo_url=photo_url)
+    supabase_sync.sync_verification(verif_row)
+
     # Dynamic risk boost based on AI verification confidence:
     # >= 80: +15.0 (high confidence genuine)
     # 50-79: +8.0  (medium confidence, partial boost)
@@ -331,6 +353,7 @@ async def submit_citizen_report(
         "work_id": work_id,
         "category": clean_category,
         "photo_saved": bool(photo_filename),
+        "photo_url": photo_url,
         "captured_lat": captured_lat,
         "captured_lng": captured_lng,
         "captured_timestamp": captured_timestamp,

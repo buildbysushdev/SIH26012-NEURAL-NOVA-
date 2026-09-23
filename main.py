@@ -33,6 +33,7 @@ import feedback_loop
 import audit_brief
 import location_enricher
 import auth_jwt
+import officer_checklist
 
 from explain_gemini import explain_flagged_project  # noqa: F401 (used by audit_brief)
 
@@ -173,6 +174,7 @@ app.include_router(auth_jwt.router)
 app.include_router(citizen_reports.router)
 app.include_router(feedback_loop.router)
 app.include_router(audit_brief.router)
+app.include_router(officer_checklist.router)
 
 
 # ─────────────────────────────────────────────
