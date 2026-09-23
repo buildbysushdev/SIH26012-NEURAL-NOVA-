@@ -176,14 +176,21 @@ def _call_gemini(system_prompt: str, user_prompt: str, max_output_tokens: int) -
                     contents=full_prompt,
                     config=config,
                 )
+                # Extract text — try the top-level .text shortcut first (new SDK),
+                # then walk candidates[0].content.parts with full null guards.
                 text = None
-                if response.candidates:
-                    for part in response.candidates[0].content.parts:
-                        if hasattr(part, "text") and part.text:
-                            text = part.text.strip()
-                            break
-                if text is None and hasattr(response, "text"):
-                    text = response.text.strip() if response.text else None
+                if hasattr(response, "text") and response.text:
+                    text = response.text.strip()
+                elif response.candidates:
+                    cand = response.candidates[0]
+                    content = getattr(cand, "content", None)
+                    parts   = getattr(content, "parts", None) if content else None
+                    if parts:
+                        for part in parts:
+                            part_text = getattr(part, "text", None)
+                            if part_text:
+                                text = part_text.strip()
+                                break
 
                 # Log token usage
                 try:
