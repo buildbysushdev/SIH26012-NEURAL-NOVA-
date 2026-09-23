@@ -10,7 +10,29 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-_API_KEY: Optional[str] = os.environ.get("GOOGLE_API_KEY")
+def _get_api_key() -> Optional[str]:
+    """Retrieves GOOGLE_API_KEY from os.environ or .env file."""
+    # 1. Check .env file in root
+    env_path = os.path.join(os.path.dirname(__file__), ".env")
+    if os.path.exists(env_path):
+        try:
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("GOOGLE_API_KEY=") and not line.startswith("#"):
+                        val = line.split("=", 1)[1].strip()
+                        if val and not val.startswith("your-"):
+                            return val
+        except Exception:
+            pass
+
+    # 2. Check process environment
+    key = os.environ.get("GOOGLE_API_KEY")
+    if key and not key.startswith("your-"):
+        return key
+    return None
+
+
 _genai = None
 
 
@@ -18,11 +40,12 @@ def _get_client():
     global _genai
     if _genai is not None:
         return _genai
-    if not _API_KEY:
+    api_key = _get_api_key()
+    if not api_key:
         return None
     try:
         import google.generativeai as genai
-        genai.configure(api_key=_API_KEY)
+        genai.configure(api_key=api_key)
         _genai = genai
         return _genai
     except Exception as e:
