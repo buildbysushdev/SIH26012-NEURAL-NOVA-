@@ -15,6 +15,7 @@ from fastapi import APIRouter, Form, File, UploadFile, HTTPException, Request, s
 
 import hashlib
 import supabase_sync
+from explain_gemini import summarize_citizen_report
 
 router = APIRouter(tags=["Citizen Reports"])
 
@@ -94,7 +95,7 @@ UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 CSV_COLUMNS = [
     "report_id", "work_id", "category", "description",
     "photo_filename", "captured_lat", "captured_lng", "captured_timestamp",
-    "timestamp", "status",
+    "timestamp", "status", "ai_summary", "ai_category",
 ]
 
 VERIFICATION_COLUMNS = [
@@ -250,9 +251,26 @@ async def submit_citizen_report(
         "captured_timestamp": captured_timestamp or "",
         "timestamp": timestamp,
         "status": "submitted",
+        "ai_summary": "",    # filled in after Gemini summarizer call below
+        "ai_category": "",   # filled in after Gemini summarizer call below
     }
 
+    # ── Gemini citizen report summarizer ─────────────────────────────────────
+    # Called ONCE per report, after save to CSV, BEFORE risk boost.
+    # This is explanation-layer only — never modifies any risk score.
+    # Falls back gracefully if Gemini is unavailable.
+    try:
+        ai_summary_result = summarize_citizen_report(clean_desc)
+        ai_summary   = ai_summary_result.get("summary", "")
+        ai_category  = ai_summary_result.get("category", "other")
+    except Exception as _se:
+        ai_summary  = ""
+        ai_category = "other"
+    # ─────────────────────────────────────────────────────────────────────────
+
     # Append to citizen_reports.csv
+    new_record["ai_summary"]  = ai_summary
+    new_record["ai_category"] = ai_category
     rep_df = pd.DataFrame([new_record], columns=CSV_COLUMNS)
     rep_df.to_csv(REPORTS_CSV, mode="a", header=not REPORTS_CSV.exists(), index=False)
 
@@ -358,6 +376,10 @@ async def submit_citizen_report(
         "captured_lng": captured_lng,
         "captured_timestamp": captured_timestamp,
         "new_risk_score": updated_risk_score,
+        # ── Gemini-generated plain-English summary (explanation layer only) ──
+        "ai_summary": ai_summary,
+        "ai_category": ai_category,
+        # ─────────────────────────────────────────────────────────────────────
         "verification": {
             "confidence_score": verif_result.get("confidence_score"),
             "ai_recommendation": verif_result.get("ai_recommendation"),
