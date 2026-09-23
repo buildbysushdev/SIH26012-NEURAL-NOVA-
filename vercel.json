@@ -1,0 +1,17 @@
+{
+  "framework": null,
+  "buildCommand": null,
+  "outputDirectory": "./",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/", "destination": "/frontend/login/index.html" },
+    { "source": "/login", "destination": "/frontend/login/index.html" },
+    { "source": "/citizen", "destination": "/frontend/citizen-portal/index.html" },
+    { "source": "/officer", "destination": "/frontend/officer-dashboard/index.html" },
+    { "source": "/citizen-portal/(.*)", "destination": "/frontend/citizen-portal/$1" },
+    { "source": "/citizen-portal", "destination": "/frontend/citizen-portal/index.html" },
+    { "source": "/officer-dashboard/(.*)", "destination": "/frontend/officer-dashboard/$1" },
+    { "source": "/officer-dashboard", "destination": "/frontend/officer-dashboard/index.html" },
+    { "source": "/login/(.*)", "destination": "/frontend/login/$1" }
+  ]
+}

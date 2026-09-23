@@ -1,0 +1,28 @@
+# Python / ML artifacts
+__pycache__/
+*.pyc
+*.py
+*.csv
+*.pth
+*.pt
+*.onnx
+
+# SegFormer training data & cache
+landcover_segformer/
+dataset 1/
+uploads/
+
+# Virtual environments
+venv/
+.venv/
+backend/.venv/
+
+# Environment files with secrets
+.env
+.env.example
+
+# Git & misc
+.git/
+*.log
+*.pdf
+*.png
