@@ -250,14 +250,29 @@ def _call_gemini(system_prompt: str, user_prompt: str, max_output_tokens: int) -
 def _parse_json_response(text: str, required_keys: list) -> Optional[dict]:
     """
     Attempts to parse Gemini's text response as JSON.
-    Handles markdown code fences (```json ... ```) that some models add.
+    Handles several common model formatting quirks:
+      - Markdown code fences (```json ... ``` or bare ``` ... ```)
+      - JSON embedded in surrounding prose (extracts first {...} block)
+      - Truncated JSON (partial strings) — returns None so fallback kicks in
     Returns the dict if all required_keys are present, else None.
     """
     if not text:
         return None
-    # Strip markdown code fences if present
+
+    # Step 1: strip any markdown code fences (```json, ```JSON, or bare ```)
     cleaned = re.sub(r"^```(?:json)?\s*", "", text.strip(), flags=re.IGNORECASE)
     cleaned = re.sub(r"\s*```$", "", cleaned.strip())
+
+    # Step 2: if after stripping fences there's still no JSON object, try to
+    # extract the first {...} block from the string (handles prose wrapping)
+    if not cleaned.lstrip().startswith("{"):
+        match = re.search(r"(\{.*\})", cleaned, flags=re.DOTALL)
+        if match:
+            cleaned = match.group(1)
+        else:
+            logger.warning(f"Gemini response has no JSON object. Raw: {text[:120]}")
+            return None
+
     try:
         obj = json.loads(cleaned)
         if all(k in obj for k in required_keys):
@@ -378,8 +393,9 @@ def explain_flagged_project(project: dict, language: str = "English") -> str:
         f"Language: {language}"
     )
 
-    # ── Call Gemini (max 150 tokens — we only need 1-2 sentences) ──
-    raw_text = _call_gemini(_SYSTEM_FLAG_EXPLANATION, user_prompt, max_output_tokens=150)
+    # ── Call Gemini (max 250 tokens — JSON object needs headroom for signals list) ──
+    # 150 was too tight: the model started generating and got cut off mid-string.
+    raw_text = _call_gemini(_SYSTEM_FLAG_EXPLANATION, user_prompt, max_output_tokens=250)
 
     result_text = None
     if raw_text:
