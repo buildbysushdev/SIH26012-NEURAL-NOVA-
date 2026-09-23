@@ -176,7 +176,7 @@ allow_creds = "*" not in allow_origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allow_origins,
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origin_regex=r"https://.*\.vercel\.app|https://.*\.loca\.lt|https://.*\.trycloudflare\.com",
     allow_credentials=allow_creds,
     allow_methods=["*"],
     allow_headers=["*"],

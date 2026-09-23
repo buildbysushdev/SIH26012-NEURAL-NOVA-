@@ -14,13 +14,32 @@
 
 import { queueReport, getAllQueued, deleteQueued, pendingCount } from './db.js';
 
+// Auto-bypass tunnel reminder screen on tunnel requests
+if (typeof window !== 'undefined' && window.fetch) {
+  const _origFetch = window.fetch;
+  window.fetch = function(url, options = {}) {
+    if (typeof url === 'string' && url.includes('loca.lt')) {
+      options = { ...options };
+      options.headers = options.headers || {};
+      if (options.headers instanceof Headers) {
+        options.headers.set('Bypass-Tunnel-Reminder', 'true');
+      } else if (Array.isArray(options.headers)) {
+        options.headers.push(['Bypass-Tunnel-Reminder', 'true']);
+      } else {
+        options.headers['Bypass-Tunnel-Reminder'] = 'true';
+      }
+    }
+    return _origFetch(url, options);
+  };
+}
+
 // ─── Config ──────────────────────────────────────────────────────────────────
 const API_BASE = (typeof window !== 'undefined' && window.API_BASE_URL)
   || (typeof window !== 'undefined' && (localStorage.getItem('MPLADS_API_URL') || localStorage.getItem('mplads_api_url')))
   || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.origin.includes('8080'))
       ? 'http://localhost:8000'
       : (typeof window !== 'undefined' && document.querySelector('meta[name="backend-url"]')?.content)
-        || 'https://mplads-risk-backend.onrender.com');
+        || 'https://mplads-neural-nova-26102.loca.lt');
 
 // ─── State ───────────────────────────────────────────────────────────────────
 let mode           = 'live';   // 'live' | 'demo'
