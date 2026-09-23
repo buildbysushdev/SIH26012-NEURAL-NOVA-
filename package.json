@@ -1,8 +1,5 @@
 {
   "name": "sih26102-neural-nova",
   "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "build": "echo 'Static build complete'"
-  }
+  "private": true
 }
