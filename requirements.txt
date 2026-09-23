@@ -1,0 +1,18 @@
+# ==============================================================================
+# MPLADS Risk Intelligence System — Python Dependencies
+# SIH26102, Team Neural Nova
+# ==============================================================================
+
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.8.0
+pandas>=2.2.0
+numpy>=1.26.0
+scikit-learn>=1.5.0
+sentence-transformers>=3.0.0
+reportlab>=4.2.0
+python-multipart>=0.0.9
+python-dotenv>=1.0.0
+google-generativeai>=0.8.0
+requests>=2.32.0
+httpx>=0.27.0

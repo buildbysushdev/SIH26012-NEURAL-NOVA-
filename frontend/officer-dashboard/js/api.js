@@ -11,9 +11,12 @@
 
 import { OfficerAuth } from './auth.js';
 
-const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? 'http://localhost:8000'
-  : '';
+const API_BASE_URL = (typeof window !== 'undefined' && window.API_BASE_URL)
+  || (typeof window !== 'undefined' && localStorage.getItem('MPLADS_API_URL'))
+  || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? 'http://localhost:8000'
+      : (typeof window !== 'undefined' && document.querySelector('meta[name="backend-url"]')?.content)
+        || 'https://mplads-risk-backend.onrender.com');
 
 function getAuthHeaders() {
   const token = OfficerAuth.getToken();
