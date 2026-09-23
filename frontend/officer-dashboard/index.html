@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MPLADS Officer Verification Dashboard | Team Neural Nova</title>
+  
+  <!-- Inter font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <!-- App Stylesheets -->
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/field-capture.css">
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0D1322">
+</head>
+<body>
+  <div class="app-container">
+
+    <!-- ─────────────────────────────────────────────────────────────────
+         TOP NAVIGATION HEADER
+         ───────────────────────────────────────────────────────────────── -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="brand-badge" id="nav-brand-home" title="Return to Worklist">
+          <div class="brand-emblem">NN</div>
+          <div class="brand-title-wrap">
+            <span class="brand-title">MPLADS Risk Intelligence</span>
+            <span class="brand-sub">SIH26102 &bull; VIGILANCE DISPATCH</span>
+          </div>
+        </div>
+
+        <div class="header-divider"></div>
+
+        <nav class="header-breadcrumbs">
+          <span class="breadcrumb-item" id="breadcrumb-worklist">Prioritized Worklist</span>
+          <span id="breadcrumb-detail-wrap" style="display: none; align-items: center; gap: var(--spacing-2);">
+            <span class="breadcrumb-sep">/</span>
+            <span class="breadcrumb-current" id="breadcrumb-detail-id">Case Detail</span>
+          </span>
+        </nav>
+      </div>
+
+      <!-- Quick Project Search -->
+      <div class="header-center">
+        <div class="quick-search-box">
+          <span class="quick-search-icon">🔍</span>
+          <input type="text" id="quick-search-input" class="quick-search-input" placeholder="Quick search across 77K works (ID, district, keyword)..." autocomplete="off">
+        </div>
+      </div>
+
+      <div class="header-right">
+        <!-- Live / Offline Sync Badge -->
+        <div class="sync-status-badge" id="sync-status-badge" title="Network status & background sync">
+          <span class="sync-status-dot"></span>
+          <span id="sync-status-label">Live Connected</span>
+        </div>
+
+        <!-- Officer Session Badge -->
+        <div class="officer-hud-badge">
+          <span class="officer-id">AUDITOR-VIGILANCE-01</span>
+          <span class="officer-jurisdiction">ALL DISTRICTS</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ─────────────────────────────────────────────────────────────────
+         MAIN CONTENT AREA
+         ───────────────────────────────────────────────────────────────── -->
+    <main class="main-view-container">
+
+      <!-- ===============================================================
+           SCREEN 1: PRIORITIZED WORKLIST (LANDING VIEW)
+           =============================================================== -->
+      <section id="view-worklist" class="view-panel active">
+        
+        <!-- Metrics Summary Strip -->
+        <div class="metrics-strip">
+          <div class="metric-card">
+            <span class="metric-label">Flagged Priority Works</span>
+            <div class="metric-value-row">
+              <span class="metric-value" id="metric-total-flagged">0</span>
+              <span class="metric-caption">Cost outlier pool</span>
+            </div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Priority Attention (>70)</span>
+            <div class="metric-value-row">
+              <span class="metric-value" id="metric-high-priority" style="color: var(--risk-high);">0</span>
+              <span class="metric-caption">Require DISHA site visit</span>
+            </div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Moderate Attention (40-70)</span>
+            <div class="metric-value-row">
+              <span class="metric-value" id="metric-moderate" style="color: var(--risk-mid);">0</span>
+              <span class="metric-caption">Desktop document audit</span>
+            </div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Mean Corpus Risk Score</span>
+            <div class="metric-value-row">
+              <span class="metric-value" id="metric-avg-score">0.0</span>
+              <span class="metric-caption">Unsupervised composite</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter Controls Bar -->
+        <div class="filter-bar">
+          <div class="filter-group">
+            <label for="filter-district" class="filter-label">Jurisdiction</label>
+            <select id="filter-district" class="filter-select">
+              <option value="">All Jurisdictions / Districts</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="filter-risk-tier" class="filter-label">Risk Tier</label>
+            <select id="filter-risk-tier" class="filter-select">
+              <option value="ALL">All Risk Tiers</option>
+              <option value="HIGH">Elevated Attention (&gt; 70)</option>
+              <option value="MID">Moderate Attention (40 - 70)</option>
+              <option value="LOW">Standard Review (&lt; 40)</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="filter-status" class="filter-label">Status</label>
+            <select id="filter-status" class="filter-select">
+              <option value="ALL">All Determination Statuses</option>
+              <option value="UNREVIEWED">Unreviewed</option>
+              <option value="CONFIRMED_ISSUE">Confirmed Issue (+5 pts)</option>
+              <option value="FALSE_POSITIVE">Verified / Normal (-25 pts)</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="filter-precision" class="filter-label">Location Precision</label>
+            <select id="filter-precision" class="filter-select">
+              <option value="ALL">All Precision Tiers</option>
+              <option value="PRECISE">🎯 Precise (Per-Project GPS)</option>
+              <option value="LOCALITY">📍 Locality (2km Tolerance)</option>
+              <option value="DISTRICT">🏛️ District Centroid</option>
+              <option value="UNAVAILABLE">❓ Unavailable</option>
+            </select>
+          </div>
+
+          <button id="btn-reset-filters" class="btn-filter-reset">Reset Filters</button>
+
+          <span class="filter-count-badge" id="filter-counter-badge">Showing 0 of 0 works</span>
+        </div>
+
+        <!-- Dense Data Table -->
+        <div class="table-wrapper">
+          <table class="dense-table">
+            <thead>
+              <tr>
+                <th style="width: 220px;">Work ID</th>
+                <th style="width: 150px;">District</th>
+                <th style="width: 160px;">Constituency</th>
+                <th style="width: 100px;">Risk Score</th>
+                <th>Top Flag Reason</th>
+                <th style="width: 150px;">Location Precision</th>
+                <th style="width: 140px;">Status</th>
+              </tr>
+            </thead>
+            <tbody id="worklist-tbody">
+              <!-- Populated dynamically via worklist.js -->
+            </tbody>
+          </table>
+        </div>
+
+      </section>
+
+      <!-- ===============================================================
+           SCREEN 2: PROJECT DETAIL & VERIFICATION SCREEN (CORE SCREEN)
+           =============================================================== -->
+      <section id="view-detail" class="view-panel">
+        
+        <!-- Dossier Top Header Panel -->
+        <div class="dossier-header-panel">
+          <div class="dossier-top-row">
+            <div class="dossier-title-area">
+              <div class="dossier-id-row">
+                <span class="dossier-work-id" id="dossier-work-id">WS/MP...</span>
+                <button class="btn-copy-id" id="btn-copy-work-id">Copy ID</button>
+                <span class="risk-score-badge high" id="dossier-risk-score-badge">0.0 / 100</span>
+                <span class="badge-status unreviewed" id="dossier-status-badge">Unreviewed Case</span>
+              </div>
+              <div class="dossier-sub-info" id="dossier-sub-info">
+                <!-- Administrative summary tags -->
+              </div>
+            </div>
+
+            <div class="dossier-actions">
+              <a href="#" id="btn-download-audit-brief" class="btn-audit-brief-pdf" target="_blank">
+                📄 Download Audit Brief PDF
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2-Column Responsive Dossier Grid -->
+        <div class="dossier-grid">
+          
+          <!-- LEFT COLUMN: Admin Info, 4-Signal Matrix, Explanation, Location -->
+          <div style="display: flex; flex-direction: column; gap: var(--spacing-5);">
+            
+            <!-- Administrative Metadata Panel -->
+            <div class="panel-card">
+              <div class="panel-title-row">
+                <span class="panel-title">📋 Scheme Administrative Profile</span>
+                <span style="font-size: var(--text-xs); color: var(--text-tertiary); font-family: var(--font-mono);">SANCTION BOOK</span>
+              </div>
+              <div class="admin-kv-grid">
+                <div class="kv-item full-width">
+                  <span class="kv-label">Sanctioned Work Description</span>
+                  <span class="kv-value" id="kv-desc" style="line-height: 1.4;">–</span>
+                </div>
+                <div class="kv-item">
+                  <span class="kv-label">Sanction Amount</span>
+                  <span class="kv-value highlight-amount" id="kv-sanction-amount">₹0</span>
+                </div>
+                <div class="kv-item">
+                  <span class="kv-label">Disbursed Expenditure</span>
+                  <span class="kv-value highlight-amount" id="kv-disbursed-amount">₹0</span>
+                </div>
+                <div class="kv-item">
+                  <span class="kv-label">Disbursement vs Sanction Ratio</span>
+                  <span class="kv-value" id="kv-ratio">0%</span>
+                </div>
+                <div class="kv-item">
+                  <span class="kv-label">Sanction Date</span>
+                  <span class="kv-value" id="kv-sanction-date">–</span>
+                </div>
+                <div class="kv-item">
+                  <span class="kv-label">Completion / Latest Date</span>
+                  <span class="kv-value" id="kv-completion-date">–</span>
+                </div>
+                <div class="kv-item">
+                  <span class="kv-label">Implementing District Agency (IDA)</span>
+                  <span class="kv-value" id="kv-ida">–</span>
+                </div>
+                <div class="kv-item">
+                  <span class="kv-label">Vendor / Contractor Name</span>
+                  <span class="kv-value" id="kv-vendor">–</span>
+                </div>
+                <div class="kv-item">
+                  <span class="kv-label">Reported Physical Status</span>
+                  <span class="kv-value" id="kv-work-status">–</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4-Signal Algorithmic Fusion Matrix -->
+            <div class="panel-card">
+              <div class="panel-title-row">
+                <span class="panel-title">⚡ 4-Signal Algorithmic Fusion Matrix</span>
+                <span style="font-size: var(--text-xs); color: var(--text-tertiary); font-family: var(--font-mono);">EXPLAINABLE ML</span>
+              </div>
+              
+              <div class="signals-matrix-grid">
+                <!-- 1. Cost Anomaly -->
+                <div class="signal-card">
+                  <div class="signal-header">
+                    <span class="signal-name">1. Cost Anomaly</span>
+                    <span class="signal-score" id="signal-cost-score">0.0 pts</span>
+                  </div>
+                  <div class="signal-desc" id="signal-cost-desc">
+                    Isolation Forest outlier check against category mean.
+                  </div>
+                </div>
+
+                <!-- 2. NLP Duplicate Match -->
+                <div class="signal-card">
+                  <div class="signal-header">
+                    <span class="signal-name">2. NLP Duplicate</span>
+                    <span class="signal-score" id="signal-nlp-score">0.0 pts</span>
+                  </div>
+                  <div class="signal-desc" id="signal-nlp-desc">
+                    Sentence-BERT similarity score across descriptions.
+                  </div>
+                </div>
+
+                <!-- 3. Satellite Structure Status -->
+                <div class="signal-card">
+                  <div class="signal-header">
+                    <span class="signal-name">3. Satellite Verify</span>
+                    <span class="signal-score" id="signal-sat-score">–</span>
+                  </div>
+                  <div class="signal-desc" id="signal-sat-desc">
+                    SegFormer structure detection over Sentinel-2 imagery.
+                  </div>
+                </div>
+
+                <!-- 4. Citizen Intelligence -->
+                <div class="signal-card">
+                  <div class="signal-header">
+                    <span class="signal-name">4. Citizen Reports</span>
+                    <span class="signal-score" id="signal-citizen-score">0 Reports</span>
+                  </div>
+                  <div class="signal-desc" id="signal-citizen-desc">
+                    Field grievances logged with photographic proof.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Gemini Plain-Language Synthesis -->
+              <div style="background-color: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: var(--spacing-3);">
+                <div style="font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 4px;">
+                  🤖 Supervisory Vigilance Brief (Plain Language Synthesis)
+                </div>
+                <div id="project-plain-explanation" style="font-size: var(--text-xs); color: var(--text-secondary); line-height: 1.45;">
+                  Synthesizing audit notes...
+                </div>
+              </div>
+            </div>
+
+            <!-- Geographic Precision & Leaflet Map Panel -->
+            <div class="panel-card">
+              <div class="panel-title-row">
+                <span class="panel-title">📍 Asset Geolocation & Precision Tolerance</span>
+                <span id="location-coords-badge" style="font-size: var(--text-xs); font-family: var(--font-mono); color: var(--accent-primary);">0.0000°N, 0.0000°E</span>
+              </div>
+
+              <!-- Explicit Precision Banner (Never hide precision tier!) -->
+              <div class="map-precision-alert" id="location-precision-banner">
+                <!-- Populated dynamically via detail.js -->
+              </div>
+
+              <!-- Leaflet Map Container -->
+              <div id="project-leaflet-map" class="map-container-box"></div>
+            </div>
+
+          </div>
+
+          <!-- RIGHT COLUMN: Evidence Panel, DISHA Checklist, Action Bar -->
+          <div style="display: flex; flex-direction: column; gap: var(--spacing-5);">
+            
+            <!-- Evidence & Chain of Custody Panel -->
+            <div class="panel-card">
+              <div class="panel-title-row">
+                <span class="panel-title">📸 Field Photographic Evidence & Chain of Custody</span>
+                <span style="font-size: var(--text-xs); color: var(--text-tertiary); font-family: var(--font-mono);">SHA-256 SEALED</span>
+              </div>
+
+              <div class="evidence-gallery" id="evidence-gallery-container">
+                <!-- Populated dynamically via detail.js -->
+              </div>
+            </div>
+
+            <!-- Statutory DISHA Physical Verification Checklist -->
+            <div class="panel-card">
+              <div class="panel-title-row">
+                <span class="panel-title">✅ Mandatory DISHA Physical Inspection Checklist</span>
+                <span style="font-size: var(--text-xs); color: var(--text-tertiary); font-family: var(--font-mono);">STATUTORY PROTOCOL</span>
+              </div>
+
+              <div class="disha-checklist-wrap">
+                <label class="checklist-item">
+                  <input type="checkbox" id="chk-exists">
+                  <div class="checklist-text-area">
+                    <span class="checklist-title">1. Physical Existence at Declared Coordinates</span>
+                    <span class="checklist-subtitle">Verify asset/civil work exists on ground within verified tolerance perimeter.</span>
+                  </div>
+                </label>
+
+                <label class="checklist-item">
+                  <input type="checkbox" id="chk-specs">
+                  <div class="checklist-text-area">
+                    <span class="checklist-title">2. Technical BOQ Specifications</span>
+                    <span class="checklist-subtitle">Physical dimensions, material quality, and quantities match approved sanction estimates.</span>
+                  </div>
+                </label>
+
+                <label class="checklist-item">
+                  <input type="checkbox" id="chk-duplicate">
+                  <div class="checklist-text-area">
+                    <span class="checklist-title">3. Non-Duplication Confirmation</span>
+                    <span class="checklist-subtitle">Verify asset is not simultaneously billed under state or other central schemes.</span>
+                  </div>
+                </label>
+
+                <label class="checklist-item">
+                  <input type="checkbox" id="chk-citizen">
+                  <div class="checklist-text-area">
+                    <span class="checklist-title">4. Citizen Grievance In-Person Inquiry</span>
+                    <span class="checklist-subtitle">Interview local beneficiaries/residents to verify functional utility.</span>
+                  </div>
+                </label>
+
+                <label class="checklist-item">
+                  <input type="checkbox" id="chk-plaque">
+                  <div class="checklist-text-area">
+                    <span class="checklist-title">5. Official Scheme Inscription Plaque</span>
+                    <span class="checklist-subtitle">Permanent stone plaque installed bearing Hon'ble MP name, sanction amount, & MPLADS logo.</span>
+                  </div>
+                </label>
+
+                <label class="checklist-item">
+                  <input type="checkbox" id="chk-photo">
+                  <div class="checklist-text-area">
+                    <span class="checklist-title">6. Geo-Tagged Photographic Proof</span>
+                    <span class="checklist-subtitle">High-resolution on-site photographs captured with cryptographic hash lock.</span>
+                  </div>
+                </label>
+              </div>
+
+              <!-- Officer Inspection Notes -->
+              <div>
+                <label for="officer-notes-input" style="display: block; font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 6px;">
+                  Auditor Field Findings & Justification Rationale:
+                </label>
+                <textarea id="officer-notes-input" class="officer-notes-box" placeholder="Enter inspection notes, physical condition remarks, or committee justification..."></textarea>
+              </div>
+            </div>
+
+            <!-- Officer Action Panel & Dynamic Feedback Loop -->
+            <div class="officer-action-panel">
+              <div style="font-size: var(--text-xs); font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">
+                Officer Audit Determination & Scoring Action:
+              </div>
+
+              <div class="action-buttons-row">
+                <button class="btn-officer-action btn-confirm-issue" id="btn-action-confirm-issue" title="Affirm finding (+5 score adjustment)">
+                  ⚠️ Confirm Issue (+5 pts)
+                </button>
+                <button class="btn-officer-action btn-false-positive" id="btn-action-false-positive" title="Dampen false alarm (-25 score adjustment)">
+                  ✓ Mark False Positive (-25 pts)
+                </button>
+              </div>
+
+              <button class="btn-officer-action btn-field-capture-trigger" id="btn-action-field-capture" title="Open camera to capture geotagged inspection photo">
+                📷 Capture On-Site Field Proof (Camera Only)
+              </button>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- ─────────────────────────────────────────────────────────────────
+         MODAL: OFFICER FIELD EVIDENCE CAPTURE (CAMERA ONLY)
+         ───────────────────────────────────────────────────────────────── -->
+    <div class="modal-backdrop" id="modal-field-capture">
+      <div class="field-capture-modal">
+        <div class="modal-header">
+          <div class="modal-title">
+            <span>📷 On-Site Evidence Capture</span>
+            <span style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-secondary);" id="capture-modal-work-id">WS/...</span>
+          </div>
+          <button class="btn-close-modal" id="btn-close-capture-modal">&times;</button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Shutter Trigger Area (Strictly Camera-Only: capture="environment") -->
+          <div class="capture-box" id="capture-prompt-box">
+            <div class="capture-icon-circle">📸</div>
+            <span class="capture-label-primary">Tap to Trigger Site Camera</span>
+            <span class="capture-label-secondary">Direct hardware shutter &bull; Gallery selection disabled</span>
+            <input type="file" id="camera-capture-input" class="camera-input-hidden" accept="image/*" capture="environment">
+          </div>
+
+          <!-- Captured Photo Preview & In-Flight HUD -->
+          <div class="captured-preview-wrap" id="capture-preview-wrap">
+            <img src="" id="capture-preview-img" class="captured-img" alt="Captured Site Photo">
+            <div class="captured-overlay-hud">
+              <span id="hud-coords-text">GPS: In-flight acquisition</span>
+              <span id="hud-timestamp-text">TIMESTAMP: –</span>
+            </div>
+          </div>
+
+          <!-- Live Geolocation Readout -->
+          <div class="gps-live-readout" id="capture-gps-readout">
+            📍 GPS: Acquiring satellite lock...
+          </div>
+
+          <!-- Cryptographic Hash Seal Strip -->
+          <div class="hash-lock-box">
+            <div class="hash-lock-header">
+              <span class="hash-lock-title">🔒 SHA-256 Chain of Custody Seal</span>
+              <span style="font-size: 10px; color: var(--text-tertiary); font-family: var(--font-mono);">CLIENT-SIDE CRYPTO</span>
+            </div>
+            <div class="hash-digest-text" id="capture-hash-digest">
+              Awaiting camera capture...
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-modal-cancel" id="btn-cancel-capture">Cancel</button>
+          <button class="btn-modal-submit" id="btn-submit-capture" disabled>Confirm & Seal Evidence</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+  </div>
+
+  <!-- Leaflet Map Script -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <!-- Main Application Entrypoint -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

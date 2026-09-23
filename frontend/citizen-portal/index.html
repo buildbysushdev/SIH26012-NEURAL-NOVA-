@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#047857" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="description" content="Report issues with MPLAD Scheme public works anonymously. Your report goes directly to supervisory auditors." />
+
+  <title>MPLAD Citizen Portal — Government of India</title>
+
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+
+<!-- ── Persistent offline-queue banner ── -->
+<div id="pending-banner" role="status" aria-live="polite">
+  ↑ <span id="pending-count">0</span> report(s) pending upload — will send automatically when connected
+</div>
+
+<!-- ── App Shell (max-width 640px) ── -->
+<div id="app-shell">
+
+  <!-- ── Offline Status Banner ── -->
+  <div id="offline-banner" class="offline-banner" role="status" aria-live="polite" style="display:none">
+    <span class="offline-banner-text">You're offline. Showing cached data.</span>
+    <div class="info-btn-wrap">
+      <button
+        type="button"
+        class="btn-info"
+        aria-label="More information about offline mode"
+        data-tooltip="You can still browse previously viewed projects. New reports will be sent when you're back online."
+      >i</button>
+      <div class="info-popover" role="tooltip"></div>
+    </div>
+  </div>
+
+  <!-- Government top bar -->
+  <div class="gov-topbar">
+    <span class="gov-topbar-left">भारत सरकार | Government of India</span>
+    <!-- Live/Demo mode indicator -->
+    <div class="header-mode">
+      <span id="mode-badge" class="mode-badge live">● LIVE</span>
+      <button id="mode-toggle-btn" class="mode-toggle-btn" type="button">Switch to Demo</button>
+    </div>
+  </div>
+
+  <!-- Header (shared across all screens) -->
+  <header class="app-header">
+    <button id="back-btn" class="back-btn hidden" aria-label="Go back" type="button">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    </button>
+    <div class="app-header-content">
+      <h1 class="app-header-title">MPLAD Citizen Portal</h1>
+      <p class="app-header-subtitle">Report issues with local development projects</p>
+    </div>
+  </header>
+
+  <!-- ─── SCREEN 1: Project Lookup ─── -->
+  <main id="screen-lookup" class="screen active" role="main">
+    <div class="search-section">
+      <div class="search-label-row">
+        <label for="search-input" class="search-instruction-label">Search by city, district, or constituency</label>
+        <div class="info-btn-wrap">
+          <button
+            type="button"
+            class="btn-info"
+            aria-label="Search help"
+            data-tooltip="Search for MPLAD projects in your area. These are development works (roads, schools, water supply) funded by your local MP."
+          >i</button>
+          <div class="info-popover" role="tooltip"></div>
+        </div>
+      </div>
+
+      <div class="search-input-wrap">
+        <input
+          id="search-input"
+          class="search-input"
+          type="search"
+          placeholder="e.g. Pune, Shirur, Mumbai North…"
+          aria-label="Search MPLAD projects"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+        />
+        <button id="search-btn" class="btn-primary-search" type="button">Search</button>
+      </div>
+
+      <!-- Location detection button & chip -->
+      <div class="location-row">
+        <button id="location-btn" class="btn-location-text" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+          Use My Location
+        </button>
+        <div id="location-chip" class="location-chip" style="display:none">
+          <span id="location-text"></span>
+        </div>
+      </div>
+
+      <!-- Server status notice -->
+      <div id="server-status" class="server-status" style="display:none"></div>
+    </div>
+
+    <!-- View Toggle bar (List | Map) -->
+    <div id="view-toggle-bar" class="view-toggle-bar" style="display:none">
+      <div class="view-toggle-buttons">
+        <button id="btn-view-list" class="btn-view-toggle active" type="button">List</button>
+        <button id="btn-view-map" class="btn-view-toggle" type="button">Map</button>
+      </div>
+      <div class="info-btn-wrap">
+        <button
+          type="button"
+          class="btn-info"
+          aria-label="Map view help"
+          data-tooltip="Map view shows project locations. Red pins indicate higher risk scores. Tap any pin to see details and report issues."
+        >i</button>
+        <div class="info-popover" role="tooltip"></div>
+      </div>
+    </div>
+
+    <!-- Results count line -->
+    <div id="result-count" class="result-count-bar" aria-live="polite"></div>
+
+    <!-- Map view container -->
+    <div id="map-view-wrap" class="map-view-wrap" style="display:none">
+      <div id="map-loading" class="loading-text" style="display:none">Loading map…</div>
+      <div id="map-container" class="map-container"></div>
+    </div>
+
+    <!-- Results list container -->
+    <div id="results-list" class="results-list" role="list">
+      <div class="state-message-box">
+        <div class="state-title">Search for a Project</div>
+        <div class="state-subtitle">Enter your city, district, or constituency name to inspect MPLAD works.</div>
+        <div class="quick-city-links">
+          <button type="button" class="city-link-btn" data-city="Mumbai">Mumbai</button>
+          <button type="button" class="city-link-btn" data-city="Delhi">Delhi</button>
+          <button type="button" class="city-link-btn" data-city="Pune">Pune</button>
+          <button type="button" class="city-link-btn" data-city="Bengaluru">Bengaluru</button>
+          <button type="button" class="city-link-btn" data-city="Kolkata">Kolkata</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ─── SCREEN 2: Report Form ─── -->
+  <section id="screen-report" class="screen" aria-label="Report submission form">
+    <div class="screen-heading-row">
+      <h2 class="screen-title">Report an Issue</h2>
+      <div class="info-btn-wrap">
+        <button
+          type="button"
+          class="btn-info"
+          aria-label="Report form help"
+          data-tooltip="Your report will be reviewed by a district officer. All reports are anonymous — your identity is never shared."
+        >i</button>
+        <div class="info-popover" role="tooltip"></div>
+      </div>
+    </div>
+
+    <!-- Project context (populated by JS) -->
+    <div class="project-context-card">
+      <div class="ctx-label">Selected Project</div>
+      <div id="ctx-name" class="ctx-name">–</div>
+      <div id="ctx-meta" class="ctx-meta">–</div>
+    </div>
+
+    <!-- Issue category -->
+    <div class="form-group">
+      <div class="field-label-row">
+        <label class="field-label" for="category">
+          Issue Category <span class="required-mark" aria-hidden="true">*</span>
+        </label>
+      </div>
+      <p class="field-helper">Select the category that best describes the issue observed.</p>
+      <select id="category" name="category" class="form-select" required aria-required="true">
+        <option value="" disabled selected>Select a category…</option>
+        <option value="infrastructure_quality">Infrastructure Quality / Poor Workmanship</option>
+        <option value="works_not_started">Works Not Started / Stalled Project</option>
+        <option value="funds_misuse">Funds Misuse / Inflated Cost</option>
+        <option value="duplicate_ghost">Duplicate or Ghost Project</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+
+    <!-- Description -->
+    <div class="form-group">
+      <div class="field-label-row">
+        <label class="field-label" for="description">
+          Description <span class="required-mark" aria-hidden="true">*</span>
+        </label>
+      </div>
+      <p class="field-helper">Minimum 20 characters. Include visible signs, dates, or specific location details for auditors.</p>
+      <textarea
+        id="description"
+        name="description"
+        class="form-textarea"
+        rows="4"
+        maxlength="500"
+        placeholder="Describe the issue observed in detail…"
+        required
+        aria-required="true"
+        aria-describedby="char-count"
+      ></textarea>
+      <div class="char-count-wrap">
+        <span id="char-count" aria-live="polite">0 / 500</span>
+      </div>
+    </div>
+
+    <!-- ─── PHOTO CAPTURE FLOW (3-Step Security Process) ─── -->
+    <div class="form-group photo-security-section">
+      <div class="field-label-row">
+        <label class="field-label">
+          Site Evidence Photo <span style="font-weight:400;color:var(--color-text-subtle)">(optional)</span>
+        </label>
+      </div>
+
+      <!-- Photo error callout -->
+      <div id="photo-error" class="callout-box callout-error" role="alert" style="display:none"></div>
+
+      <!-- STEP 1: Before Photo Capture (Education) -->
+      <div id="photo-step-1" class="photo-step-card active">
+        <div class="photo-step-header">
+          <h3 class="photo-step-title">How We Prevent Fake Reports</h3>
+          <div class="info-btn-wrap">
+            <button
+              type="button"
+              class="btn-info"
+              aria-label="More information about anti-tampering measures"
+              data-tooltip="We use these security measures to ensure reports are genuine and can be verified by government officers."
+            >i</button>
+            <div class="info-popover" role="tooltip"></div>
+          </div>
+        </div>
+
+        <ul class="photo-security-bullets">
+          <li>Photo must be taken right now (no old photos)</li>
+          <li>Your GPS location is recorded when you tap the camera</li>
+          <li>A security code is created to detect tampering</li>
+        </ul>
+
+        <button id="btn-photo-continue" class="btn-step-continue" type="button">
+          Continue
+        </button>
+      </div>
+
+      <!-- STEP 2: Photo Capture Screen -->
+      <div id="photo-step-2" class="photo-step-card" style="display:none">
+        <!-- Hidden camera input with capture="environment" -->
+        <input
+          id="camera-input"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          style="display:none"
+          tabindex="-1"
+        />
+
+        <button id="camera-trigger" class="btn-open-camera" type="button">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Open Camera
+        </button>
+
+        <div class="photo-capture-commitments">
+          <div class="commitments-title">When you capture the photo, we will:</div>
+          <div class="commitment-item">
+            <span>✓ Record your GPS location</span>
+            <div class="info-btn-wrap">
+              <button
+                type="button"
+                class="btn-info"
+                aria-label="More information about GPS recording"
+                data-tooltip="We record GPS to verify the photo was taken at the project location. Your exact location is only shared with the reviewing officer, not made public."
+              >i</button>
+              <div class="info-popover" role="tooltip"></div>
+            </div>
+          </div>
+          <div class="commitment-item">
+            <span>✓ Save the exact time</span>
+          </div>
+          <div class="commitment-item">
+            <span>✓ Create a security signature</span>
+          </div>
+        </div>
+
+        <button id="btn-photo-back-1" class="btn-text-link" type="button">
+          ← Back to security details
+        </button>
+      </div>
+
+      <!-- STEP 3: After Photo Captured (Confirmation & Evidence Summary) -->
+      <div id="photo-step-3" class="photo-step-card" style="display:none">
+        <div class="photo-step-header">
+          <h3 class="photo-step-title">Verified Evidence</h3>
+        </div>
+
+        <div class="evidence-preview-wrap">
+          <img id="photo-preview" class="evidence-thumbnail" alt="Captured site evidence preview" />
+          
+          <div class="evidence-list">
+            <!-- Location -->
+            <div class="evidence-row">
+              <span class="evidence-label">Location:</span>
+              <span id="evidence-location" class="evidence-value mono">–</span>
+              <div class="info-btn-wrap">
+                <button
+                  type="button"
+                  class="btn-info"
+                  aria-label="More information about GPS accuracy"
+                  data-tooltip="The ± number shows GPS accuracy. Lower is better."
+                >i</button>
+                <div class="info-popover" role="tooltip"></div>
+              </div>
+            </div>
+
+            <!-- Time -->
+            <div class="evidence-row">
+              <span class="evidence-label">Time:</span>
+              <span id="evidence-time" class="evidence-value">–</span>
+            </div>
+
+            <!-- Security Code -->
+            <div class="evidence-row">
+              <span class="evidence-label">Security code:</span>
+              <span id="evidence-hash" class="evidence-value mono">–</span>
+              <div class="info-btn-wrap">
+                <button
+                  type="button"
+                  class="btn-info"
+                  aria-label="More information about security code"
+                  data-tooltip="This code proves the photo wasn't edited after capture."
+                >i</button>
+                <div class="info-popover" role="tooltip"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p class="evidence-assurance">This evidence is secure and cannot be changed.</p>
+
+        <button id="btn-photo-retake" class="btn-text-link" type="button">
+          Retake photo
+        </button>
+      </div>
+    </div>
+
+    <!-- Optional follow-up contact -->
+    <details class="contact-details-box" id="contact-details">
+      <summary>I want to receive updates about this report (optional)</summary>
+      <div class="contact-details-inner">
+        <p class="field-helper">Your report remains anonymous to officers. Mobile numbers are only used for SMS status updates.</p>
+        <input
+          type="tel"
+          id="contact-phone"
+          name="contact_phone"
+          class="contact-input"
+          placeholder="10-digit mobile number"
+          pattern="[0-9]{10}"
+          autocomplete="tel"
+          inputmode="tel"
+        />
+      </div>
+    </details>
+
+    <!-- Privacy notice callout -->
+    <div class="callout-box callout-info" role="note">
+      Your report is anonymous and cannot be traced back to you. No login or personal information is required.
+    </div>
+
+    <!-- Error message callout -->
+    <div id="form-error" class="callout-box callout-error" role="alert" aria-live="assertive"></div>
+
+    <!-- Offline saved notice callout -->
+    <div id="offline-saved-msg" class="callout-box callout-saved" role="status" aria-live="polite">
+      Report saved locally — will be submitted automatically when your device is back online.
+    </div>
+
+    <!-- Submit Button -->
+    <button id="submit-btn" class="btn-submit-main" type="button">Submit Report</button>
+  </section>
+
+  <!-- ─── SCREEN 3: Confirmation ─── -->
+  <section id="screen-confirm" class="screen" aria-label="Submission confirmation">
+    <div class="confirm-box">
+      <h2 class="confirm-heading">Report Submitted</h2>
+
+      <!-- AI Evidence Verification Status Card -->
+      <div id="ai-verification-card" class="verification-card verif-green" style="display:none">
+        <div class="verif-card-header">
+          <div class="verif-title-row">
+            <span id="verif-badge-icon" class="verif-badge-icon">✓</span>
+            <div id="verif-card-title" class="verif-card-title">Report verified and submitted successfully</div>
+          </div>
+          <div class="info-btn-wrap">
+            <button
+              type="button"
+              class="btn-info"
+              aria-label="How AI verification works"
+              data-tooltip="We use AI to cross-check reports against satellite images and project data to prevent spam and prioritize genuine complaints."
+            >i</button>
+            <div class="info-popover" role="tooltip"></div>
+          </div>
+        </div>
+        <p id="verif-card-desc" class="verif-card-desc">
+          Our AI cross-checked your evidence and found it credible. An officer will review it soon.
+        </p>
+        <div id="verif-issues-container" class="verif-issues-list" style="display:none">
+          <div class="verif-issues-heading">Specific items flagged:</div>
+          <ul id="verif-issues-ul"></ul>
+          <div class="verif-issues-helper">If you believe this is an error, please provide more details in a follow-up.</div>
+        </div>
+        <div id="verif-checks-breakdown" class="verif-checks-grid" style="display:none">
+          <div class="verif-chip chip-pass" id="chip-loc"><span class="chip-status">✓</span> Location Checked</div>
+          <div class="verif-chip chip-pass" id="chip-vis"><span class="chip-status">✓</span> Satellite Corroborated</div>
+          <div class="verif-chip chip-pass" id="chip-txt"><span class="chip-status">✓</span> Detailed Text</div>
+          <div class="verif-chip chip-pass" id="chip-dup"><span class="chip-status">✓</span> Unique Submission</div>
+          <div class="verif-chip chip-pass" id="chip-meta"><span class="chip-status">✓</span> Fresh Evidence</div>
+        </div>
+      </div>
+
+      <div class="ref-code-card">
+        <div class="ref-code-label">Reference ID</div>
+        <div id="ref-code" class="ref-code-val">CR-XXXXXXXX</div>
+      </div>
+
+      <p class="confirm-explanation">
+        Your report has been recorded and will be reviewed by <strong>supervisory auditors</strong> as part of the official MPLAD Scheme audit process.<br /><br />
+        This is <strong>not an automatic accusation</strong> — every report is assessed by trained officers before any action is taken. Keep your Reference ID to follow up on the status of your report.
+      </p>
+
+      <div class="confirm-btn-stack">
+        <button id="btn-track-now" class="btn-step-continue" type="button" style="background:#FFFFFF;color:var(--color-primary);border:2px solid var(--color-primary);margin-bottom:8px">
+          📋 Track This Report Now
+        </button>
+        <button id="btn-report-another" class="btn-submit-main" type="button">
+          Report Another Issue
+        </button>
+        <button id="btn-back-search" class="btn-secondary-action" type="button">
+          Back to Project Search
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SCREEN 4: Track Your Report ─── -->
+  <section id="screen-track" class="screen" aria-label="Track your report">
+    <div class="track-header-row">
+      <h2 class="track-heading">Track Your Report</h2>
+      <div class="info-btn-wrap">
+        <button
+          type="button"
+          class="btn-info"
+          aria-label="More information about tracking your report"
+          data-tooltip="After submitting a report, you receive a Reference ID. Enter it here to check the review status."
+        >i</button>
+        <div class="info-popover" role="tooltip"></div>
+      </div>
+    </div>
+
+    <!-- Reference ID input form -->
+    <div class="track-input-card">
+      <label for="track-ref-id" class="field-label">Enter Reference ID</label>
+      <div class="track-input-row">
+        <input
+          id="track-ref-id"
+          type="text"
+          class="input-field mono"
+          placeholder="e.g., CR-69441AF8"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button id="btn-check-status" class="btn-track-check" type="button">
+          Check Status
+        </button>
+      </div>
+      <div class="field-helper">You received this ID when you submitted your report</div>
+    </div>
+
+    <!-- Error message callout -->
+    <div id="track-error" class="callout-box callout-error" role="alert" style="display:none"></div>
+
+    <!-- Empty state / example card (shown before searching) -->
+    <div id="track-empty-state" class="track-empty-card">
+      <div class="empty-state-title">Don't have a Reference ID?</div>
+      <p class="empty-state-desc">
+        Submit a report first from the <strong>Search Projects</strong> tab. Once submitted, you will receive a unique Reference ID to track here.
+      </p>
+      <div class="example-id-box">
+        <span class="example-label">Example Reference ID:</span>
+        <button type="button" id="btn-example-id" class="btn-example-id">CR-69441AF8</button>
+      </div>
+      <div id="recent-id-banner" class="recent-id-banner" style="display:none">
+        <span>Recently submitted in this browser:</span>
+        <button type="button" id="btn-recent-id" class="btn-example-id"></button>
+      </div>
+    </div>
+
+    <!-- Tracking Results Container (shown after search) -->
+    <div id="track-result-container" style="display:none">
+      
+      <!-- 4-Step Vertical Timeline -->
+      <div class="track-card">
+        <h3 class="track-section-title">Review Status</h3>
+        
+        <div class="track-timeline">
+          
+          <!-- Step 1: Submitted -->
+          <div id="timeline-step-1" class="timeline-step completed">
+            <div class="timeline-marker">
+              <span class="marker-circle">✓</span>
+              <div class="timeline-line"></div>
+            </div>
+            <div class="timeline-content">
+              <div class="step-title">Submitted</div>
+              <div id="step-1-desc" class="step-desc">15 Jun 2024, 2:32 PM IST</div>
+            </div>
+          </div>
+
+          <!-- Step 2: Under Review -->
+          <div id="timeline-step-2" class="timeline-step">
+            <div class="timeline-marker">
+              <span class="marker-circle">2</span>
+              <div class="timeline-line"></div>
+            </div>
+            <div class="timeline-content">
+              <div class="step-title-row">
+                <span class="step-title">Under Review</span>
+                <div class="info-btn-wrap">
+                  <button
+                    type="button"
+                    class="btn-info"
+                    aria-label="More information about review process"
+                    data-tooltip="A district officer reviews all evidence and may conduct a physical inspection."
+                  >i</button>
+                  <div class="info-popover" role="tooltip"></div>
+                </div>
+              </div>
+              <div id="step-2-desc" class="step-desc">Waiting for assignment</div>
+            </div>
+          </div>
+
+          <!-- Step 3: Verified -->
+          <div id="timeline-step-3" class="timeline-step">
+            <div class="timeline-marker">
+              <span class="marker-circle">3</span>
+              <div class="timeline-line"></div>
+            </div>
+            <div class="timeline-content">
+              <div class="step-title">Verified</div>
+              <div id="step-3-desc" class="step-desc">Not yet verified</div>
+            </div>
+          </div>
+
+          <!-- Step 4: Action Taken -->
+          <div id="timeline-step-4" class="timeline-step">
+            <div class="timeline-marker">
+              <span class="marker-circle">4</span>
+            </div>
+            <div class="timeline-content">
+              <div class="step-title">Action Taken</div>
+              <div id="step-4-desc" class="step-desc">No action taken yet</div>
+            </div>
+          </div>
+
+        </div><!-- /.track-timeline -->
+      </div><!-- /.track-card -->
+
+      <!-- Report Details Card -->
+      <div class="track-card">
+        <div class="card-header-with-info">
+          <h3 class="track-section-title">Your Report Details</h3>
+          <div class="info-btn-wrap">
+            <button
+              type="button"
+              class="btn-info"
+              aria-label="More information about submitted details"
+              data-tooltip="This is what you submitted. Officers see the full report including GPS and security code."
+            >i</button>
+            <div class="info-popover" role="tooltip"></div>
+          </div>
+        </div>
+
+        <div class="track-details-body">
+          <div class="details-row">
+            <span class="detail-label">Project:</span>
+            <span id="track-detail-project" class="detail-val">–</span>
+          </div>
+          <div class="details-row">
+            <span class="detail-label">Issue Type:</span>
+            <span id="track-detail-category" class="detail-val">–</span>
+          </div>
+          <div class="details-row">
+            <span class="detail-label">Description:</span>
+            <span id="track-detail-desc" class="detail-val">–</span>
+          </div>
+          <div id="track-detail-photo-row" class="details-row" style="display:none">
+            <span class="detail-label">Evidence Photo:</span>
+            <div class="detail-val">
+              <img id="track-detail-photo" class="track-photo-thumbnail" alt="Submitted site photo" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Officer's Response Card (shown if officer notes exist) -->
+      <div id="officer-update-card" class="track-card officer-card" style="display:none">
+        <div class="card-header-with-info">
+          <h3 class="track-section-title">Officer's Update</h3>
+          <div class="info-btn-wrap">
+            <button
+              type="button"
+              class="btn-info"
+              aria-label="More information about officer update"
+              data-tooltip="Officers may add notes during their review. Check back later for updates."
+            >i</button>
+            <div class="info-popover" role="tooltip"></div>
+          </div>
+        </div>
+        <p id="officer-notes-text" class="officer-notes-text"></p>
+        <div id="officer-update-time" class="officer-update-time"></div>
+      </div>
+
+    </div><!-- /#track-result-container -->
+  </section>
+
+  <!-- ─── SCREEN 5: Help & FAQ ─── -->
+  <section id="screen-help" class="screen" aria-label="Citizen help and frequently asked questions">
+    <div class="track-header-row">
+      <h2 class="track-heading">Citizen Help &amp; FAQs</h2>
+      <div class="info-btn-wrap">
+        <button
+          type="button"
+          class="btn-info"
+          aria-label="More information about portal help"
+          data-tooltip="Guidance on reporting issues and tracking their resolution."
+        >i</button>
+        <div class="info-popover" role="tooltip"></div>
+      </div>
+    </div>
+
+    <div class="faq-card">
+      <div class="faq-item">
+        <h4 class="faq-question">What is the MPLAD Citizen Reporting Portal?</h4>
+        <p class="faq-answer">
+          This portal allows citizens to independently verify and report anomalies in local development works funded by the Member of Parliament Local Area Development Scheme (MPLADS). Reports assist supervisory vigilance officers in prioritizing audits.
+        </p>
+      </div>
+
+      <div class="faq-item">
+        <h4 class="faq-question">Is my report anonymous?</h4>
+        <p class="faq-answer">
+          Yes. Reporting is completely anonymous by default. We do not ask for or record your name, phone number, or national ID. Your GPS coordinates are strictly used to verify the photo was taken at the physical project location.
+        </p>
+      </div>
+
+      <div class="faq-item">
+        <h4 class="faq-question">Where do I find my Reference ID?</h4>
+        <p class="faq-answer">
+          Upon submitting a report, an 11-character code (starting with <code>CR-</code>) is displayed on your confirmation screen. You can use this ID on the <strong>Track Report</strong> tab anytime to follow up.
+        </p>
+      </div>
+
+      <div class="faq-item">
+        <h4 class="faq-question">What happens after I submit a report?</h4>
+        <p class="faq-answer">
+          Your report updates the project's risk score and enters the district auditor queue. A vigilance officer reviews the evidence, conducts on-site checks if needed, and issues corrective notices to implementing agencies.
+        </p>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /#app-shell -->
+
+<!-- ─── Install App Banner (Minimal) ─── -->
+<div id="install-banner" class="install-banner" role="region" aria-label="App installation" style="display:none">
+  <div class="install-banner-text-group">
+    <span class="install-banner-text">Install this app for offline access</span>
+    <div class="info-btn-wrap">
+      <button
+        type="button"
+        class="btn-info"
+        aria-label="More information about app installation"
+        data-tooltip="Installing lets you use this portal without opening a browser, and works offline."
+      >i</button>
+      <div class="info-popover" role="tooltip"></div>
+    </div>
+  </div>
+  <div class="install-banner-actions">
+    <button id="btn-install-app" class="btn-install-app" type="button">Install</button>
+    <button id="btn-dismiss-install" class="btn-dismiss-install" type="button" aria-label="Dismiss installation prompt">✕</button>
+  </div>
+</div>
+
+<!-- ─── Toast Notifications ─── -->
+<div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+<!-- ─── Bottom Navigation Bar ─── -->
+<nav class="bottom-nav" aria-label="Portal navigation">
+  <button type="button" class="bottom-nav-tab active" data-nav="lookup">
+    <span class="nav-icon" aria-hidden="true">🏛</span>
+    <span class="nav-text">Search Projects</span>
+  </button>
+  <button type="button" class="bottom-nav-tab" data-nav="track">
+    <span class="nav-icon" aria-hidden="true">📋</span>
+    <span class="nav-text">Track Report</span>
+  </button>
+  <button type="button" class="bottom-nav-tab" data-nav="help">
+    <span class="nav-icon" aria-hidden="true">❓</span>
+    <span class="nav-text">Help</span>
+  </button>
+</nav>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

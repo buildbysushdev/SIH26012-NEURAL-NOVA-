@@ -357,6 +357,20 @@ def generate_audit_brief_pdf(
     story.append(Spacer(1, 4))
 
     # 5. "What is the Doubt?" Section (Auditor Focus & Red Flags)
+    if isinstance(doubt_data, str):
+        lines = [l.strip().lstrip("0123456789.- ") for l in doubt_data.split("\n") if l.strip()]
+        doubt_data = {
+            "doubts": lines if lines else [doubt_data],
+            "summary": explanation,
+            "auditor_focus": "Perform physical ground survey and verify procurement delivery receipts."
+        }
+    elif not isinstance(doubt_data, dict):
+        doubt_data = {
+            "doubts": [],
+            "summary": explanation,
+            "auditor_focus": "Perform physical ground survey and verify procurement delivery receipts."
+        }
+
     doubt_bullets = doubt_data.get("doubts", [])
     doubt_summary = doubt_data.get("summary", explanation)
     auditor_focus = doubt_data.get("auditor_focus", "Perform physical ground survey and verify procurement delivery receipts.")

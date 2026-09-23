@@ -1,0 +1,747 @@
+/* ==========================================================================
+   OFFICER VERIFICATION DASHBOARD — DENSE CASE MANAGEMENT COMPONENTS
+   Table, Badges, 4-Signal Matrix, Evidence Cards, DISHA Checklist, Actions
+   ========================================================================== */
+
+/* ─────────────────────────────────────────────────────────────────────────
+   METRICS SUMMARY BAR (Worklist Top)
+   ───────────────────────────────────────────────────────────────────────── */
+.metrics-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--spacing-4);
+}
+
+.metric-card {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.metric-label {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.metric-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-2);
+}
+
+.metric-value {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+
+.metric-caption {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   FILTER CONTROLS BAR
+   ───────────────────────────────────────────────────────────────────────── */
+.filter-bar {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-3) var(--spacing-4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.filter-label {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.filter-select {
+  height: 32px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 0 var(--spacing-3);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  outline: none;
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.filter-select:focus {
+  border-color: var(--accent-primary);
+}
+
+.btn-filter-reset {
+  height: 32px;
+  padding: 0 var(--spacing-3);
+  background-color: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-filter-reset:hover {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.filter-count-badge {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   DATA TABLE (Dense Prioritized Worklist)
+   ───────────────────────────────────────────────────────────────────────── */
+.table-wrapper {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow-x: auto;
+  box-shadow: var(--shadow-sm);
+}
+
+.dense-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: var(--text-sm);
+  table-layout: fixed;
+}
+
+.dense-table th {
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: var(--text-xs);
+  letter-spacing: 0.2px;
+  padding: var(--spacing-3) var(--spacing-4);
+  border-bottom: 1px solid var(--border-default);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.dense-table th.sortable {
+  cursor: pointer;
+}
+
+.dense-table th.sortable:hover {
+  color: var(--text-primary);
+}
+
+.dense-table td {
+  padding: var(--spacing-3) var(--spacing-4);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  vertical-align: middle;
+}
+
+.dense-table tbody tr {
+  transition: background-color var(--transition-fast);
+  cursor: pointer;
+}
+
+.dense-table tbody tr:hover {
+  background-color: var(--bg-hover);
+}
+
+.dense-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.col-work-id {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--accent-primary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.col-district {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.col-reason {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   BADGES (Risk Scores, Precisions, Statuses)
+   ───────────────────────────────────────────────────────────────────────── */
+.risk-score-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid transparent;
+}
+
+.risk-score-badge.high {
+  background-color: var(--risk-high-bg);
+  color: var(--risk-high-text);
+  border-color: var(--risk-high-border);
+}
+
+.risk-score-badge.mid {
+  background-color: var(--risk-mid-bg);
+  color: var(--risk-mid-text);
+  border-color: var(--risk-mid-border);
+}
+
+.risk-score-badge.low {
+  background-color: var(--risk-low-bg);
+  color: var(--risk-low-text);
+  border-color: var(--risk-low-border);
+}
+
+.badge-precision {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-secondary);
+  white-space: nowrap;
+}
+
+.badge-precision.precise {
+  border-color: rgba(56, 189, 248, 0.4);
+  color: #38BDF8;
+}
+
+.badge-precision.locality {
+  border-color: rgba(129, 140, 248, 0.4);
+  color: #818CF8;
+}
+
+.badge-precision.district {
+  border-color: rgba(167, 139, 250, 0.4);
+  color: #A78BFA;
+}
+
+.badge-precision.unavailable {
+  border-color: rgba(100, 116, 139, 0.4);
+  color: #94A3B8;
+}
+
+.badge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.badge-status.unreviewed {
+  border-color: var(--border-default);
+  color: var(--text-secondary);
+}
+
+.badge-status.confirmed-issue {
+  border-color: var(--risk-high-border);
+  background-color: var(--risk-high-bg);
+  color: var(--risk-high-text);
+}
+
+.badge-status.false-positive {
+  border-color: var(--status-verified-border);
+  background-color: var(--status-verified-bg);
+  color: var(--status-verified-text);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   PROJECT DETAIL DOSSIER LAYOUT
+   ───────────────────────────────────────────────────────────────────────── */
+.dossier-header-panel {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.dossier-top-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+}
+
+.dossier-title-area {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.dossier-id-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.dossier-work-id {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.btn-copy-id {
+  background: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--text-tertiary);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-copy-id:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.dossier-sub-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.dossier-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.btn-audit-brief-pdf {
+  height: 34px;
+  padding: 0 var(--spacing-4);
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+}
+
+.btn-audit-brief-pdf:hover {
+  background-color: var(--accent-subtle);
+  border-color: var(--accent-border);
+  color: var(--accent-primary);
+}
+
+/* 2-Column Dossier Grid */
+.dossier-grid {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: var(--spacing-5);
+  align-items: start;
+}
+
+@media (max-width: 1200px) {
+  .dossier-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Administrative Information Card */
+.panel-card {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.panel-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: var(--spacing-3);
+}
+
+.panel-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.admin-kv-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-3) var(--spacing-4);
+}
+
+.kv-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.kv-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.kv-label {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.kv-value {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.kv-value.highlight-amount {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   4-SIGNAL ALGORITHMIC FUSION MATRIX
+   ───────────────────────────────────────────────────────────────────────── */
+.signals-matrix-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-3);
+}
+
+.signal-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.signal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.signal-name {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.signal-score {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.signal-desc {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   LOCATION MAP & PRECISION HUD
+   ───────────────────────────────────────────────────────────────────────── */
+.map-container-box {
+  width: 100%;
+  height: 240px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+.map-precision-alert {
+  padding: var(--spacing-3);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  font-size: var(--text-xs);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  color: var(--text-secondary);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   EVIDENCE & CHAIN OF CUSTODY PANEL
+   ───────────────────────────────────────────────────────────────────────── */
+.evidence-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.evidence-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-3);
+  display: flex;
+  gap: var(--spacing-3);
+}
+
+.evidence-thumb-wrap {
+  width: 90px;
+  height: 90px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background-color: var(--bg-tertiary);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.evidence-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.evidence-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.evidence-badge-custody {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  width: fit-content;
+}
+
+.evidence-badge-custody.verified {
+  background-color: var(--status-verified-bg);
+  color: var(--status-verified-text);
+  border: 1px solid var(--status-verified-border);
+}
+
+.evidence-badge-custody.tampered {
+  background-color: var(--integrity-error-bg);
+  color: var(--integrity-error-text);
+  border: 1px solid var(--integrity-error-border);
+}
+
+.evidence-hash-line {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 280px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   ON-SITE DISHA PHYSICAL VERIFICATION CHECKLIST
+   ───────────────────────────────────────────────────────────────────────── */
+.disha-checklist-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.checklist-item:hover {
+  border-color: var(--border-default);
+}
+
+.checklist-item input[type="checkbox"] {
+  margin-top: 3px;
+  accent-color: var(--accent-primary);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.checklist-text-area {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.checklist-title {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.checklist-subtitle {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   OFFICER ACTION BAR & FEEDBACK LOOP
+   ───────────────────────────────────────────────────────────────────────── */
+.officer-action-panel {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.action-buttons-row {
+  display: flex;
+  gap: var(--spacing-3);
+}
+
+.btn-officer-action {
+  flex: 1;
+  height: 38px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+}
+
+.btn-officer-action.btn-confirm-issue {
+  background-color: var(--risk-high-bg);
+  color: var(--risk-high-text);
+  border-color: var(--risk-high-border);
+}
+
+.btn-officer-action.btn-confirm-issue:hover {
+  background-color: var(--risk-high);
+  color: #000000;
+}
+
+.btn-officer-action.btn-false-positive {
+  background-color: var(--status-verified-bg);
+  color: var(--status-verified-text);
+  border-color: var(--status-verified-border);
+}
+
+.btn-officer-action.btn-false-positive:hover {
+  background-color: var(--status-verified);
+  color: #000000;
+}
+
+.btn-officer-action.btn-field-capture-trigger {
+  background-color: var(--accent-subtle);
+  color: var(--accent-primary);
+  border-color: var(--accent-border);
+}
+
+.btn-officer-action.btn-field-capture-trigger:hover {
+  background-color: var(--accent-primary);
+  color: #FFFFFF;
+}
+
+.officer-notes-box {
+  width: 100%;
+  height: 64px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-2) var(--spacing-3);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  resize: vertical;
+  outline: none;
+}
+
+.officer-notes-box:focus {
+  border-color: var(--accent-primary);
+}

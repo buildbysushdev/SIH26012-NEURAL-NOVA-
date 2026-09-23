@@ -1,0 +1,116 @@
+/* ==========================================================================
+   OFFICER VERIFICATION DASHBOARD — DESIGN TOKENS
+   Inspired by Linear & Stripe: Authoritative, Dense, Monochromatic with
+   Precision Accents. Non-accusatory color framing.
+   ========================================================================== */
+
+:root {
+  /* Surfaces & Backgrounds */
+  --bg-app: #080C14;
+  --bg-primary: #0D1322;
+  --bg-secondary: #131B2E;
+  --bg-tertiary: #1A243D;
+  --bg-elevated: #1F2C4A;
+  --bg-hover: rgba(255, 255, 255, 0.035);
+  --bg-active: rgba(255, 255, 255, 0.06);
+
+  /* Borders & Dividers */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --border-focus: #3B82F6;
+
+  /* Typography Colors */
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-tertiary: #64748B;
+  --text-muted: #475569;
+  --text-inverse: #0B0F19;
+
+  /* Single Primary Accent (Authoritative Indigo/Cobalt) */
+  --accent-primary: #3B82F6;
+  --accent-hover: #2563EB;
+  --accent-active: #1D4ED8;
+  --accent-subtle: rgba(59, 130, 246, 0.12);
+  --accent-border: rgba(59, 130, 246, 0.30);
+  --accent-glow: rgba(59, 130, 246, 0.20);
+
+  /* Non-Accusatory Risk Prioritization Colors */
+  /* Score > 70: Elevated Attention (Amber/Orange, never red) */
+  --risk-high: #F59E0B;
+  --risk-high-text: #FDE68A;
+  --risk-high-bg: rgba(245, 158, 11, 0.12);
+  --risk-high-border: rgba(245, 158, 11, 0.30);
+
+  /* Score 40-70: Moderate Attention (Warm Ochre) */
+  --risk-mid: #EAB308;
+  --risk-mid-text: #FEF08A;
+  --risk-mid-bg: rgba(234, 179, 8, 0.12);
+  --risk-mid-border: rgba(234, 179, 8, 0.28);
+
+  /* Score < 40: Standard Review (Cool Slate) */
+  --risk-low: #94A3B8;
+  --risk-low-text: #CBD5E1;
+  --risk-low-bg: rgba(148, 163, 184, 0.10);
+  --risk-low-border: rgba(148, 163, 184, 0.20);
+
+  /* Verified / Compliant Status (Emerald) */
+  --status-verified: #10B981;
+  --status-verified-text: #A7F3D0;
+  --status-verified-bg: rgba(16, 185, 129, 0.12);
+  --status-verified-border: rgba(16, 185, 129, 0.28);
+
+  /* Cryptographic Failure & System Integrity Violations ONLY */
+  /* Red is reserved exclusively for tampered hashes or system errors */
+  --integrity-error: #EF4444;
+  --integrity-error-text: #FECACA;
+  --integrity-error-bg: rgba(239, 68, 68, 0.14);
+  --integrity-error-border: rgba(239, 68, 68, 0.35);
+
+  /* Geolocation Precision Indicators */
+  --prec-precise: #38BDF8;
+  --prec-locality: #818CF8;
+  --prec-district: #A78BFA;
+  --prec-unavailable: #64748B;
+
+  /* Typography Scale */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+  
+  --text-xs: 0.6875rem;    /* 11px */
+  --text-sm: 0.8125rem;    /* 13px */
+  --text-base: 0.875rem;   /* 14px */
+  --text-md: 0.9375rem;    /* 15px */
+  --text-lg: 1.0625rem;    /* 17px */
+  --text-xl: 1.25rem;      /* 20px */
+  --text-2xl: 1.5rem;      /* 24px */
+  --text-3xl: 1.875rem;    /* 30px */
+
+  /* Density & Spacing */
+  --spacing-1: 0.25rem;    /* 4px */
+  --spacing-2: 0.5rem;     /* 8px */
+  --spacing-3: 0.75rem;    /* 12px */
+  --spacing-4: 1rem;       /* 16px */
+  --spacing-5: 1.25rem;    /* 20px */
+  --spacing-6: 1.5rem;     /* 24px */
+  --spacing-8: 2rem;       /* 32px */
+  --spacing-10: 2.5rem;    /* 40px */
+
+  /* Border Radii */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+
+  /* Elevation Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.45), 0 2px 4px -2px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.55), 0 4px 6px -4px rgba(0, 0, 0, 0.45);
+  --shadow-dropdown: 0 12px 28px rgba(0, 0, 0, 0.65), 0 0 0 1px var(--border-default);
+
+  /* Transitions */
+  --transition-fast: 120ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-base: 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}

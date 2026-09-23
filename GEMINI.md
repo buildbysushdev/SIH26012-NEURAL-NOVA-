@@ -55,14 +55,23 @@ anomaly_detector.py	Isolation Forest cost anomaly scoring	✅ Tested
 nlp_duplicate.py	Sentence-BERT duplicate/ghost-project detection	✅ Verified
 explain_gemini.py	Gemini API wrapper for plain-language explanations, with template fallback	✅ Working
 satellite_check.py + satellite_detector.py	SegFormer-based structure detection, fine-tuned on LandCover.ai	✅ Validated
-citizen_reports.py	Citizen report submission + risk score boost	✅ Working
+verification_pipeline.py	AI evidence cross-verification (GPS, satellite, text spam, duplicate, photo hash)	✅ Validated
+citizen_reports.py	Citizen report submission + AI verification + dynamic risk score boost	✅ Working
+location_enricher.py	Locality extraction from work_description + two-tier geocode cache (district CSV + locality CSV); tags every project with location_precision ('precise'/'locality'/'district'/'unavailable'); called at startup from main.py lifespan	✅ Validated
 Feedback loop (in main.py)	Officer false-positive downweighting	✅ Working
 Audit brief PDF (in main.py)	One-page PDF generation per flagged project	✅ Working
+auth_jwt.py	Server-side HMAC-SHA256 JWT auth + district jurisdiction scoping	✅ Validated
+Officer Dashboard (frontend/officer-dashboard)	Authoritative DISHA inspection case-management workspace + PWA offline sync	✅ Validated
+
 Known fixed bugs — do not reintroduce:
 
 Work IDs contain slashes (WS/MP893/2024-2025/171163) — always use query params, never path params, for anything containing a work_id.
 Missing data becomes NaN, which breaks JSON — always sanitize with .where(pd.notnull(...), None) before returning API responses.
 File paths must be script-relative (os.path.dirname(__file__)), never assume a specific working directory — this caused the earlier ERR_CONNECTION_REFUSED incident.
+GPS coordinates: the raw 77K dataset has NO per-project GPS. Coordinates are resolved by location_enricher.py in three tiers: (1) locality geocode from work_description (24.5% of records have an extractable village/panchayat name); (2) constituency centroid from CONSTITUENCY_COORDS dict + geocode_district_cache.csv (72.8% district-level); (3) unavailable (27.2% — Rajya Sabha nominated constituencies with personal names, not geocodable). Never use the old India centroid fallback (20.5937, 78.9629) — that was a bug, now fixed.
+location_precision values: 'precise' (future per-project GPS), 'locality' (village geocoded, 2km tolerance), 'district' (constituency centroid, 25km tolerance), 'unavailable'. GPS verification weights in verify_citizen_report() adapt per tier — district precision reduces GPS signal weight from 30%→20%, freeing 10% to text+duplicate signals.
+Geocache files: geocode_district_cache.csv (701 rows, already built) and geocode_locality_cache.csv (not yet built — run 'python location_enricher.py --build-locality-cache' before demo, takes ~1-2h). Both are committed to repo, safe (no credentials).
+
 3. Agent behavior rules
 Always PLAN before writing code for a new module — show the plan, wait for approval, then execute.
 One task/module at a time — finish and confirm before starting the next.

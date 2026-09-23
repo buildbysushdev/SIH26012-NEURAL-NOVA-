@@ -20,7 +20,7 @@ import numpy as np
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query, status
+from fastapi import FastAPI, HTTPException, Query, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
 # --- Module imports ---
@@ -31,6 +31,8 @@ import satellite_check
 import citizen_reports
 import feedback_loop
 import audit_brief
+import location_enricher
+import auth_jwt
 
 from explain_gemini import explain_flagged_project  # noqa: F401 (used by audit_brief)
 
@@ -106,6 +108,26 @@ async def lifespan(app: FastAPI):
     print("Applying officer feedback adjustments...")
     df = feedback_loop.apply_feedback_adjustments(df)
 
+    # --- Location enrichment: locality extraction + geocode cache lookup ---
+    # Replaces the old manual lat/lng/coord_precision block.
+    # enrich_dataframe() adds: locality_name, resolved_lat, resolved_lng, location_precision
+    # It reads only from CSV caches — never calls Nominatim at server startup.
+    # Extract district column first (needed for search filter)
+    if "district" not in df.columns:
+        if "ida" in df.columns:
+            dist = df["ida"].fillna("").astype(str).str.split("(").str[0].str.strip()
+            df["district"] = np.where(dist == "", df["constituency"], dist)
+        else:
+            df["district"] = df["constituency"]
+
+    df = location_enricher.enrich_dataframe(df)
+
+    # Keep backward-compatible latitude/longitude columns pointing at resolved coords
+    df["latitude"]       = df["resolved_lat"]
+    df["longitude"]      = df["resolved_lng"]
+    df["coord_precision"] = df["location_precision"]
+
+
     _df = df
     top = _df["risk_score"].max()
     avg = _df["risk_score"].mean()
@@ -127,15 +149,27 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS")
+if allowed_origins_env:
+    allow_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+else:
+    allow_origins = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:8080",   # citizen portal dev server
+        "http://127.0.0.1:8080",
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Include routers from existing modules
+app.include_router(auth_jwt.router)
 app.include_router(citizen_reports.router)
 app.include_router(feedback_loop.router)
 app.include_router(audit_brief.router)
@@ -157,15 +191,30 @@ def flagged_projects(
     limit: int = Query(default=20, ge=1, le=500),
     state: Optional[str] = Query(default=None),
     work_category: Optional[str] = Query(default=None),
+    district: Optional[str] = Query(default=None, description="District filter for national auditors"),
+    officer: dict = Depends(auth_jwt.get_current_officer),
 ):
     """
     Returns projects flagged as cost outliers, sorted by risk_score descending.
-    Supports optional filtering by state and work_category.
+    Enforces server-side cryptographic role-based jurisdiction scoping:
+    - If officer's assigned district != 'ALL', strictly filters by their district.
+    - If officer is national admin ('ALL'), allows viewing all or filtering by query param.
     """
     if _df is None:
         raise HTTPException(status_code=503, detail="Dataset not loaded yet.")
 
     result = _df[_df["is_cost_outlier"] == True].copy()
+
+    # Server-side role-based jurisdiction enforcement
+    officer_district = (officer.get("district") or "ALL").strip().upper()
+    if officer_district != "ALL":
+        # Strictly enforce statutory jurisdiction server-side
+        mask = (result["district"].astype(str).str.upper() == officer_district) | (result["constituency"].astype(str).str.upper() == officer_district)
+        result = result[mask]
+    elif district:
+        d_clean = district.strip().upper()
+        mask = (result["district"].astype(str).str.upper() == d_clean) | (result["constituency"].astype(str).str.upper() == d_clean)
+        result = result[mask]
 
     if state:
         result = result[result["state"].str.lower() == state.lower()]
@@ -174,13 +223,15 @@ def flagged_projects(
 
     result = result.sort_values("risk_score", ascending=False).head(limit)
 
-    # Return a safe subset of columns for the list view
+    # Return complete column set for officer inspection
     cols = [
-        "work_id", "state", "constituency", "mp_name", "work_category",
+        "work_id", "state", "constituency", "district", "mp_name", "work_category",
         "work_description", "sanction_amount", "cost_zscore",
         "cost_risk_score", "nlp_similarity_score", "satellite_risk_score",
         "satellite_status", "citizen_report_count", "feedback_status",
         "risk_score", "similar_project", "similar_state", "is_cost_outlier",
+        "latitude", "longitude", "resolved_lat", "resolved_lng",
+        "location_precision", "coord_precision", "locality_name",
     ]
     cols = [c for c in cols if c in result.columns]
     records = result[cols].where(pd.notnull(result[cols]), None).to_dict(orient="records")
@@ -215,3 +266,86 @@ def project_detail(work_id: str = Query(..., description="MPLADS work_id (may co
 
 # NOTE: /citizen-report, /citizen-reports, /feedback, /audit-brief, /project-analysis-report
 # are all served by the included routers above.
+
+
+@app.post("/explain", tags=["Projects"])
+def explain_project_endpoint(work_id: str = Query(..., description="MPLADS work_id (may contain slashes)")):
+    """
+    Returns plain-language AI explanation for a flagged project.
+    Uses Gemini API if configured, otherwise robust template fallback.
+    """
+    if _df is None:
+        raise HTTPException(status_code=503, detail="Dataset not loaded yet.")
+
+    work_id = work_id.strip()
+    mask = _df["work_id"] == work_id
+    if not mask.any():
+        raise HTTPException(status_code=404, detail="Project not found in MPLADS database.")
+
+    row = _df[mask].iloc[0]
+    project = _sanitize(row.where(pd.notnull(row), None).to_dict())
+
+    try:
+        explanation = explain_flagged_project(project)
+    except Exception:
+        explanation = f"Flagged for audit review based on combined risk score {project.get('risk_score')}."
+
+    return {
+        "work_id": work_id,
+        "explanation": explanation,
+        "risk_score": project.get("risk_score"),
+    }
+
+
+@app.get("/search-projects", tags=["Projects"])
+def search_projects(
+    q: Optional[str] = Query(default=None, description="Search term: constituency, district, or keyword"),
+    query: Optional[str] = Query(default=None, description="Alias for q"),
+    limit: int = Query(default=20, ge=1, le=50),
+):
+    """
+    Lightweight text search across all 77K MPLADS works.
+    Matches against constituency and work_description columns (case-insensitive).
+    Used by the citizen reporting portal so citizens can find any project,
+    not only the pre-flagged cost-outlier subset.
+    Returns a safe subset of columns — no internal scoring details.
+    """
+    if _df is None:
+        raise HTTPException(status_code=503, detail="Dataset not loaded yet.")
+
+    search_term = q or query or ""
+    term = search_term.strip().lower()
+    if len(term) < 2:
+        raise HTTPException(status_code=400, detail="Search query must be at least 2 characters long.")
+
+    # Search constituency, description, state, and district/ida (case-insensitive)
+    mask = (
+        _df["constituency"].astype(str).str.lower().str.contains(term, na=False, regex=False)
+        | _df["work_description"].astype(str).str.lower().str.contains(term, na=False, regex=False)
+        | _df["state"].astype(str).str.lower().str.contains(term, na=False, regex=False)
+    )
+    if "district" in _df.columns:
+        mask = mask | _df["district"].astype(str).str.lower().str.contains(term, na=False, regex=False)
+    if "ida" in _df.columns:
+        mask = mask | _df["ida"].astype(str).str.lower().str.contains(term, na=False, regex=False)
+
+    result = _df[mask].head(limit)
+
+    cols = [
+        "work_id", "state", "constituency", "district", "mp_name",
+        "work_category", "work_description", "sanction_amount",
+        "risk_score", "citizen_report_count", "feedback_status",
+        # Location enrichment fields
+        "latitude", "longitude",            # backward-compatible aliases
+        "resolved_lat", "resolved_lng",     # canonical enriched coordinates
+        "locality_name",                    # extracted village/panchayat name (or None)
+        "location_precision",               # 'precise'|'locality'|'district'|'unavailable'
+        "coord_precision",                  # backward-compatible alias for location_precision
+    ]
+    cols = [c for c in cols if c in result.columns]
+    records = result[cols].where(pd.notnull(result[cols]), None).to_dict(orient="records")
+    return {"results": [_sanitize(r) for r in records], "total": int(mask.sum())}
+
+
+
+

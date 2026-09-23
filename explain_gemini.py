@@ -82,7 +82,7 @@ def _template_doubts(project: dict) -> str:
     return "\n".join(doubts)
 
 
-def explain_flagged_project(project: dict) -> str:
+def explain_flagged_project(project: dict, language: str = "English") -> str:
     client = _get_client()
     if client is None:
         return _template_explanation(project)
@@ -90,7 +90,7 @@ def explain_flagged_project(project: dict) -> str:
         model = client.GenerativeModel("gemini-1.5-flash")
         prompt = (
             f"You are an audit assistant for India's MPLAD Scheme. "
-            f"Explain in 2-3 plain sentences why this project was flagged as suspicious:\n"
+            f"Explain in 2-3 plain sentences why this project was flagged as suspicious in {language}:\n"
             f"Work ID: {project.get('work_id')}\n"
             f"Description: {project.get('work_description')}\n"
             f"State: {project.get('state')}, MP: {project.get('mp_name')}\n"
@@ -108,7 +108,7 @@ def explain_flagged_project(project: dict) -> str:
         return _template_explanation(project)
 
 
-def synthesize_audit_doubts(project: dict) -> str:
+def synthesize_audit_doubts(project: dict, language: str = "English") -> str:
     client = _get_client()
     if client is None:
         return _template_doubts(project)
@@ -116,7 +116,7 @@ def synthesize_audit_doubts(project: dict) -> str:
         model = client.GenerativeModel("gemini-1.5-flash")
         prompt = (
             f"You are an audit officer reviewing MPLAD Scheme projects. "
-            f"Generate 3 specific audit questions for this flagged project:\n"
+            f"Generate 3 specific audit questions in {language} for this flagged project:\n"
             f"Work ID: {project.get('work_id')}\n"
             f"Description: {project.get('work_description')}\n"
             f"State: {project.get('state')}, MP: {project.get('mp_name')}\n"
@@ -130,3 +130,4 @@ def synthesize_audit_doubts(project: dict) -> str:
     except Exception as e:
         logger.warning(f"Gemini doubt synthesis fallback: {e}")
         return _template_doubts(project)
+
