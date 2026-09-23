@@ -15,6 +15,15 @@ Exact combined risk score formula (proven with 495 live data points, max error 0
 """
 import os
 import logging
+from pathlib import Path
+
+# Load .env file at application startup
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent / ".env")
+except ImportError:
+    pass
+
 import pandas as pd
 import numpy as np
 from contextlib import asynccontextmanager
