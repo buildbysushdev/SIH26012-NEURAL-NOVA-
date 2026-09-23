@@ -1,7 +1,4 @@
 {
-  "framework": null,
-  "buildCommand": null,
-  "outputDirectory": "./",
   "cleanUrls": true,
   "rewrites": [
     { "source": "/", "destination": "/frontend/login/index.html" },
