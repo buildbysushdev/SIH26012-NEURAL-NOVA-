@@ -1,11 +1,17 @@
 {
   "cleanUrls": true,
+  "trailingSlash": true,
   "rewrites": [
     { "source": "/citizen-portal/(.*)", "destination": "/citizen-portal/$1" },
     { "source": "/citizen-portal", "destination": "/citizen-portal/index.html" },
     { "source": "/citizen_portal/(.*)", "destination": "/citizen-portal/$1" },
     { "source": "/citizen_portal", "destination": "/citizen-portal/index.html" },
     { "source": "/officer-dashboard/(.*)", "destination": "/officer-dashboard/$1" },
-    { "source": "/officer-dashboard", "destination": "/officer-dashboard/index.html" }
+    { "source": "/officer-dashboard", "destination": "/officer-dashboard/index.html" },
+    { "source": "/style.css", "destination": "/citizen-portal/style.css" },
+    { "source": "/app.js", "destination": "/citizen-portal/app.js" },
+    { "source": "/db.js", "destination": "/citizen-portal/db.js" },
+    { "source": "/manifest.json", "destination": "/citizen-portal/manifest.json" },
+    { "source": "/demo_data.json", "destination": "/citizen-portal/demo_data.json" }
   ]
 }

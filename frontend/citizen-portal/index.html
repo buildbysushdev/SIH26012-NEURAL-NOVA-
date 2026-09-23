@@ -11,9 +11,16 @@
 
   <title>MPLAD Citizen Portal — Government of India</title>
 
+  <script>
+    if (!window.location.pathname.endsWith('/') && !window.location.pathname.endsWith('.html')) {
+      window.location.replace(window.location.pathname + '/' + window.location.search);
+    }
+  </script>
+
   <link rel="manifest" href="./manifest.json" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="/citizen-portal/style.css" />
 </head>
 <body>
 

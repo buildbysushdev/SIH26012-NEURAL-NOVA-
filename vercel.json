@@ -1,6 +1,7 @@
 {
   "outputDirectory": ".",
   "cleanUrls": true,
+  "trailingSlash": true,
   "rewrites": [
     { "source": "/", "destination": "/frontend/login/index.html" },
     { "source": "/login", "destination": "/frontend/login/index.html" },
@@ -8,8 +9,13 @@
     { "source": "/officer", "destination": "/frontend/officer-dashboard/index.html" },
     { "source": "/citizen-portal/(.*)", "destination": "/frontend/citizen-portal/$1" },
     { "source": "/citizen-portal", "destination": "/frontend/citizen-portal/index.html" },
+    { "source": "/citizen_portal/(.*)", "destination": "/frontend/citizen-portal/$1" },
+    { "source": "/citizen_portal", "destination": "/frontend/citizen-portal/index.html" },
     { "source": "/officer-dashboard/(.*)", "destination": "/frontend/officer-dashboard/$1" },
     { "source": "/officer-dashboard", "destination": "/frontend/officer-dashboard/index.html" },
-    { "source": "/login/(.*)", "destination": "/frontend/login/$1" }
+    { "source": "/login/(.*)", "destination": "/frontend/login/$1" },
+    { "source": "/style.css", "destination": "/frontend/citizen-portal/style.css" },
+    { "source": "/app.js", "destination": "/frontend/citizen-portal/app.js" },
+    { "source": "/db.js", "destination": "/frontend/citizen-portal/db.js" }
   ]
 }
