@@ -16,7 +16,7 @@ import { queueReport, getAllQueued, deleteQueued, pendingCount } from './db.js';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 const API_BASE = (typeof window !== 'undefined' && window.API_BASE_URL)
-  || (typeof window !== 'undefined' && localStorage.getItem('MPLADS_API_URL'))
+  || (typeof window !== 'undefined' && (localStorage.getItem('MPLADS_API_URL') || localStorage.getItem('mplads_api_url')))
   || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.origin.includes('8080'))
       ? 'http://localhost:8000'
       : (typeof window !== 'undefined' && document.querySelector('meta[name="backend-url"]')?.content)

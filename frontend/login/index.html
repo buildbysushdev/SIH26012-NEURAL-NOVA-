@@ -548,9 +548,12 @@
 
 <script>
 // ─── Configuration ────────────────────────────────────────────────────────────
-// Backend URL — reads from localStorage (set by admin) or falls back to default
-const API_BASE = localStorage.getItem('mplads_api_url')
-  || 'http://127.0.0.1:8000';
+const API_BASE = (typeof window !== 'undefined' && window.API_BASE_URL)
+  || (typeof window !== 'undefined' && (localStorage.getItem('MPLADS_API_URL') || localStorage.getItem('mplads_api_url')))
+  || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.origin.includes('8080'))
+      ? 'http://127.0.0.1:8000'
+      : (typeof window !== 'undefined' && document.querySelector('meta[name="backend-url"]')?.content)
+        || 'https://mplads-risk-backend.onrender.com');
 
 // ─── Tab switching ────────────────────────────────────────────────────────────
 function switchTab(role) {
