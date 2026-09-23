@@ -17,11 +17,25 @@ from pydantic import BaseModel, Field
 
 router = APIRouter(tags=["Officer Authentication"])
 
-# JWT Configuration
-JWT_SECRET_KEY = os.getenv(
-    "JWT_SECRET_KEY",
-    "mplads-neural-nova-vigilance-hmac-sha256-secret-key-2026-audit"
-)
+def _get_secret_key() -> str:
+    key = os.getenv("JWT_SECRET_KEY")
+    if key and not key.startswith("your-"):
+        return key
+    env_path = os.path.join(os.path.dirname(__file__), ".env")
+    if os.path.exists(env_path):
+        try:
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.startswith("JWT_SECRET_KEY=") and not line.startswith("#"):
+                        val = line.split("=", 1)[1].strip()
+                        if val and not val.startswith("your-"):
+                            return val
+        except Exception:
+            pass
+    return "mplads-neural-nova-vigilance-hmac-sha256-secret-key-2026-audit"
+
+
+JWT_SECRET_KEY = _get_secret_key()
 ALGORITHM = "HS256"
 DEFAULT_EXPIRY_HOURS = 12
 

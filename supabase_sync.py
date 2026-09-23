@@ -87,6 +87,7 @@ def sync_citizen_report(report_data: Dict[str, Any], photo_url: Optional[str] = 
     url = f"{SUPABASE_URL}/rest/v1/citizen_reports"
     headers = _get_headers(prefer="return=minimal")
 
+    cap_ts = report_data.get("captured_timestamp")
     payload = {
         "report_id": report_data.get("report_id"),
         "work_id": report_data.get("work_id"),
@@ -96,7 +97,7 @@ def sync_citizen_report(report_data: Dict[str, Any], photo_url: Optional[str] = 
         "photo_url": photo_url,
         "captured_lat": float(report_data["captured_lat"]) if report_data.get("captured_lat") else None,
         "captured_lng": float(report_data["captured_lng"]) if report_data.get("captured_lng") else None,
-        "captured_timestamp": report_data.get("captured_timestamp"),
+        "captured_timestamp": cap_ts.strip() if (cap_ts and isinstance(cap_ts, str) and cap_ts.strip()) else None,
         "status": report_data.get("status", "submitted"),
     }
 
@@ -124,6 +125,7 @@ def sync_verification(verif_data: Dict[str, Any]) -> bool:
     except Exception:
         conf_int = None
 
+    v_at = verif_data.get("verified_at")
     payload = {
         "report_id": verif_data.get("report_id"),
         "work_id": verif_data.get("work_id"),
@@ -135,7 +137,7 @@ def sync_verification(verif_data: Dict[str, Any]) -> bool:
         "metadata_check": verif_data.get("metadata_check"),
         "ai_recommendation": verif_data.get("ai_recommendation"),
         "ai_reasoning": verif_data.get("ai_reasoning"),
-        "verified_at": verif_data.get("verified_at"),
+        "verified_at": v_at.strip() if (v_at and isinstance(v_at, str) and v_at.strip()) else None,
     }
 
     try:
@@ -162,6 +164,7 @@ def sync_officer_feedback(feedback_data: Dict[str, Any]) -> bool:
     except Exception:
         score_val = None
 
+    fb_ts = feedback_data.get("timestamp")
     payload = {
         "feedback_id": feedback_data.get("feedback_id"),
         "work_id": feedback_data.get("work_id"),
@@ -169,7 +172,7 @@ def sync_officer_feedback(feedback_data: Dict[str, Any]) -> bool:
         "officer_notes": feedback_data.get("officer_notes"),
         "officer_id": feedback_data.get("officer_id"),
         "new_risk_score": score_val,
-        "timestamp": feedback_data.get("timestamp"),
+        "timestamp": fb_ts.strip() if (fb_ts and isinstance(fb_ts, str) and fb_ts.strip()) else None,
     }
 
     try:
