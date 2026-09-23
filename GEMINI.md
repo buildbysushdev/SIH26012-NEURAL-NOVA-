@@ -53,10 +53,10 @@ main.py	FastAPI app, all endpoints, loads/scores data at startup	✅ Tested
 data_pipeline.py	Loads and cleans the 77K dataset	✅ Tested
 anomaly_detector.py	Isolation Forest cost anomaly scoring	✅ Tested
 nlp_duplicate.py	Sentence-BERT duplicate/ghost-project detection	✅ Verified
-explain_gemini.py	Gemini API wrapper for plain-language explanations, with template fallback	✅ Working
+explain_gemini.py	Gemini explanation layer ONLY — explain_flagged_project() (max 250 tokens, 7 fields, description clipped to 80 chars), summarize_citizen_report() (max 100 tokens, 500-char input cap, 5 fixed categories), synthesize_audit_doubts(). Fixed system prompts reused per call. google.genai SDK (not deprecated google.generativeai). Model rotation: gemini-3.6-flash → gemini-2.5-flash-preview → gemini-2.0-flash → gemini-1.5-flash. Score immutability enforced with before/after check. Template fallback always available without API key.	✅ Validated
 satellite_check.py + satellite_detector.py	SegFormer-based structure detection, fine-tuned on LandCover.ai	✅ Validated
 verification_pipeline.py	AI evidence cross-verification (GPS, satellite, text spam, duplicate, photo hash)	✅ Validated
-citizen_reports.py	Citizen report submission + AI verification + dynamic risk score boost	✅ Working
+citizen_reports.py	Citizen report submission + AI verification + dynamic risk score boost + Gemini summarizer (summarize_citizen_report called ONCE per report after CSV save, BEFORE risk boost; adds ai_summary + ai_category to CSV and API response). Valid categories: quality_concern | non_completion | fund_misuse | contractor_issue | other	✅ Validated
 location_enricher.py	Locality extraction from work_description + two-tier geocode cache (district CSV + locality CSV); tags every project with location_precision ('precise'/'locality'/'district'/'unavailable'); called at startup from main.py lifespan	✅ Validated
 Feedback loop (in main.py)	Officer false-positive downweighting	✅ Working
 Audit brief PDF (in main.py)	One-page PDF generation per flagged project	✅ Working
