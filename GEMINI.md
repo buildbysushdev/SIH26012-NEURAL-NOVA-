@@ -61,6 +61,8 @@ location_enricher.py	Locality extraction from work_description + two-tier geocod
 Feedback loop (in main.py)	Officer false-positive downweighting	✅ Working
 Audit brief PDF (in main.py)	One-page PDF generation per flagged project	✅ Working
 auth_jwt.py	Server-side HMAC-SHA256 JWT auth + district jurisdiction scoping	✅ Validated
+supabase_sync.py	Supabase cloud sync (citizen-evidence storage, reports, verifications, feedback, checklists, SHA-256 photo seals, audit logs)	✅ Validated
+officer_checklist.py	DISHA on-site inspection checklist API (POST/GET) with cloud upsert + local CSV cache	✅ Validated
 Officer Dashboard (frontend/officer-dashboard)	Authoritative DISHA inspection case-management workspace + PWA offline sync	✅ Validated
 
 Known fixed bugs — do not reintroduce:
