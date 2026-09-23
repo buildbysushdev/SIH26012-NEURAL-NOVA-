@@ -211,13 +211,42 @@
       </div>
     </div>
 
+    <!-- ─── OPTIONAL PHONE NUMBER ─── -->
+    <div class="form-group">
+      <div class="field-label-row">
+        <label class="field-label" for="phone-number">
+          Phone Number
+          <span style="font-weight:400;color:var(--color-text-subtle);margin-left:4px">(optional)</span>
+        </label>
+      </div>
+      <input
+        id="phone-number"
+        name="phone_number"
+        type="tel"
+        class="form-input"
+        placeholder="e.g. +91 98765 43210"
+        inputmode="tel"
+        autocomplete="tel"
+        maxlength="20"
+        style="margin-top:6px"
+      />
+      <p style="font-size:11.5px;color:var(--color-text-subtle);margin-top:6px;">
+        📞 If provided, the reviewing officer may contact you for follow-up. Your number is <strong>never shared publicly</strong> and remains confidential.
+      </p>
+    </div>
+
     <!-- ─── PHOTO CAPTURE FLOW (3-Step Security Process) ─── -->
     <div class="form-group photo-security-section">
       <div class="field-label-row">
         <label class="field-label">
-          Site Evidence Photo <span style="font-weight:400;color:var(--color-text-subtle)">(optional)</span>
+          Site Evidence Photo
+          <span style="font-weight:600;color:#ef4444;margin-left:4px">* Required</span>
         </label>
+        <span style="font-size:11px;color:var(--color-text-subtle);background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:4px;padding:2px 7px;">Mandatory</span>
       </div>
+      <p style="font-size:12px;color:var(--color-text-subtle);margin-bottom:10px;margin-top:-4px;">
+        A photo of the project site is required to submit your report. This prevents false complaints and helps auditors verify your concern.
+      </p>
 
       <!-- Photo error callout -->
       <div id="photo-error" class="callout-box callout-error" role="alert" style="display:none"></div>

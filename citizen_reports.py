@@ -76,6 +76,95 @@ def _validate_image_bytes(contents: bytes, filename: str) -> str:
         detail="Invalid file type. Only JPEG, PNG, GIF, WebP, and BMP images are accepted.",
     )
 
+
+def _analyze_photo_integrity(contents: bytes, filename: str) -> list:
+    """
+    Deep photo integrity analysis — returns a list of flag strings.
+
+    IMPORTANT DESIGN PRINCIPLE:
+      - This function NEVER raises an exception or blocks submission.
+      - Flags are added to the verification record and lower the confidence
+        score, but the report is ALWAYS accepted.
+      - This means genuine reports are never blocked even if our detector
+        is wrong. Suspicious photos are queued for manual officer review.
+
+    Checks performed:
+      1. Minimum dimensions (rejects tiny/corrupt images, not real photos)
+      2. Image entropy (solid-color or near-blank images score very low)
+      3. EXIF data presence (real camera photos usually have EXIF; screenshots don't)
+      4. Suspiciously small file size relative to image area
+    """
+    flags = []
+    try:
+        from PIL import Image
+        import io
+        import struct
+        import math
+
+        img = Image.open(io.BytesIO(contents))
+        width, height = img.size
+
+        # Check 1: Minimum dimensions
+        if width < 80 or height < 80:
+            flags.append("image_too_small")
+
+        # Check 2: Entropy — measures how 'complex' the image is.
+        # A solid-color block or screenshot with minimal detail has very low entropy.
+        # Real site photos have entropy > 5.0. We flag but don't block.
+        try:
+            gray = img.convert("L")  # grayscale
+            histogram = gray.histogram()
+            total = sum(histogram)
+            entropy = 0.0
+            for count in histogram:
+                if count > 0:
+                    p = count / total
+                    entropy -= p * math.log2(p)
+            if entropy < 3.5:
+                flags.append("low_image_entropy")
+        except Exception:
+            pass
+
+        # Check 3: EXIF data presence
+        # Real camera photos (JPEG) embed EXIF with device/timestamp info.
+        # Pure screenshots, AI-generated images, and edited photos often lack it.
+        # We note absence but don't block — not all legitimate phones write EXIF.
+        has_exif = False
+        if contents[:3] == b"\xff\xd8\xff":
+            # JPEG — scan for EXIF APP1 marker (FF E1)
+            pos = 2
+            while pos < min(len(contents) - 1, 65536):
+                if contents[pos] == 0xFF and contents[pos + 1] == 0xE1:
+                    has_exif = True
+                    break
+                elif contents[pos] == 0xFF and contents[pos + 1] in (0xDA, 0xD9):
+                    break  # start of scan / end of image
+                # Skip this marker
+                if pos + 3 < len(contents):
+                    seg_len = struct.unpack('>H', contents[pos + 2: pos + 4])[0]
+                    pos += 2 + seg_len
+                else:
+                    break
+            if not has_exif:
+                flags.append("no_exif_data")
+
+        # Check 4: Suspiciously small file size
+        pixels = width * height
+        bytes_per_pixel = len(contents) / max(pixels, 1)
+        # Real photos typically > 0.05 bytes/pixel even when compressed.
+        # A near-blank image or a tiny tile repeated would score much lower.
+        if pixels > 40000 and bytes_per_pixel < 0.02:
+            flags.append("suspiciously_small_file")
+
+    except ImportError:
+        # PIL/Pillow not installed — skip integrity checks, accept the photo
+        flags.append("integrity_check_skipped_no_pillow")
+    except Exception as e:
+        # If anything unexpected happens, log and continue — never block
+        flags.append(f"integrity_check_error")
+
+    return flags
+
 import verification_pipeline
 import supabase_sync
 
@@ -94,7 +183,9 @@ UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 # CSV schemas
 CSV_COLUMNS = [
     "report_id", "work_id", "category", "description",
-    "photo_filename", "captured_lat", "captured_lng", "captured_timestamp",
+    "phone_number",
+    "photo_filename", "photo_integrity_flags",
+    "captured_lat", "captured_lng", "captured_timestamp",
     "timestamp", "status", "ai_summary", "ai_category",
 ]
 
@@ -161,16 +252,23 @@ async def submit_citizen_report(
     request: Request,
     work_id: str = Form(..., description="MPLADS project work_id (can contain slashes)"),
     description: str = Form(..., description="Citizen report or grievance description"),
-    photo: Optional[UploadFile] = File(None, description="Optional geotagged or on-site photo upload"),
+    photo: UploadFile = File(..., description="Photo of the project site (mandatory — must be a real image)"),
     category: Optional[str] = Form(None, description="Issue category selected by citizen"),
+    phone_number: Optional[str] = Form(None, description="Citizen phone number for follow-up (optional, not shared publicly)"),
     captured_lat: Optional[float] = Form(None, description="GPS latitude at photo capture moment"),
     captured_lng: Optional[float] = Form(None, description="GPS longitude at photo capture moment"),
     captured_timestamp: Optional[str] = Form(None, description="ISO-8601 timestamp at photo capture moment"),
 ):
     """
-    Accepts a citizen report with optional photo upload.
-    Security: rate-limited per IP (10/hr) and upload validated by real MIME magic bytes.
-    Runs 5-check AI evidence cross-verification pipeline before saving and scoring.
+    Accepts a citizen report with mandatory photo upload.
+    Security: rate-limited per IP (10/hr), MIME validated by magic bytes,
+    deep photo integrity checks (dimensions, entropy, EXIF), and a
+    5-check AI evidence cross-verification pipeline.
+
+    PHOTO INTEGRITY POLICY:
+      Suspicious photos are FLAGGED (not rejected) to ensure genuine
+      reports are never lost. The verification confidence score is reduced
+      for flagged photos, and they are queued for priority manual review.
     """
     # --- Rate limiting (guards the boost mechanism from spam) ---
     forwarded = request.headers.get("x-forwarded-for")
@@ -206,33 +304,60 @@ async def submit_citizen_report(
             )
         proj_record = _MAIN_DF_REF[mask].iloc[0].to_dict()
 
-    # Save photo if uploaded — validate real MIME type from magic bytes
-    photo_filename = None
-    photo_bytes = None
-    photo_url = None
-    if photo and photo.filename:
-        contents = await photo.read()
-        if len(contents) > 0:
-            safe_ext = _validate_image_bytes(contents, photo.filename)  # raises 400 if invalid
-            unique_name = f"{uuid.uuid4().hex[:10]}_{int(datetime.now(timezone.utc).timestamp())}{safe_ext}"
-            target_path = UPLOADS_DIR / unique_name
-            with open(target_path, "wb") as f:
-                f.write(contents)
-            photo_filename = unique_name
-            photo_bytes = contents
+    # ── Sanitise optional phone number ──────────────────────────────────────────
+    # Phone number is optional and for follow-up communication only.
+    # Stored server-side, never exposed in officer-facing public views.
+    import re as _re
+    clean_phone = ""
+    if phone_number:
+        digits_only = _re.sub(r'[^0-9+\-\s]', '', phone_number).strip()
+        if 7 <= len(_re.sub(r'[^0-9]', '', digits_only)) <= 15:
+            clean_phone = digits_only[:20]
+        # If invalid format, silently ignore (not mandatory, don't block)
 
-            # Upload to Supabase Storage 'citizen-evidence' bucket
-            mime = "image/png" if safe_ext == ".png" else "image/jpeg"
-            photo_url = supabase_sync.upload_photo_evidence(photo_filename, photo_bytes, mime_type=mime)
+    # ── Mandatory photo: validate and save ──────────────────────────────────
+    # Photo is REQUIRED. A report without a photo is rejected here.
+    if not photo or not photo.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A photo of the project site is required to submit a report. Please attach a photo.",
+        )
 
-            # Record cryptographic SHA-256 seal for chain of custody
-            photo_hash = hashlib.sha256(photo_bytes).hexdigest()
-            supabase_sync.sync_photo_hash(
-                photo_id=photo_filename,
-                work_id=work_id,
-                sha256_hash=photo_hash,
-                source="citizen"
-            )
+    contents = await photo.read()
+    if len(contents) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded photo file is empty. Please attach a valid photo.",
+        )
+
+    # MIME magic bytes validation — raises 400 for non-images
+    safe_ext = _validate_image_bytes(contents, photo.filename)
+
+    # Deep integrity checks — NEVER raises, only returns flags
+    integrity_flags = _analyze_photo_integrity(contents, photo.filename)
+    integrity_flags_str = ",".join(integrity_flags) if integrity_flags else ""
+
+    # Save to disk (outside web-servable directory)
+    unique_name = f"{uuid.uuid4().hex[:10]}_{int(datetime.now(timezone.utc).timestamp())}{safe_ext}"
+    target_path = UPLOADS_DIR / unique_name
+    with open(target_path, "wb") as fh:
+        fh.write(contents)
+    photo_filename = unique_name
+    photo_bytes    = contents
+    photo_url      = None
+
+    # Upload to Supabase Storage 'citizen-evidence' bucket
+    mime = "image/png" if safe_ext == ".png" else "image/jpeg"
+    photo_url = supabase_sync.upload_photo_evidence(photo_filename, photo_bytes, mime_type=mime)
+
+    # Record cryptographic SHA-256 seal for chain of custody
+    photo_hash = hashlib.sha256(photo_bytes).hexdigest()
+    supabase_sync.sync_photo_hash(
+        photo_id=photo_filename,
+        work_id=work_id,
+        sha256_hash=photo_hash,
+        source="citizen"
+    )
 
     # Sanitise optional text field to prevent script injection
     clean_category = category.strip()[:100] if category else ""
@@ -245,7 +370,9 @@ async def submit_citizen_report(
         "work_id": work_id,
         "category": clean_category,
         "description": clean_desc,
+        "phone_number": clean_phone,          # stored server-side, not exposed publicly
         "photo_filename": photo_filename or "",
+        "photo_integrity_flags": integrity_flags_str,  # empty string = clean photo
         "captured_lat": captured_lat,
         "captured_lng": captured_lng,
         "captured_timestamp": captured_timestamp or "",
@@ -372,6 +499,10 @@ async def submit_citizen_report(
         "category": clean_category,
         "photo_saved": bool(photo_filename),
         "photo_url": photo_url,
+        # ── Photo integrity signals (explanation layer — does NOT block submission) ──
+        "photo_integrity_flags": integrity_flags,          # list of flag strings, [] = clean
+        "photo_has_concerns": len(integrity_flags) > 0,    # bool, for easy frontend display
+        # ─────────────────────────────────────────────────────────────────────────────
         "captured_lat": captured_lat,
         "captured_lng": captured_lng,
         "captured_timestamp": captured_timestamp,
@@ -388,6 +519,7 @@ async def submit_citizen_report(
             "checks": verif_result.get("checks", {}),
         }
     }
+
 
 
 @router.get("/citizen-reports")

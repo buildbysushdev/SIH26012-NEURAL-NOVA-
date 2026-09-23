@@ -1039,6 +1039,15 @@ submitBtn.addEventListener('click', async () => {
   const desc = descTextarea.value.trim();
   if (desc.length < 20) { showErr('Please describe the issue in at least 20 characters.'); return; }
 
+  // ── Photo is now mandatory ──────────────────────────────────────────────────
+  if (!capturedPhoto) {
+    showErr('A photo of the project site is required. Please capture or upload a photo before submitting.');
+    // Scroll to photo section so it's visible
+    const photoSection = document.querySelector('.photo-security-section');
+    if (photoSection) photoSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+
   submitBtn.disabled    = true;
   submitBtn.textContent = 'Submitting…';
 
@@ -1062,10 +1071,13 @@ submitBtn.addEventListener('click', async () => {
     return;
   }
 
+  // ── Build payload ───────────────────────────────────────────────────────────
+  const phoneInput = document.getElementById('phone-number');
   const payload = {
     work_id:            currentProject.work_id,
     category:           categorySelect.value,
     description:        desc,
+    phone_number:       phoneInput ? phoneInput.value.trim() : '',
     captured_lat:       capturedGPS ? capturedGPS.lat : null,
     captured_lng:       capturedGPS ? capturedGPS.lng : null,
     captured_timestamp: capturedGPS ? capturedGPS.timestamp : null,
@@ -1082,7 +1094,13 @@ async function submitOnline(payload) {
   try {
     const res  = await fetch(API_BASE + '/citizen-report', { method: 'POST', body: buildFD(payload), cache: 'no-store' });
     const data = await res.json();
-    if (!res.ok) { showErr(data.detail || 'Server error (' + res.status + ').'); return; }
+    if (!res.ok) { showErr(data.detail || 'Server error (' + res.status + ').'); submitBtn.disabled = false; submitBtn.textContent = 'Submit Report'; return; }
+
+    // Show integrity flag notice if photo has concerns (doesn't block submission)
+    if (data.photo_has_concerns && data.photo_integrity_flags && data.photo_integrity_flags.length > 0) {
+      console.info('[Photo Integrity] Flags detected (report still submitted):', data.photo_integrity_flags);
+    }
+
     showConfirmation(data.report_id, false, data.verification);
   } catch (_) {
     await submitOffline(payload);
@@ -1111,6 +1129,7 @@ function buildFD(payload) {
   fd.append('work_id',     payload.work_id);
   fd.append('category',    payload.category);
   fd.append('description', payload.description);
+  if (payload.phone_number) fd.append('phone_number', payload.phone_number);
   if (payload.captured_lat  != null) fd.append('captured_lat',       String(payload.captured_lat));
   if (payload.captured_lng  != null) fd.append('captured_lng',       String(payload.captured_lng));
   if (payload.captured_timestamp)    fd.append('captured_timestamp', payload.captured_timestamp);

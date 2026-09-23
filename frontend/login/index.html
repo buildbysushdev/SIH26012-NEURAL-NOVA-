@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="description" content="MPLAD Risk Intelligence System — Secure Portal for Government Auditors and Citizens" />
+  <title>MPLAD Risk Intelligence System — Secure Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-deep:     #060b18;
+      --bg-panel:    rgba(15, 23, 42, 0.85);
+      --bg-card:     rgba(30, 41, 59, 0.6);
+      --accent-blue: #3b82f6;
+      --accent-gold: #f59e0b;
+      --accent-green:#10b981;
+      --accent-red:  #ef4444;
+      --text-primary:#f1f5f9;
+      --text-muted:  #94a3b8;
+      --text-dim:    #64748b;
+      --border:      rgba(148,163,184,0.12);
+      --border-hover:rgba(148,163,184,0.28);
+      --glow-blue:   0 0 40px rgba(59,130,246,0.25);
+      --glow-gold:   0 0 40px rgba(245,158,11,0.20);
+      --radius:      16px;
+      --radius-sm:   10px;
+    }
+
+    html, body {
+      min-height: 100vh;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      overflow-x: hidden;
+    }
+
+    /* ── Animated background ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(59,130,246,0.18) 0%, transparent 55%),
+        radial-gradient(ellipse 60% 50% at 80% 90%, rgba(16,185,129,0.12) 0%, transparent 55%),
+        radial-gradient(ellipse 70% 60% at 60% 40%, rgba(245,158,11,0.07) 0%, transparent 60%);
+      animation: bgPulse 10s ease-in-out infinite alternate;
+    }
+    @keyframes bgPulse {
+      0%   { opacity: 1; transform: scale(1); }
+      100% { opacity: .85; transform: scale(1.04); }
+    }
+
+    /* Grid overlay */
+    body::after {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(148,163,184,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148,163,184,0.03) 1px, transparent 1px);
+      background-size: 44px 44px;
+      pointer-events: none;
+    }
+
+    /* ── Layout ── */
+    .page-wrap {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 24px 16px 40px;
+    }
+
+    /* ── Government top bar ── */
+    .gov-bar {
+      width: 100%; max-width: 520px;
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 20px;
+      background: rgba(255,153,0,0.08);
+      border: 1px solid rgba(255,153,0,0.18);
+      border-radius: 10px;
+      margin-bottom: 28px;
+    }
+    .gov-bar .tricolour {
+      display: flex; gap: 3px; align-items: center;
+    }
+    .gov-bar .tricolour span {
+      display: block; width: 6px; height: 28px; border-radius: 3px;
+    }
+    .gov-bar .tricolour span:nth-child(1) { background: #FF9933; }
+    .gov-bar .tricolour span:nth-child(2) { background: #fff; }
+    .gov-bar .tricolour span:nth-child(3) { background: #138808; }
+    .gov-bar-text { flex: 1; }
+    .gov-bar-text p { font-size: 10px; color: var(--text-muted); line-height: 1.5; }
+    .gov-bar-text strong { font-size: 12px; color: var(--accent-gold); letter-spacing: .5px; }
+
+    /* ── Main card ── */
+    .login-card {
+      width: 100%; max-width: 480px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 44px 40px 40px;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.5), var(--glow-blue);
+      animation: cardIn .5s cubic-bezier(.22,1,.36,1) both;
+    }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(24px) scale(.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* ── Brand ── */
+    .brand { text-align: center; margin-bottom: 36px; }
+    .brand-icon {
+      width: 64px; height: 64px; border-radius: 18px;
+      background: linear-gradient(135deg, #1e3a5f, #0f2744);
+      border: 1px solid rgba(59,130,246,0.3);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px;
+      box-shadow: 0 8px 24px rgba(59,130,246,0.25);
+    }
+    .brand-icon svg { width: 32px; height: 32px; }
+    .brand h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 22px; font-weight: 700;
+      background: linear-gradient(135deg, #f1f5f9, #94a3b8);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      line-height: 1.25; margin-bottom: 6px;
+    }
+    .brand p {
+      font-size: 12.5px; color: var(--text-dim);
+      letter-spacing: .3px;
+    }
+
+    /* ── Tab switcher ── */
+    .role-tabs {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 6px; margin-bottom: 28px;
+      background: rgba(0,0,0,0.25);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 4px;
+    }
+    .role-tab {
+      padding: 9px 12px;
+      border-radius: 8px; border: none;
+      background: transparent; color: var(--text-muted);
+      font-size: 13px; font-weight: 500; cursor: pointer;
+      transition: all .2s ease;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .role-tab.active {
+      background: var(--accent-blue);
+      color: #fff;
+      box-shadow: 0 2px 12px rgba(59,130,246,0.4);
+    }
+    .role-tab:not(.active):hover {
+      background: rgba(148,163,184,0.08);
+      color: var(--text-primary);
+    }
+
+    /* ── Sections ── */
+    .login-section { display: none; }
+    .login-section.active { display: block; animation: fadeIn .25s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; } }
+
+    /* ── Form ── */
+    .field-group { margin-bottom: 18px; }
+    .field-group label {
+      display: block; font-size: 12px; font-weight: 500;
+      color: var(--text-muted); margin-bottom: 7px; letter-spacing: .4px;
+    }
+    .field-group input {
+      width: 100%; padding: 13px 16px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary); font-size: 14.5px; font-family: inherit;
+      transition: border-color .2s, box-shadow .2s;
+      outline: none;
+    }
+    .field-group input::placeholder { color: var(--text-dim); }
+    .field-group input:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+    }
+    .field-group input[type="password"] { letter-spacing: 2px; }
+    .field-group input[type="password"]:not(:placeholder-shown) { letter-spacing: 3px; }
+    .field-group input[type="password"]::placeholder { letter-spacing: 0; }
+
+    /* ── Password toggle ── */
+    .input-wrap { position: relative; }
+    .pwd-toggle {
+      position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; color: var(--text-dim);
+      display: flex; padding: 4px;
+      transition: color .2s;
+    }
+    .pwd-toggle:hover { color: var(--text-primary); }
+
+    /* ── Role hint chip ── */
+    .role-hint {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: rgba(59,130,246,0.1);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 20px;
+      padding: 4px 10px; font-size: 11.5px; color: var(--accent-blue);
+      margin-bottom: 18px;
+    }
+    .role-hint.admin {
+      background: rgba(245,158,11,0.1);
+      border-color: rgba(245,158,11,0.2);
+      color: var(--accent-gold);
+    }
+    .role-hint .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* ── Login button ── */
+    .btn-login {
+      width: 100%; padding: 14px;
+      border-radius: var(--radius-sm); border: none; cursor: pointer;
+      font-size: 15px; font-weight: 600; font-family: inherit;
+      transition: all .2s ease;
+      position: relative; overflow: hidden;
+      margin-top: 4px;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-login.officer-btn {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(37,99,235,0.4);
+    }
+    .btn-login.officer-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(37,99,235,0.5); }
+    .btn-login.admin-btn {
+      background: linear-gradient(135deg, #d97706, #b45309);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(217,119,6,0.4);
+    }
+    .btn-login.admin-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(217,119,6,0.5); }
+    .btn-login:active { transform: translateY(0); }
+    .btn-login.loading { opacity: .7; pointer-events: none; }
+
+    /* Spinner */
+    .spinner {
+      width: 18px; height: 18px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      animation: spin .7s linear infinite; display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .btn-login.loading .spinner { display: block; }
+    .btn-login.loading .btn-label { display: none; }
+
+    /* ── Error / success ── */
+    .msg-box {
+      display: none; padding: 12px 16px;
+      border-radius: var(--radius-sm); margin-bottom: 16px;
+      font-size: 13px; font-weight: 500; line-height: 1.5;
+      animation: fadeIn .2s ease;
+    }
+    .msg-box.error {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.25);
+      color: #fca5a5;
+    }
+    .msg-box.success {
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.25);
+      color: #6ee7b7;
+    }
+
+    /* ── Divider ── */
+    .divider {
+      display: flex; align-items: center; gap: 12px;
+      margin: 28px 0;
+      color: var(--text-dim); font-size: 12px;
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1; height: 1px;
+      background: var(--border);
+    }
+
+    /* ── Citizen button ── */
+    .btn-citizen {
+      width: 100%; padding: 18px 20px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(16,185,129,0.3);
+      background: rgba(16,185,129,0.06);
+      cursor: pointer; text-decoration: none;
+      display: flex; align-items: center; gap: 16px;
+      transition: all .25s ease;
+      position: relative; overflow: hidden;
+    }
+    .btn-citizen::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(16,185,129,0.12), transparent);
+      opacity: 0; transition: opacity .25s;
+    }
+    .btn-citizen:hover { border-color: rgba(16,185,129,0.55); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(16,185,129,0.18); }
+    .btn-citizen:hover::before { opacity: 1; }
+    .btn-citizen:active { transform: translateY(0); }
+    .citizen-icon {
+      width: 48px; height: 48px; border-radius: 14px; flex-shrink: 0;
+      background: rgba(16,185,129,0.15);
+      border: 1px solid rgba(16,185,129,0.25);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .citizen-icon svg { width: 24px; height: 24px; color: var(--accent-green); }
+    .citizen-text { flex: 1; text-align: left; }
+    .citizen-text strong { display: block; font-size: 15px; font-weight: 600; color: var(--accent-green); margin-bottom: 3px; }
+    .citizen-text span { font-size: 12px; color: var(--text-dim); }
+    .citizen-arrow { color: var(--accent-green); opacity: .6; }
+
+    /* ── Footer ── */
+    .login-footer {
+      margin-top: 28px; text-align: center;
+      font-size: 11.5px; color: var(--text-dim); line-height: 1.7;
+    }
+    .login-footer a { color: var(--text-muted); text-decoration: none; }
+    .login-footer a:hover { color: var(--text-primary); }
+
+    /* Demo credentials hint */
+    .demo-hint {
+      margin-top: 16px;
+      background: rgba(0,0,0,0.25);
+      border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 16px;
+    }
+    .demo-hint p {
+      font-size: 11px; color: var(--text-dim); margin-bottom: 6px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .8px;
+    }
+    .demo-cred {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 12px; color: var(--text-muted);
+      margin-bottom: 3px;
+    }
+    .demo-cred code {
+      font-family: 'Courier New', monospace;
+      background: rgba(255,255,255,0.05);
+      border-radius: 4px; padding: 1px 6px;
+      color: var(--accent-blue); font-size: 11.5px;
+    }
+    .demo-cred .fill-btn {
+      font-size: 10px; color: var(--accent-blue); cursor: pointer;
+      background: none; border: none; padding: 2px 6px;
+      border-radius: 4px; text-decoration: underline;
+    }
+    .demo-cred .fill-btn:hover { background: rgba(59,130,246,0.1); }
+
+    @media (max-width: 520px) {
+      .login-card { padding: 32px 22px 28px; border-radius: 18px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-wrap">
+
+  <!-- Government bar -->
+  <div class="gov-bar">
+    <div class="tricolour">
+      <span></span><span></span><span></span>
+    </div>
+    <div class="gov-bar-text">
+      <strong>MPLADS Risk Intelligence System</strong>
+      <p>Ministry of Statistics &amp; Programme Implementation &nbsp;|&nbsp; SIH26102 — Team Neural Nova</p>
+    </div>
+  </div>
+
+  <!-- Main card -->
+  <div class="login-card">
+
+    <!-- Brand -->
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M6 26L16 6L26 26H6Z" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linejoin="round"/>
+          <circle cx="16" cy="19" r="3" fill="#f59e0b"/>
+          <line x1="16" y1="13" x2="16" y2="17" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h1>MPLAD Risk Intelligence<br>System</h1>
+      <p>AI-powered audit decision support — SIH 2026</p>
+    </div>
+
+    <!-- Tab switcher -->
+    <div class="role-tabs" role="tablist">
+      <button class="role-tab active" id="tab-officer" role="tab" aria-selected="true" onclick="switchTab('officer')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Officer
+      </button>
+      <button class="role-tab" id="tab-admin" role="tab" aria-selected="false" onclick="switchTab('admin')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Super Admin
+      </button>
+    </div>
+
+    <!-- ── Officer Login ── -->
+    <div class="login-section active" id="section-officer" role="tabpanel">
+      <div class="role-hint">
+        <span class="dot"></span>
+        District Auditor / DISHA Officer
+      </div>
+
+      <div id="officer-msg" class="msg-box"></div>
+
+      <form id="officer-form" autocomplete="on">
+        <div class="field-group">
+          <label for="officer-id">Officer ID / Badge Number</label>
+          <input
+            type="text"
+            id="officer-id"
+            name="officer_id"
+            placeholder="e.g. OFFICER-DELHI-01"
+            autocomplete="username"
+            required
+          />
+        </div>
+        <div class="field-group">
+          <label for="officer-pwd">Password</label>
+          <div class="input-wrap">
+            <input
+              type="password"
+              id="officer-pwd"
+              name="password"
+              placeholder="Enter your password"
+              autocomplete="current-password"
+              required
+            />
+            <button type="button" class="pwd-toggle" onclick="togglePwd('officer-pwd', this)" aria-label="Toggle password visibility">
+              <svg id="eye-officer" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-login officer-btn" id="officer-submit">
+          <span class="spinner"></span>
+          <span class="btn-label">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Sign in as Officer
+          </span>
+        </button>
+      </form>
+
+      <div class="demo-hint">
+        <p>Demo Credentials</p>
+        <div class="demo-cred">
+          <span>ID: <code>OFFICER-DELHI-01</code></span>
+          <button class="fill-btn" onclick="fillOfficer('OFFICER-DELHI-01','officer@SIH2026')">Fill</button>
+        </div>
+        <div class="demo-cred">
+          <span>Pass: <code>officer@SIH2026</code></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Super Admin Login ── -->
+    <div class="login-section" id="section-admin" role="tabpanel">
+      <div class="role-hint admin">
+        <span class="dot"></span>
+        National Supervisory Auditor — All Districts
+      </div>
+
+      <div id="admin-msg" class="msg-box"></div>
+
+      <form id="admin-form" autocomplete="on">
+        <div class="field-group">
+          <label for="admin-id">Admin ID</label>
+          <input
+            type="text"
+            id="admin-id"
+            name="officer_id"
+            placeholder="e.g. ADMIN-NEURAL-NOVA"
+            autocomplete="username"
+            required
+          />
+        </div>
+        <div class="field-group">
+          <label for="admin-pwd">Password</label>
+          <div class="input-wrap">
+            <input
+              type="password"
+              id="admin-pwd"
+              name="password"
+              placeholder="Enter admin password"
+              autocomplete="current-password"
+              required
+            />
+            <button type="button" class="pwd-toggle" onclick="togglePwd('admin-pwd', this)" aria-label="Toggle password visibility">
+              <svg id="eye-admin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-login admin-btn" id="admin-submit">
+          <span class="spinner"></span>
+          <span class="btn-label">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Sign in as Super Admin
+          </span>
+        </button>
+      </form>
+
+      <div class="demo-hint">
+        <p>Demo Credentials</p>
+        <div class="demo-cred">
+          <span>ID: <code>ADMIN-NEURAL-NOVA</code></span>
+          <button class="fill-btn" onclick="fillAdmin('ADMIN-NEURAL-NOVA','admin@SIH2026')">Fill</button>
+        </div>
+        <div class="demo-cred">
+          <span>Pass: <code>admin@SIH2026</code></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Divider ── -->
+    <div class="divider">or access without login</div>
+
+    <!-- ── Citizen Portal Button ── -->
+    <a href="../citizen-portal/index.html" class="btn-citizen" id="citizen-portal-btn">
+      <div class="citizen-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </div>
+      <div class="citizen-text">
+        <strong>Citizen Portal</strong>
+        <span>Report issues with local MPLAD projects — no login required</span>
+      </div>
+      <svg class="citizen-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </a>
+
+  </div><!-- /login-card -->
+
+  <!-- Footer -->
+  <div class="login-footer">
+    <p>MPLAD Risk Intelligence System · SIH26102 · Team Neural Nova</p>
+    <p>This portal handles real government data — all access is logged and audited.</p>
+  </div>
+
+</div><!-- /page-wrap -->
+
+<script>
+// ─── Configuration ────────────────────────────────────────────────────────────
+// Backend URL — reads from localStorage (set by admin) or falls back to default
+const API_BASE = localStorage.getItem('mplads_api_url')
+  || 'http://127.0.0.1:8000';
+
+// ─── Tab switching ────────────────────────────────────────────────────────────
+function switchTab(role) {
+  document.querySelectorAll('.role-tab').forEach(t => {
+    t.classList.toggle('active', t.id === `tab-${role}`);
+    t.setAttribute('aria-selected', t.id === `tab-${role}`);
+  });
+  document.querySelectorAll('.login-section').forEach(s => {
+    s.classList.toggle('active', s.id === `section-${role}`);
+  });
+  clearMessages();
+}
+
+function clearMessages() {
+  document.querySelectorAll('.msg-box').forEach(m => {
+    m.style.display = 'none'; m.textContent = '';
+    m.className = 'msg-box';
+  });
+}
+
+// ─── Password visibility toggle ───────────────────────────────────────────────
+function togglePwd(inputId, btn) {
+  const input = document.getElementById(inputId);
+  const isText = input.type === 'text';
+  input.type = isText ? 'password' : 'text';
+  btn.querySelector('svg').innerHTML = isText
+    ? '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'
+    : '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+}
+
+// ─── Demo fill helpers ────────────────────────────────────────────────────────
+function fillOfficer(id, pwd) {
+  document.getElementById('officer-id').value = id;
+  document.getElementById('officer-pwd').value = pwd;
+}
+function fillAdmin(id, pwd) {
+  document.getElementById('admin-id').value = id;
+  document.getElementById('admin-pwd').value = pwd;
+}
+
+// ─── Show message ─────────────────────────────────────────────────────────────
+function showMsg(boxId, type, text) {
+  const box = document.getElementById(boxId);
+  box.textContent = text;
+  box.className = `msg-box ${type}`;
+  box.style.display = 'block';
+}
+
+// ─── Login flow ───────────────────────────────────────────────────────────────
+async function doLogin(officerId, password, role, submitBtn, msgBoxId) {
+  submitBtn.classList.add('loading');
+
+  try {
+    const resp = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        officer_id: officerId,
+        password:   password,
+        role:       role
+      })
+    });
+
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      showMsg(msgBoxId, 'error',
+        data.detail || 'Login failed. Check your credentials.');
+      submitBtn.classList.remove('loading');
+      return;
+    }
+
+    // Store token and officer info
+    localStorage.setItem('mplads_token', data.access_token);
+    localStorage.setItem('mplads_officer', JSON.stringify(data.officer));
+
+    showMsg(msgBoxId, 'success',
+      `Welcome, ${data.officer.officer_id}! Redirecting to dashboard...`);
+
+    // Redirect to officer dashboard after short delay
+    setTimeout(() => {
+      window.location.href = '../officer-dashboard/index.html';
+    }, 900);
+
+  } catch (err) {
+    showMsg(msgBoxId, 'error',
+      'Cannot reach the backend server. Is it running on ' + API_BASE + '?');
+    submitBtn.classList.remove('loading');
+  }
+}
+
+// ─── Form submit handlers ─────────────────────────────────────────────────────
+document.getElementById('officer-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id  = document.getElementById('officer-id').value.trim();
+  const pwd = document.getElementById('officer-pwd').value;
+  if (!id || !pwd) return;
+  await doLogin(id, pwd, 'district_officer',
+    document.getElementById('officer-submit'), 'officer-msg');
+});
+
+document.getElementById('admin-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id  = document.getElementById('admin-id').value.trim();
+  const pwd = document.getElementById('admin-pwd').value;
+  if (!id || !pwd) return;
+  await doLogin(id, pwd, 'national_admin',
+    document.getElementById('admin-submit'), 'admin-msg');
+});
+
+// ─── If already logged in, redirect ──────────────────────────────────────────
+(function checkExistingSession() {
+  const token = localStorage.getItem('mplads_token');
+  if (!token) return;
+  // Verify token is not expired by trying to parse exp claim
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp && payload.exp > now) {
+      // Still valid — redirect to dashboard
+      window.location.href = '../officer-dashboard/index.html';
+    }
+  } catch (_) { /* invalid token, stay on login */ }
+})();
+</script>
+</body>
+</html>

@@ -8,6 +8,7 @@ the auditing officer's ID, assigned district jurisdiction, and security role.
 """
 
 import os
+import hashlib
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any
 
@@ -40,18 +41,83 @@ ALGORITHM = "HS256"
 DEFAULT_EXPIRY_HOURS = 12
 
 
+# ---------------------------------------------------------------------------
+# Officer Credentials Store
+# ---------------------------------------------------------------------------
+# Credentials are SHA-256 hashed passwords stored here.
+# In production, replace with a proper database. For SIH hackathon, this is
+# a hardcoded store that can be overridden by environment variables.
+#
+# Format: officer_id -> {"password_hash": sha256(password), "district": str, "role": str}
+#
+# Default demo credentials:
+#   ADMIN-NEURAL-NOVA   / admin@SIH2026    -> national_admin,  ALL districts
+#   OFFICER-DELHI-01    / officer@SIH2026  -> district_officer, DELHI
+#   OFFICER-MH-01       / officer@SIH2026  -> district_officer, PUNE
+# ---------------------------------------------------------------------------
+
+def _sha256(s: str) -> str:
+    return hashlib.sha256(s.encode()).hexdigest()
+
+
+_DEFAULT_CREDENTIALS: Dict[str, Dict] = {
+    "ADMIN-NEURAL-NOVA": {
+        "password_hash": _sha256(os.getenv("ADMIN_PASSWORD", "admin@SIH2026")),
+        "district": "ALL",
+        "role": "national_admin",
+    },
+    "OFFICER-DELHI-01": {
+        "password_hash": _sha256(os.getenv("OFFICER_PASSWORD", "officer@SIH2026")),
+        "district": "DELHI",
+        "role": "district_officer",
+    },
+    "OFFICER-MH-01": {
+        "password_hash": _sha256(os.getenv("OFFICER_PASSWORD", "officer@SIH2026")),
+        "district": "PUNE",
+        "role": "district_officer",
+    },
+    # Demo catch-all officer (any district) for testing:
+    "AUDITOR-VIGILANCE-01": {
+        "password_hash": _sha256(os.getenv("OFFICER_PASSWORD", "officer@SIH2026")),
+        "district": "ALL",
+        "role": "national_admin",
+    },
+}
+
+
+def _validate_credentials(officer_id: str, password: str) -> Optional[Dict]:
+    """
+    Validates officer_id + password against the credentials store.
+    Returns the credential record (district, role) if valid, None if invalid.
+    Constant-time comparison to prevent timing attacks.
+    """
+    cred = _DEFAULT_CREDENTIALS.get(officer_id.strip())
+    if cred is None:
+        # Run a dummy comparison to avoid timing-based officer_id enumeration
+        hashlib.compare_digest(_sha256("dummy"), _sha256("notmatch"))
+        return None
+    given_hash = _sha256(password)
+    if not hashlib.compare_digest(given_hash, cred["password_hash"]):
+        return None
+    return cred
+
+
 class TokenRequest(BaseModel):
     officer_id: str = Field(
         default="AUDITOR-VIGILANCE-01",
         description="Auditing officer badge ID"
     )
+    password: str = Field(
+        default="",
+        description="Officer password (validated server-side via SHA-256 comparison)"
+    )
     district: Optional[str] = Field(
-        default="ALL",
-        description="Assigned district jurisdiction (e.g. 'VAISHALI', 'PARBHANI', or 'ALL')"
+        default=None,
+        description="Ignored — district is read from the credentials store server-side"
     )
     role: Optional[str] = Field(
-        default="district_officer",
-        description="Auditor role: 'district_officer' | 'national_admin'"
+        default=None,
+        description="Ignored — role is read from the credentials store server-side"
     )
 
 
@@ -124,11 +190,31 @@ def get_current_officer(authorization: Optional[str] = Header(None)) -> Dict[str
 def login_for_officer_token(req: TokenRequest):
     """
     Issues a cryptographically signed JWT token for an officer session.
-    Sets officer identity and statutory jurisdiction boundaries.
+    Validates officer credentials (ID + password) before issuing the token.
+    District and role are read server-side from the credentials store —
+    the client cannot self-assign a district or role.
     """
-    district_clean = (req.district or "ALL").strip().upper()
-    role_clean = (req.role or "district_officer").strip().lower()
-    officer_id_clean = (req.officer_id or "AUDITOR-DEFAULT").strip()
+    officer_id_clean = (req.officer_id or "").strip()
+    password = req.password or ""
+
+    if not officer_id_clean:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="officer_id is required."
+        )
+
+    # ── Validate credentials ──────────────────────────────────────────────────
+    cred = _validate_credentials(officer_id_clean, password)
+    if cred is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid officer ID or password. Access denied.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # ── Issue token with server-assigned district + role (not client-provided) ─
+    district_clean = cred["district"]
+    role_clean = cred["role"]
 
     token = create_access_token(
         officer_id=officer_id_clean,
