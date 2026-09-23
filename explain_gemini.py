@@ -105,12 +105,21 @@ def _template_doubts(project: dict) -> str:
     return "\n".join(doubts)
 
 
+def _get_generative_model(client):
+    for m in ["gemini-3.6-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemini-1.5-flash"]:
+        try:
+            return client.GenerativeModel(m)
+        except Exception:
+            continue
+    return client.GenerativeModel("gemini-3.6-flash")
+
+
 def explain_flagged_project(project: dict, language: str = "English") -> str:
     client = _get_client()
     if client is None:
         return _template_explanation(project)
     try:
-        model = client.GenerativeModel("gemini-1.5-flash")
+        model = _get_generative_model(client)
         prompt = (
             f"You are an audit assistant for India's MPLAD Scheme. "
             f"Explain in 2-3 plain sentences why this project was flagged as suspicious in {language}:\n"
@@ -136,7 +145,7 @@ def synthesize_audit_doubts(project: dict, language: str = "English") -> str:
     if client is None:
         return _template_doubts(project)
     try:
-        model = client.GenerativeModel("gemini-1.5-flash")
+        model = _get_generative_model(client)
         prompt = (
             f"You are an audit officer reviewing MPLAD Scheme projects. "
             f"Generate 3 specific audit questions in {language} for this flagged project:\n"
