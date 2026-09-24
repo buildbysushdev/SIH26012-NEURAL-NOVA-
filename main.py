@@ -138,6 +138,11 @@ async def lifespan(app: FastAPI):
     df["longitude"]      = df["resolved_lng"]
     df["coord_precision"] = df["location_precision"]
 
+    # Precompute fast search index columns (eliminates per-request string regex/replace overhead)
+    df["search_state"]        = df["state"].astype(str).str.lower().str.replace(" ", "", regex=False)
+    df["search_constituency"] = df["constituency"].astype(str).str.lower().str.replace(" ", "", regex=False)
+    df["search_district"]     = df["district"].astype(str).str.lower().str.replace(" ", "", regex=False) if "district" in df.columns else df["search_constituency"]
+    df["search_desc"]         = df["work_description"].astype(str).str.lower()
 
     _df = df
     top = _df["risk_score"].max()
