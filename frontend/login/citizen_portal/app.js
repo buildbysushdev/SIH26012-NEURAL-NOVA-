@@ -13,6 +13,7 @@
  */
 
 import { queueReport, getAllQueued, deleteQueued, pendingCount } from './db.js';
+import { initVoiceRecorder } from './voice_recorder.js';
 
 // Auto-bypass tunnel reminder screen on tunnel requests
 if (typeof window !== 'undefined' && window.fetch) {
@@ -1751,4 +1752,5 @@ if ('serviceWorker' in navigator) {
   updateModeBadge();
   await refreshPendingBanner();
   await checkBackendHealth();
+  initVoiceRecorder();
 })();

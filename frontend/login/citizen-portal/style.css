@@ -1751,3 +1751,161 @@ textarea:focus-visible {
 .toast-msg.fade-out {
   opacity: 0;
 }
+
+/* ── Government Voice Recording Panel (SIH26102) ── */
+.btn-voice-toggle {
+  background: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.btn-voice-toggle:hover {
+  background: #e0f2fe;
+  color: #0284c7;
+  border-color: #7dd3fc;
+}
+.btn-voice-toggle.active {
+  background: #e0f2fe;
+  color: #0369a1;
+  border-color: #0284c7;
+}
+
+.gov-voice-card {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 14px;
+  margin: 10px 0 14px 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.gov-voice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.gov-voice-title {
+  color: #0f172a;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.gov-voice-icon {
+  font-size: 1rem;
+}
+.voice-timer-badge {
+  background: #f8fafc;
+  color: #0f172a;
+  font-family: monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+}
+.voice-timer-badge.active {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+  animation: pulse-voice 1s infinite alternate;
+}
+@keyframes pulse-voice {
+  from { opacity: 1; }
+  to { opacity: 0.65; }
+}
+.voice-timer-badge.captured {
+  background: #f0fdf4;
+  color: #15803d;
+  border-color: #86efac;
+}
+
+.voice-status-text {
+  font-size: 0.78125rem;
+  color: #334155;
+  margin: 0 0 12px 0;
+  line-height: 1.4;
+}
+.voice-status-text.recording {
+  color: #b91c1c;
+  font-weight: 600;
+}
+.voice-status-text.success {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.gov-voice-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.gov-voice-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+.gov-voice-btn.start {
+  background: #1d4ed8;
+  color: #ffffff;
+}
+.gov-voice-btn.start:hover {
+  background: #1e40af;
+}
+.gov-voice-btn.stop {
+  background: #b91c1c;
+  color: #ffffff;
+}
+.gov-voice-btn.stop:hover {
+  background: #991b1b;
+}
+.gov-voice-btn.reset {
+  background: #ffffff;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+.gov-voice-btn.reset:hover {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.gov-voice-audio {
+  width: 100%;
+  height: 38px;
+  margin: 8px 0 6px 0;
+  border-radius: 4px;
+}
+.gov-voice-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 0.75rem;
+  margin-top: 8px;
+}
+.gov-voice-tip {
+  font-size: 0.71875rem;
+  color: #64748b;
+  margin-top: 6px;
+  line-height: 1.35;
+}
+

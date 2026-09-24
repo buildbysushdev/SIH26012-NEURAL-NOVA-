@@ -198,11 +198,41 @@
 
     <!-- Description -->
     <div class="form-group">
-      <div class="field-label-row">
+      <div class="field-label-row" style="display:flex;justify-content:space-between;align-items:center;">
         <label class="field-label" for="description">
           Description <span class="required-mark" aria-hidden="true">*</span>
         </label>
+        <button type="button" id="btn-toggle-voice" class="btn-voice-toggle" aria-expanded="false" aria-controls="voice-recorder-panel" title="Click to record voice grievance">
+          🎙️ Record Voice (Optional)
+        </button>
       </div>
+
+      <!-- ── Voice Recording Panel (Government Style) ── -->
+      <div id="voice-recorder-panel" class="gov-voice-card" style="display:none" role="region" aria-label="Audio recording panel">
+        <div class="gov-voice-header">
+          <div class="gov-voice-title">
+            <span class="gov-voice-icon">🎙️</span>
+            <strong>Spoken Voice Note (Official Input)</strong>
+          </div>
+          <span id="voice-timer-badge" class="voice-timer-badge">00:00</span>
+        </div>
+        <p id="voice-status-text" class="voice-status-text">Press "Start Recording" and describe the MPLAD project issue clearly.</p>
+        
+        <div class="gov-voice-actions">
+          <button type="button" id="voice-start-stop-btn" class="gov-voice-btn start">
+            🎙️ Start Recording
+          </button>
+          <button type="button" id="voice-reset-btn" class="gov-voice-btn reset" style="display:none">
+            🗑️ Delete & Re-record
+          </button>
+        </div>
+
+        <audio id="voice-audio-preview" class="gov-voice-audio" controls style="display:none" preload="metadata"></audio>
+
+        <div id="voice-error-box" class="gov-voice-error" style="display:none" role="alert"></div>
+        <div class="gov-voice-tip">ℹ️ Note: Voice audio is reviewed locally. You can also type directly in the text box below at any time.</div>
+      </div>
+
       <p class="field-helper">Minimum 20 characters. Include visible signs, dates, or specific location details for auditors.</p>
       <textarea
         id="description"
