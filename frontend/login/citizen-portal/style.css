@@ -1909,3 +1909,114 @@ textarea:focus-visible {
   line-height: 1.35;
 }
 
+/* ── Transcription Review Box ── */
+.voice-transcribing-loader {
+  background: #f8fafc;
+  color: #1e3a8a;
+  border: 1px dashed #cbd5e1;
+  border-radius: 4px;
+  padding: 10px 14px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+}
+.voice-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #cbd5e1;
+  border-top-color: #1d4ed8;
+  border-radius: 50%;
+  animation: spin-voice 0.7s linear infinite;
+  display: inline-block;
+}
+@keyframes spin-voice {
+  to { transform: rotate(360deg); }
+}
+
+.gov-transcription-box {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid #1d4ed8;
+  border-radius: 4px;
+  padding: 12px;
+  margin: 10px 0 8px 0;
+}
+.gov-transcription-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.gov-transcription-title {
+  color: #0f172a;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+.gov-transcription-badge {
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid #bfdbfe;
+}
+.gov-transcription-subtitle {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0 0 8px 0;
+}
+.gov-transcription-textarea {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 0.84375rem;
+  color: #0f172a;
+  line-height: 1.45;
+  resize: vertical;
+  min-height: 64px;
+}
+.gov-transcription-textarea:focus {
+  outline: none;
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.15);
+}
+.gov-transcription-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.gov-voice-btn-confirm {
+  background: #15803d;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.gov-voice-btn-confirm:hover {
+  background: #166534;
+}
+.gov-voice-btn-clear {
+  background: transparent;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.gov-voice-btn-clear:hover {
+  background: #ffffff;
+  color: #0f172a;
+}
+

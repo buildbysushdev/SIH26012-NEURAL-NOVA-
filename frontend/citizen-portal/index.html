@@ -229,8 +229,37 @@
 
         <audio id="voice-audio-preview" class="gov-voice-audio" controls style="display:none" preload="metadata"></audio>
 
+        <!-- Transcribing loader -->
+        <div id="voice-transcribing-loader" class="voice-transcribing-loader" style="display:none;">
+          <span class="voice-spinner"></span> Transcribing voice note into text…
+        </div>
+
+        <!-- ── Transcription Review Box (Stage 2) ── -->
+        <div id="voice-transcription-box" class="gov-transcription-box" style="display:none;">
+          <div class="gov-transcription-header">
+            <span class="gov-transcription-title">📝 Transcribed Text (Review & Confirm)</span>
+            <span id="voice-transcription-engine" class="gov-transcription-badge">Auto Speech-to-Text</span>
+          </div>
+          <p class="gov-transcription-subtitle">Review or edit the recognized words below before transferring to the report:</p>
+          <textarea
+            id="voice-transcription-preview"
+            class="gov-transcription-textarea"
+            rows="3"
+            maxlength="500"
+            placeholder="Recognized words will appear here for your review…"
+          ></textarea>
+          <div class="gov-transcription-actions">
+            <button type="button" id="btn-use-voice-text" class="gov-voice-btn-confirm">
+              ✓ Use This Text in Report
+            </button>
+            <button type="button" id="btn-clear-voice-text" class="gov-voice-btn-clear">
+              Clear
+            </button>
+          </div>
+        </div>
+
         <div id="voice-error-box" class="gov-voice-error" style="display:none" role="alert"></div>
-        <div class="gov-voice-tip">ℹ️ Note: Voice audio is reviewed locally. You can also type directly in the text box below at any time.</div>
+        <div class="gov-voice-tip">ℹ️ Note: Voice audio is transcribed into text. You can also type directly in the text box below at any time.</div>
       </div>
 
       <p class="field-helper">Minimum 20 characters. Include visible signs, dates, or specific location details for auditors.</p>
