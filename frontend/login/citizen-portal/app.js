@@ -532,9 +532,28 @@ function setServerStatus(state) {
     serverStatus.style.display = 'block';
   } else {
     serverStatus.innerHTML =
-      'Backend offline — showing demo data. Start: <code>uvicorn main:app --port 8000</code>';
+      'Backend offline (using demo data). Target: <code>' + esc(API_BASE) + '</code> ' +
+      '<button type="button" id="btn-change-api" style="margin-left:8px;padding:3px 8px;font-size:0.75rem;border-radius:4px;border:1px solid #d97706;background:#fff;cursor:pointer;font-weight:600;color:#92400e;">⚙️ Change API URL</button>';
     serverStatus.style.display = 'block';
+    const btn = document.getElementById('btn-change-api');
+    if (btn) btn.onclick = promptApiChange;
   }
+}
+
+function promptApiChange() {
+  const current = localStorage.getItem('MPLADS_API_URL') || API_BASE;
+  const url = prompt('Enter your live Backend API URL (e.g. from localtunnel / cloudflared / render):', current);
+  if (url !== null && url.trim()) {
+    const cleanUrl = url.trim().replace(/\/+$/, '');
+    localStorage.setItem('MPLADS_API_URL', cleanUrl);
+    localStorage.setItem('mplads_api_url', cleanUrl);
+    location.reload();
+  }
+}
+
+const apiConfigBtn = document.getElementById('api-config-btn');
+if (apiConfigBtn) {
+  apiConfigBtn.onclick = promptApiChange;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
