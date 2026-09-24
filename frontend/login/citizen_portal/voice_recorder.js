@@ -2,15 +2,16 @@
  * voice_recorder.js — Voice-Based Grievance Recording & Transcription Module
  * MPLADS Risk Intelligence System — SIH26102 (Team Neural Nova)
  * 
- * Provides an optional, accessible audio recording mechanism for citizens.
+ * Provides a dedicated, accessible audio recording mechanism for citizens.
  * Aesthetics: Official Government of India / NIC Portal Style
  * (High contrast, white panel, deep blue accents, clear typography).
  * 
- * Multi-Tier Transcription Architecture:
+ * Architecture:
+ * - Segmented UI: Mutually-exclusive tab toggle between [ ✍️ Type Description ] and [ 🎙️ Voice Recording ]
  * - Tier 1: Real-time browser SpeechRecognition (fast, client-side, zero latency)
  * - Tier 2: Automatic server fallback via POST /transcribe-audio (Gemini Flash in-memory)
+ * - Language Support: Auto-suggests Hindi / English based on project state + citizen manual override
  * - Rule 5 Compliance: Audio is never saved to disk; in-memory processing only.
- * - Non-blocking: Citizen can always type directly into the description box at any time.
  */
 
 let mediaRecorder = null;
@@ -39,8 +40,16 @@ function getApiBase() {
 }
 
 export function initVoiceRecorder() {
-  const toggleBtn           = document.getElementById('btn-toggle-voice');
-  const panel               = document.getElementById('voice-recorder-panel');
+  // Segmented input mode tabs & sections
+  const tabInputText        = document.getElementById('tab-input-text');
+  const tabInputVoice       = document.getElementById('tab-input-voice');
+  const sectionInputText    = document.getElementById('section-input-text');
+  const sectionInputVoice   = document.getElementById('section-input-voice');
+  const langSelect          = document.getElementById('voice-language-select');
+  const confirmedBanner     = document.getElementById('voice-confirmed-banner');
+  const confirmedCharCount  = document.getElementById('voice-confirmed-char-count');
+
+  // Voice recording controls
   const startStopBtn        = document.getElementById('voice-start-stop-btn');
   const resetBtn            = document.getElementById('voice-reset-btn');
   const timerBadge          = document.getElementById('voice-timer-badge');
@@ -48,7 +57,7 @@ export function initVoiceRecorder() {
   const audioPreview        = document.getElementById('voice-audio-preview');
   const errorBox            = document.getElementById('voice-error-box');
 
-  // Stage 2 Review & Transcription DOM elements
+  // Review & Transcription DOM elements
   const transcriptionLoader = document.getElementById('voice-transcribing-loader');
   const transcriptionBox    = document.getElementById('voice-transcription-box');
   const transcriptionBadge  = document.getElementById('voice-transcription-engine');
@@ -57,18 +66,55 @@ export function initVoiceRecorder() {
   const clearTextBtn        = document.getElementById('btn-clear-voice-text');
   const descriptionTextarea = document.getElementById('description');
 
-  if (!toggleBtn || !panel) return;
+  // Legacy button support if still in DOM
+  const legacyToggleBtn     = document.getElementById('btn-toggle-voice');
+  const legacyPanel         = document.getElementById('voice-recorder-panel');
 
-  // Toggle voice panel visibility
-  toggleBtn.addEventListener('click', () => {
-    const isHidden = panel.style.display === 'none' || !panel.style.display;
-    panel.style.display = isHidden ? 'block' : 'none';
-    toggleBtn.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
-    toggleBtn.classList.toggle('active', isHidden);
-    if (!isHidden && mediaRecorder && mediaRecorder.state === 'recording') {
-      stopRecording();
+  // ─── Segmented UI Toggle Handler ───
+  function switchToMode(mode) {
+    if (mode === 'voice') {
+      if (tabInputVoice) {
+        tabInputVoice.classList.add('active');
+        tabInputVoice.setAttribute('aria-selected', 'true');
+      }
+      if (tabInputText) {
+        tabInputText.classList.remove('active');
+        tabInputText.setAttribute('aria-selected', 'false');
+      }
+      if (sectionInputVoice) sectionInputVoice.style.display = 'block';
+      if (sectionInputText) sectionInputText.style.display = 'none';
+      if (legacyPanel) legacyPanel.style.display = 'block';
+    } else {
+      if (tabInputText) {
+        tabInputText.classList.add('active');
+        tabInputText.setAttribute('aria-selected', 'true');
+      }
+      if (tabInputVoice) {
+        tabInputVoice.classList.remove('active');
+        tabInputVoice.setAttribute('aria-selected', 'false');
+      }
+      if (sectionInputText) sectionInputText.style.display = 'block';
+      if (sectionInputVoice) sectionInputVoice.style.display = 'none';
+      if (legacyPanel) legacyPanel.style.display = 'none';
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        stopRecording();
+      }
     }
-  });
+  }
+
+  if (tabInputText) {
+    tabInputText.addEventListener('click', () => switchToMode('text'));
+  }
+  if (tabInputVoice) {
+    tabInputVoice.addEventListener('click', () => switchToMode('voice'));
+  }
+
+  if (legacyToggleBtn && legacyPanel) {
+    legacyToggleBtn.addEventListener('click', () => {
+      const isHidden = legacyPanel.style.display === 'none' || !legacyPanel.style.display;
+      switchToMode(isHidden ? 'voice' : 'text');
+    });
+  }
 
   // Start / Stop recording button
   if (startStopBtn) {
@@ -94,29 +140,26 @@ export function initVoiceRecorder() {
       const recognized = transcriptionText.value.trim();
       if (!recognized) return;
 
-      const currentVal = descriptionTextarea.value.trim();
-      if (!currentVal) {
-        descriptionTextarea.value = recognized.slice(0, 500);
-      } else {
-        // Append with a space, capped at 500 chars
-        descriptionTextarea.value = (currentVal + ' ' + recognized).slice(0, 500);
-      }
+      // Put text into description textarea
+      descriptionTextarea.value = recognized.slice(0, 500);
 
       // Dispatch 'input' event so char counter & validation update
       descriptionTextarea.dispatchEvent(new Event('input', { bubbles: true }));
 
+      // Update confirmed banner
+      if (confirmedBanner) {
+        if (confirmedCharCount) confirmedCharCount.textContent = descriptionTextarea.value.length;
+        confirmedBanner.style.display = 'block';
+      }
+
       // Button feedback
       const origText = useTextBtn.innerHTML;
-      useTextBtn.innerHTML = '✓ Added to Report';
+      useTextBtn.innerHTML = '✓ Text Saved to Report';
       useTextBtn.style.background = '#166534';
       setTimeout(() => {
         useTextBtn.innerHTML = origText;
         useTextBtn.style.background = '';
-      }, 2000);
-
-      // Scroll smoothly to description field
-      descriptionTextarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      descriptionTextarea.focus();
+      }, 2500);
     });
   }
 
@@ -125,6 +168,7 @@ export function initVoiceRecorder() {
     clearTextBtn.addEventListener('click', () => {
       transcriptionText.value = '';
       if (transcriptionBox) transcriptionBox.style.display = 'none';
+      if (confirmedBanner) confirmedBanner.style.display = 'none';
     });
   }
 
@@ -136,16 +180,16 @@ export function initVoiceRecorder() {
 
     if (transcriptionBox) transcriptionBox.style.display = 'none';
     if (transcriptionLoader) transcriptionLoader.style.display = 'none';
+    if (confirmedBanner) confirmedBanner.style.display = 'none';
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      showError('Audio recording is not supported in this browser. Please type your description manually.');
+      showError('Audio recording is not supported in this browser. Please use the "Type Description" tab.');
       return;
     }
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // Determine optimal mimeType
       const mimeType = getSupportedMimeType();
       mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
 
@@ -157,7 +201,6 @@ export function initVoiceRecorder() {
 
       mediaRecorder.onstop = async () => {
         audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
-        // Release hardware mic tracks
         stream.getTracks().forEach(track => track.stop());
 
         if (audioBlob && audioBlob.size > 0) {
@@ -171,7 +214,6 @@ export function initVoiceRecorder() {
           resetBtn.style.display = 'inline-flex';
           startStopBtn.style.display = 'none';
 
-          // Proceed to Speech-to-Text transcription
           await handleTranscription(audioBlob);
         } else {
           showError('No audio data was captured. Please try recording again.');
@@ -179,14 +221,12 @@ export function initVoiceRecorder() {
         }
       };
 
-      // Start client speech recognition in parallel if supported
       startClientSpeechRecognition();
 
-      mediaRecorder.start(250); // collect 250ms chunks
+      mediaRecorder.start(250);
       secondsElapsed = 0;
       updateTimerDisplay();
 
-      // UI state during recording
       startStopBtn.innerHTML = '⏹ Stop Recording';
       startStopBtn.className = 'gov-voice-btn stop';
       statusText.textContent = 'Recording in progress… Speak clearly into your microphone.';
@@ -195,7 +235,6 @@ export function initVoiceRecorder() {
       audioPreview.style.display = 'none';
       resetBtn.style.display = 'none';
 
-      // Start timer tick
       clearInterval(timerInterval);
       timerInterval = setInterval(() => {
         secondsElapsed++;
@@ -207,9 +246,9 @@ export function initVoiceRecorder() {
 
     } catch (err) {
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        showError('Microphone permission was denied. You can continue typing your description manually.');
+        showError('Microphone permission was denied. You can switch to the "Type Description" tab to enter text.');
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-        showError('No microphone was detected on this device. Please type your description manually.');
+        showError('No microphone was detected on this device. Please use the "Type Description" tab.');
       } else {
         showError('Unable to access microphone: ' + (err.message || 'Unknown error'));
       }
@@ -239,7 +278,7 @@ export function initVoiceRecorder() {
     startStopBtn.innerHTML = '🎙️ Start Recording';
     startStopBtn.className = 'gov-voice-btn start';
     startStopBtn.style.display = 'inline-flex';
-    statusText.textContent = 'Press "Start Recording" and describe the MPLAD project issue.';
+    statusText.textContent = 'Press "Start Recording" and describe the MPLAD project issue clearly.';
     statusText.className = 'voice-status-text';
     timerBadge.textContent = '00:00';
     timerBadge.className = 'voice-timer-badge';
@@ -250,6 +289,7 @@ export function initVoiceRecorder() {
     if (transcriptionBox) transcriptionBox.style.display = 'none';
     if (transcriptionLoader) transcriptionLoader.style.display = 'none';
     if (transcriptionText) transcriptionText.value = '';
+    if (confirmedBanner) confirmedBanner.style.display = 'none';
     clearError();
   }
 
@@ -263,7 +303,9 @@ export function initVoiceRecorder() {
       speechRecognition.continuous = true;
       speechRecognition.interimResults = false;
       speechRecognition.maxAlternatives = 1;
-      speechRecognition.lang = 'en-IN'; // Default Indian English / mixed
+      
+      const chosenLang = (langSelect && langSelect.value) ? langSelect.value : 'en-IN';
+      speechRecognition.lang = chosenLang;
 
       speechRecognition.onresult = (event) => {
         let text = '';
@@ -278,7 +320,7 @@ export function initVoiceRecorder() {
       };
 
       speechRecognition.onerror = (e) => {
-        console.warn('SpeechRecognition client error:', e.error);
+        console.warn('SpeechRecognition client note:', e.error);
       };
 
       speechRecognition.start();
@@ -299,13 +341,13 @@ export function initVoiceRecorder() {
 
   // ─── Tier 2: Automatic Fallback to Server Transcription ───
   async function handleTranscription(blob) {
-    // If client-side speech recognition already captured text:
     if (speechRecognizedText && speechRecognizedText.trim().length >= 5) {
       displayTranscriptionResult(speechRecognizedText.trim(), 'Browser Speech-to-Text');
+      // Auto-transfer to description if empty
+      autoSyncDescription(speechRecognizedText.trim());
       return;
     }
 
-    // Otherwise, call backend /transcribe-audio
     if (!transcriptionLoader) return;
     transcriptionLoader.style.display = 'flex';
     if (transcriptionBox) transcriptionBox.style.display = 'none';
@@ -333,17 +375,28 @@ export function initVoiceRecorder() {
       if (data && data.transcription && data.transcription.trim().length > 0) {
         const engineLabel = data.engine ? `AI Speech-to-Text (${data.engine})` : 'AI Speech-to-Text';
         displayTranscriptionResult(data.transcription.trim(), engineLabel);
+        autoSyncDescription(data.transcription.trim());
       } else {
-        // No speech detected
-        statusText.textContent = 'Voice note recorded. No speech was detected — you can review playback above or type below.';
+        statusText.textContent = 'Voice note recorded. No speech was detected — you can review playback above or switch to Type Description.';
         statusText.className = 'voice-status-text';
       }
 
     } catch (apiErr) {
       console.warn('Server audio transcription unavailable:', apiErr);
       transcriptionLoader.style.display = 'none';
-      statusText.textContent = 'Voice note recorded. You can listen to your recording above and type your note below.';
+      statusText.textContent = 'Voice note recorded. You can review audio playback above or switch to Type Description.';
       statusText.className = 'voice-status-text';
+    }
+  }
+
+  function autoSyncDescription(text) {
+    if (descriptionTextarea && !descriptionTextarea.value.trim()) {
+      descriptionTextarea.value = text.slice(0, 500);
+      descriptionTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+      if (confirmedBanner) {
+        if (confirmedCharCount) confirmedCharCount.textContent = descriptionTextarea.value.length;
+        confirmedBanner.style.display = 'block';
+      }
     }
   }
 
@@ -396,8 +449,25 @@ export function initVoiceRecorder() {
 }
 
 /**
- * Returns current recorded audio Blob (if any).
+ * Auto-suggests spoken language based on project state
  */
+export function suggestVoiceLanguage(stateName) {
+  const langSelect = document.getElementById('voice-language-select');
+  if (!langSelect || !stateName) return;
+
+  const s = stateName.toLowerCase().replace(/[\s-]/g, '');
+  const hindiStates = [
+    'uttarpradesh', 'bihar', 'madhyapradesh', 'rajasthan', 'haryana',
+    'delhi', 'uttarakhand', 'himachalpradesh', 'jharkhand', 'chhattisgarh'
+  ];
+
+  if (hindiStates.some(h => s.includes(h))) {
+    langSelect.value = 'hi-IN';
+  } else {
+    langSelect.value = 'en-IN';
+  }
+}
+
 export function getRecordedVoiceBlob() {
   return audioBlob;
 }

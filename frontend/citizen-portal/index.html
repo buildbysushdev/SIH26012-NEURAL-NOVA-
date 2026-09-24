@@ -196,26 +196,62 @@
       </select>
     </div>
 
-    <!-- Description -->
+    <!-- Description with Method Switcher (Text vs Voice) -->
     <div class="form-group">
-      <div class="field-label-row" style="display:flex;justify-content:space-between;align-items:center;">
-        <label class="field-label" for="description">
-          Description <span class="required-mark" aria-hidden="true">*</span>
+      <div class="field-label-row">
+        <label class="field-label" id="label-report-description">
+          Issue Description <span class="required-mark" aria-hidden="true">*</span>
         </label>
-        <button type="button" id="btn-toggle-voice" class="btn-voice-toggle" aria-expanded="false" aria-controls="voice-recorder-panel" title="Click to record voice grievance">
-          🎙️ Record Voice (Optional)
+      </div>
+
+      <!-- Segmented Input Mode Switcher (Text / Voice) -->
+      <div class="voice-mode-toggle-group" role="tablist" aria-label="Input Method">
+        <button type="button" id="tab-input-text" class="voice-mode-tab active" role="tab" aria-selected="true" aria-controls="section-input-text">
+          ✍️ Type Description
+        </button>
+        <button type="button" id="tab-input-voice" class="voice-mode-tab" role="tab" aria-selected="false" aria-controls="section-input-voice">
+          🎙️ Voice Recording (Audio Note)
         </button>
       </div>
 
-      <!-- ── Voice Recording Panel (Government Style) ── -->
-      <div id="voice-recorder-panel" class="gov-voice-card" style="display:none" role="region" aria-label="Audio recording panel">
+      <!-- ─── SUB-UI 1: Manual Typing ─── -->
+      <div id="section-input-text" class="input-mode-section" role="tabpanel" aria-labelledby="tab-input-text">
+        <p class="field-helper">Minimum 20 characters. Include visible signs, dates, or specific location details for auditors.</p>
+        <textarea
+          id="description"
+          name="description"
+          class="form-textarea"
+          rows="4"
+          maxlength="500"
+          placeholder="Describe the issue observed in detail…"
+          required
+          aria-required="true"
+          aria-describedby="char-count"
+        ></textarea>
+        <div class="char-count-wrap">
+          <span id="char-count" aria-live="polite">0 / 500</span>
+        </div>
+      </div>
+
+      <!-- ─── SUB-UI 2: Voice Grievance Recording Panel ─── -->
+      <div id="section-input-voice" class="input-mode-section gov-voice-card" style="display:none" role="tabpanel" aria-labelledby="tab-input-voice">
         <div class="gov-voice-header">
           <div class="gov-voice-title">
             <span class="gov-voice-icon">🎙️</span>
-            <strong>Spoken Voice Note (Official Input)</strong>
+            <strong>Spoken Grievance (Official Voice Input)</strong>
           </div>
           <span id="voice-timer-badge" class="voice-timer-badge">00:00</span>
         </div>
+
+        <!-- Language indicator -->
+        <div class="voice-lang-bar">
+          <span class="voice-lang-label">Spoken Language:</span>
+          <select id="voice-language-select" class="voice-lang-select" aria-label="Spoken Language">
+            <option value="en-IN" selected>English (India)</option>
+            <option value="hi-IN">हिंदी (Hindi)</option>
+          </select>
+        </div>
+
         <p id="voice-status-text" class="voice-status-text">Press "Start Recording" and describe the MPLAD project issue clearly.</p>
         
         <div class="gov-voice-actions">
@@ -234,7 +270,7 @@
           <span class="voice-spinner"></span> Transcribing voice note into text…
         </div>
 
-        <!-- ── Transcription Review Box (Stage 2) ── -->
+        <!-- ── Transcription Review Box ── -->
         <div id="voice-transcription-box" class="gov-transcription-box" style="display:none;">
           <div class="gov-transcription-header">
             <span class="gov-transcription-title">📝 Transcribed Text (Review & Confirm)</span>
@@ -258,24 +294,13 @@
           </div>
         </div>
 
-        <div id="voice-error-box" class="gov-voice-error" style="display:none" role="alert"></div>
-        <div class="gov-voice-tip">ℹ️ Note: Voice audio is transcribed into text. You can also type directly in the text box below at any time.</div>
-      </div>
+        <!-- Voice Confirmation Notice when text is ready -->
+        <div id="voice-confirmed-banner" class="voice-confirmed-banner" style="display:none;">
+          ✓ Spoken note recorded and added to report description (<span id="voice-confirmed-char-count">0</span> chars). Ready for submission!
+        </div>
 
-      <p class="field-helper">Minimum 20 characters. Include visible signs, dates, or specific location details for auditors.</p>
-      <textarea
-        id="description"
-        name="description"
-        class="form-textarea"
-        rows="4"
-        maxlength="500"
-        placeholder="Describe the issue observed in detail…"
-        required
-        aria-required="true"
-        aria-describedby="char-count"
-      ></textarea>
-      <div class="char-count-wrap">
-        <span id="char-count" aria-live="polite">0 / 500</span>
+        <div id="voice-error-box" class="gov-voice-error" style="display:none" role="alert"></div>
+        <div class="gov-voice-tip">ℹ️ Note: Spoken audio is converted into text for audit records. You can switch to "Type Description" at any time.</div>
       </div>
     </div>
 

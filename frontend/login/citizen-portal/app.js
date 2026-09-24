@@ -13,7 +13,7 @@
  */
 
 import { queueReport, getAllQueued, deleteQueued, pendingCount } from './db.js';
-import { initVoiceRecorder } from './voice_recorder.js';
+import { initVoiceRecorder, suggestVoiceLanguage } from './voice_recorder.js';
 
 // Auto-bypass tunnel reminder screen on tunnel requests
 if (typeof window !== 'undefined' && window.fetch) {
@@ -713,14 +713,19 @@ async function loadDemoData() {
 
 function searchDemo(q) {
   if (!demoData || !demoData.length) return [];
-  const term = q.toLowerCase();
+  const term = q.toLowerCase().trim();
+  const cleanTerm = term.replace(/[\s-]/g, '');
   if (!term || term.length < 2) return demoData.slice(0, 20);
-  return demoData.filter((p) =>
-    (p.constituency  || '').toLowerCase().indexOf(term) !== -1 ||
-    (p.work_description || '').toLowerCase().indexOf(term) !== -1 ||
-    (p.state         || '').toLowerCase().indexOf(term) !== -1 ||
-    (p.mp_name       || '').toLowerCase().indexOf(term) !== -1
-  ).slice(0, 20);
+  return demoData.filter((p) => {
+    const c = (p.constituency  || '').toLowerCase();
+    const d = (p.work_description || '').toLowerCase();
+    const s = (p.state         || '').toLowerCase();
+    const m = (p.mp_name       || '').toLowerCase();
+    return c.indexOf(term) !== -1 || c.replace(/[\s-]/g, '').indexOf(cleanTerm) !== -1 ||
+           d.indexOf(term) !== -1 ||
+           s.indexOf(term) !== -1 || s.replace(/[\s-]/g, '').indexOf(cleanTerm) !== -1 ||
+           m.indexOf(term) !== -1;
+  }).slice(0, 30);
 }
 
 // ─── Search Cache Helpers ───────────────────────────────────────────────────
@@ -797,8 +802,7 @@ async function doSearch() {
       }
       await loadDemoData();
       setServerStatus('offline');
-      renderProjects(searchDemo(q).length ? searchDemo(q) : demoData.slice(0, 20),
-        'demo fallback (backend offline)');
+      renderProjects(searchDemo(q), 'demo fallback (backend offline)');
       return;
     }
   }
@@ -846,8 +850,7 @@ async function doSearch() {
         '</div>';
     } else {
       await loadDemoData();
-      renderProjects(searchDemo(q).length ? searchDemo(q) : demoData.slice(0, 20),
-        'demo fallback (live search failed)');
+      renderProjects(searchDemo(q), 'demo fallback (live search failed)');
       console.warn('[Search fallback to demo]', err);
     }
   }
@@ -927,6 +930,7 @@ function openReportForm(project) {
     (project.constituency || '–') + ', ' + (project.state || '–') +
     (amt ? ' · ' + amt : '') +
     (project.mp_name ? ' · MP: ' + project.mp_name : '');
+  suggestVoiceLanguage(project.state);
   showScreen('screen-report');
 }
 

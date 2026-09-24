@@ -335,14 +335,23 @@ def search_projects(
     if len(term) < 2:
         raise HTTPException(status_code=400, detail="Search query must be at least 2 characters long.")
 
-    # Search constituency, description, state, and district/ida (case-insensitive)
+    clean_term = term.replace(" ", "").replace("-", "")
+
+    # Search constituency, description, state, and district/ida (case- and space-insensitive)
+    constituency_s = _df["constituency"].astype(str).str.lower()
+    state_s = _df["state"].astype(str).str.lower()
+    desc_s = _df["work_description"].astype(str).str.lower()
+
     mask = (
-        _df["constituency"].astype(str).str.lower().str.contains(term, na=False, regex=False)
-        | _df["work_description"].astype(str).str.lower().str.contains(term, na=False, regex=False)
-        | _df["state"].astype(str).str.lower().str.contains(term, na=False, regex=False)
+        constituency_s.str.contains(term, na=False, regex=False)
+        | constituency_s.str.replace(" ", "", regex=False).str.contains(clean_term, na=False, regex=False)
+        | desc_s.str.contains(term, na=False, regex=False)
+        | state_s.str.contains(term, na=False, regex=False)
+        | state_s.str.replace(" ", "", regex=False).str.contains(clean_term, na=False, regex=False)
     )
     if "district" in _df.columns:
-        mask = mask | _df["district"].astype(str).str.lower().str.contains(term, na=False, regex=False)
+        district_s = _df["district"].astype(str).str.lower()
+        mask = mask | district_s.str.contains(term, na=False, regex=False) | district_s.str.replace(" ", "", regex=False).str.contains(clean_term, na=False, regex=False)
     if "ida" in _df.columns:
         mask = mask | _df["ida"].astype(str).str.lower().str.contains(term, na=False, regex=False)
 

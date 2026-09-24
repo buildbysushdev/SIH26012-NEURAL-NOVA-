@@ -1778,6 +1778,74 @@ textarea:focus-visible {
   border-color: #0284c7;
 }
 
+.voice-mode-toggle-group {
+  display: flex;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 4px;
+  gap: 4px;
+  margin: 6px 0 12px 0;
+}
+.voice-mode-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.voice-mode-tab:hover {
+  color: #0f172a;
+}
+.voice-mode-tab.active {
+  background: #ffffff;
+  color: #1d4ed8;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e2e8f0;
+}
+
+.voice-lang-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 0.75rem;
+  color: #475569;
+}
+.voice-lang-label {
+  font-weight: 600;
+}
+.voice-lang-select {
+  font-size: 0.75rem;
+  padding: 3px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.voice-confirmed-banner {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 8px;
+}
+
 .gov-voice-card {
   background: #ffffff;
   border: 1px solid #cbd5e1;
