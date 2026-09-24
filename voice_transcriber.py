@@ -42,11 +42,18 @@ async def transcribe_audio_endpoint(
     Processes audio completely in-memory and immediately discards it.
     Zero raw audio is saved to server storage.
     """
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+    except ImportError:
+        pass
+
     api_key = os.getenv("GOOGLE_API_KEY", "").strip()
     if not api_key:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="GOOGLE_API_KEY is not configured on the server."
+        return TranscriptionResponse(
+            transcription="",
+            status="service_unconfigured",
+            engine="Local Speech Engine"
         )
 
     # Read audio bytes (cap at 10MB to prevent abuse)
@@ -126,10 +133,11 @@ async def transcribe_audio_endpoint(
                 last_err = e
                 continue
 
-        logger.error(f"All Gemini models exhausted for audio transcription: {last_err}")
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Speech transcription failed: {str(last_err)}"
+        logger.warning(f"Gemini models unavailable for audio transcription: {last_err}")
+        return TranscriptionResponse(
+            transcription="",
+            status="service_unavailable",
+            engine="Gemini (Offline)"
         )
 
     except ImportError:
