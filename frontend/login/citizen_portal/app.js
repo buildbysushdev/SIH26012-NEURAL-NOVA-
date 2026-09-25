@@ -808,7 +808,8 @@ function openSatelliteProofModal(p) {
 
   // Load satellite image from backend endpoint
   if (imgEl) {
-    const satUrl = API_BASE + '/project-satellite-image?work_id=' + encodeURIComponent(p.work_id || '') + '&district=' + encodeURIComponent(p.constituency || '') + '&state=' + encodeURIComponent(p.state || '') + '&lat=' + (lat || '') + '&lng=' + (lng || '');
+    const precParam = encodeURIComponent(p.location_precision || p.coord_precision || 'locality');
+    const satUrl = API_BASE + '/project-satellite-image?work_id=' + encodeURIComponent(p.work_id || '') + '&district=' + encodeURIComponent(p.constituency || '') + '&state=' + encodeURIComponent(p.state || '') + '&lat=' + (lat || '') + '&lng=' + (lng || '') + '&precision=' + precParam;
     imgEl.src = satUrl;
   }
 

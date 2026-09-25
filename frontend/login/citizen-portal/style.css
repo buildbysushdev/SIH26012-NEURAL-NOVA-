@@ -2580,9 +2580,7 @@ textarea:focus-visible {
   display: block;
 }
 .sat-img-overlay {
-  position: absolute;
-  top: 10px;
-  left: 10px;
+  display: none;
 }
 .sat-live-pill {
   background: rgba(15, 23, 42, 0.85);

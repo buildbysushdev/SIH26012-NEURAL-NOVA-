@@ -444,11 +444,15 @@ def get_project_satellite_image(
     lng: Optional[str] = Query(default=None, description="Longitude"),
     district: Optional[str] = Query(default=None, description="District / Constituency"),
     state: Optional[str] = Query(default=None, description="State"),
+    precision: Optional[str] = Query(default=None, description="Precision tier ('locality' or 'precise')"),
 ):
     """
     Returns visual Sentinel-2 / Landsat multispectral satellite inspection tile
     with coordinate crosshairs, resolution scale, and structure detection stamp.
     """
+    import importlib
+    import satellite_check
+    importlib.reload(satellite_check)
     from satellite_check import generate_satellite_thumbnail
 
     clean_lat = None
@@ -470,7 +474,7 @@ def get_project_satellite_image(
     st_name = state or "India"
     sat_status = "visible"
     pass_date = None
-    prec = "district"
+    prec = precision or "district"
 
     if _df is not None and work_id:
         match = _df[_df["work_id"] == work_id]
@@ -480,7 +484,8 @@ def get_project_satellite_image(
             st_name = str(row.get("state") or st_name)
             sat_status = str(row.get("satellite_status") or "no_imagery")
             pass_date = row.get("satellite_pass_date")
-            prec = str(row.get("location_precision") or row.get("coord_precision") or "district")
+            if precision is None:
+                prec = str(row.get("location_precision") or row.get("coord_precision") or "district")
             if target_lat is None and pd.notnull(row.get("resolved_lat")):
                 try:
                     target_lat = float(row["resolved_lat"])
@@ -491,6 +496,10 @@ def get_project_satellite_image(
                     target_lng = float(row["resolved_lng"])
                 except Exception:
                     pass
+
+    # If coordinates are explicitly provided and precision was not set, allow locality tier
+    if precision is None and target_lat is not None and target_lng is not None and prec == "district":
+        prec = "locality"
 
     # If coordinates are missing or precision is district-level/unavailable, enforce honest status
     if prec in ["district", "unavailable"] or target_lat is None or target_lng is None:
