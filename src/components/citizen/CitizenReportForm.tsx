@@ -23,6 +23,7 @@ export default function CitizenReportForm({ prefillProjectId }: { prefillProject
   const [issueType, setIssueType] = useState("");
   const [description, setDescription] = useState("");
   const [photoName, setPhotoName] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [locating, setLocating] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -62,7 +63,8 @@ export default function CitizenReportForm({ prefillProjectId }: { prefillProject
       location,
       issueType,
       description,
-      hasPhoto: !!photoName,
+      hasPhoto: !!photoFile || !!photoName,
+      photoFile,
     };
     const res = await submitCitizenReport(submission);
     setSubmitting(false);
@@ -140,7 +142,11 @@ export default function CitizenReportForm({ prefillProjectId }: { prefillProject
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={(e) => setPhotoName(e.target.files?.[0]?.name ?? null)}
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null;
+                setPhotoFile(file);
+                setPhotoName(file?.name ?? null);
+              }}
             />
             <Camera size={14} className="ml-auto text-gray-300" />
           </label>

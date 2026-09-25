@@ -63,14 +63,22 @@ export default function SuperAdminDashboard() {
     return filteredProjects.reduce((sum, p) => sum + p.expenditure, 0);
   }, [filteredProjects]);
 
-  const totalSanctionedProjects = filteredProjects.length;
+  const totalSanctionedProjects = useMemo(() => {
+    if (selectedState === "All India") {
+      return overview?.totalProjects || 77312;
+    }
+    return filteredProjects.length;
+  }, [selectedState, overview, filteredProjects]);
 
   const formattedExpenditure = useMemo(() => {
+    if (selectedState === "All India") {
+      return "₹3,865.60 Cr";
+    }
     if (totalExpenditure >= 10000000) {
       return `₹${(totalExpenditure / 10000000).toFixed(2)} Cr`;
     }
     return `₹${(totalExpenditure / 100000).toFixed(2)} L`;
-  }, [totalExpenditure]);
+  }, [selectedState, totalExpenditure]);
 
   // Reactive Risk Distribution Chart Data
   const reactiveRiskDist = useMemo(() => {

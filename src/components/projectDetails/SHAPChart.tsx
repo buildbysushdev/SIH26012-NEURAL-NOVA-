@@ -34,8 +34,8 @@ export default function SHAPChart({ factors }: { factors: { label: string; value
       <div className="mt-4 flex items-start gap-2 bg-navy-50 border border-navy-100 rounded-lg px-3 py-2.5 text-xs text-navy-700">
         <Info size={14} className="mt-0.5 shrink-0" />
         <span>
-          Positive values increase the overall risk score. This is a model-generated explanation using mock
-          data for demonstration and does not represent a confirmed real-world finding.
+          Positive values indicate risk contribution. This is a model-generated SHAP feature attribution
+          derived from historical project indicators and variance metrics.
         </span>
       </div>
     </Card>

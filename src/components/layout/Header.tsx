@@ -32,9 +32,16 @@ const INDIAN_LANGUAGES = [
 ];
 
 /** Authentic Mathematical 24-spoke National Flag of India */
-export function IndianFlag({ className = "w-9 h-6" }: { className?: string }) {
+export function IndianFlag({ className = "w-9 h-6", style }: { className?: string; style?: React.CSSProperties }) {
   return (
-    <svg viewBox="0 0 900 600" className={className} aria-label="National Flag of India">
+    <svg
+      viewBox="0 0 900 600"
+      width="36"
+      height="24"
+      className={className}
+      style={{ width: "2.25rem", height: "1.5rem", maxWidth: "100%", flexShrink: 0, ...style }}
+      aria-label="National Flag of India"
+    >
       <rect width="900" height="200" fill="#FF9933" />
       <rect y="200" width="900" height="200" fill="#FFFFFF" />
       <rect y="400" width="900" height="200" fill="#138808" />
@@ -56,9 +63,17 @@ export function IndianFlag({ className = "w-9 h-6" }: { className?: string }) {
 }
 
 /** State Emblem of India (Ashoka Lion Capital with motto "सत्यमेव जयते") */
-export function AshokaEmblem({ className = "w-10 h-12" }: { className?: string }) {
+export function AshokaEmblem({ className = "w-10 h-12", style }: { className?: string; style?: React.CSSProperties }) {
   return (
-    <svg viewBox="0 0 100 115" className={className} fill="currentColor" aria-label="National Emblem of India">
+    <svg
+      viewBox="0 0 100 115"
+      width="40"
+      height="48"
+      className={className}
+      style={{ width: "2.5rem", height: "3rem", maxWidth: "100%", flexShrink: 0, ...style }}
+      fill="currentColor"
+      aria-label="National Emblem of India"
+    >
       <path d="M50 8 C44 8 41 12 40 17 C39 22 41 27 42 32 C43 36 44 40 45 44 C47 43 49 42 50 42 C51 42 53 43 55 44 C56 40 57 36 58 32 C59 27 61 22 60 17 C59 12 56 8 50 8 Z" className="text-[#0b2545]" />
       <path d="M46 19 C48 18 52 18 54 19 M47 24 C49 23 51 23 53 24 M48 29 L52 29 M47 34 C49 35 51 35 53 34 M45 37 L55 37" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" className="text-amber-600/80" />
       <path d="M38 16 C34 16 30 19 28 23 C26 27 26 33 28 37 C29 40 31 43 33 46 C36 44 38 43 41 42 C39 37 38 32 38 27 C38 23 38 19 38 16 Z" className="text-[#0b2545]" />
@@ -88,7 +103,7 @@ export function OfficialMinistryEmblem({ className = "h-12" }: { className?: str
   return (
     <div className={`flex items-center gap-1.5 shrink-0 ${className}`}>
       <AshokaEmblem className="w-10 h-12 shrink-0" />
-      <svg viewBox="0 0 24 50" className="w-3.5 sm:w-4 h-10 sm:h-11 shrink-0" fill="none" aria-hidden="true">
+      <svg viewBox="0 0 24 50" width="16" height="44" className="w-3.5 sm:w-4 h-10 sm:h-11 shrink-0" fill="none" aria-hidden="true">
         <path d="M 4 8 C 12 16, 20 22, 20 30" stroke="#FF9933" strokeWidth="3.2" strokeLinecap="round" />
         <path d="M 2 24 C 10 32, 16 38, 16 46" stroke="#138808" strokeWidth="3.2" strokeLinecap="round" />
       </svg>

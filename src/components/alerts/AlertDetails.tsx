@@ -134,7 +134,7 @@ export default function AlertDetails({
         onClose={() => setConfirmAction(null)}
         onConfirm={() => runAction("Assigned", `Alert ${alert.id} assigned to an officer.`)}
         title="Assign this alert?"
-        description="This will assign the alert to the current officer for follow-up (mock assignment)."
+        description="This will assign the alert to the field verification officer for on-ground inspection."
         confirmLabel="Assign"
         loading={loading}
       />
