@@ -37,7 +37,9 @@
     <header class="app-header">
       <div class="header-left">
         <div class="brand-badge" id="nav-brand-home" title="Return to Worklist">
-          <div class="brand-emblem">NN</div>
+          <div class="brand-emblem" style="background:#ffffff; padding:2px; display:flex; align-items:center; justify-content:center; border-radius:4px;">
+            <img src="./assets/emblem_cleaned.png" alt="State Emblem of India (3 Lions)" style="height:32px; width:auto; display:block;" />
+          </div>
           <div class="brand-title-wrap">
             <span class="brand-title">MPLADS Risk Intelligence</span>
             <span class="brand-sub">SIH26102 &bull; VIGILANCE DISPATCH</span>
@@ -63,7 +65,7 @@
         </div>
       </div>
 
-      <div class="header-right">
+      <div class="header-right" style="display:flex; align-items:center; gap:12px;">
         <!-- Live / Offline Sync Badge -->
         <div class="sync-status-badge" id="sync-status-badge" title="Network status & background sync">
           <span class="sync-status-dot"></span>
@@ -74,6 +76,15 @@
         <div class="officer-hud-badge">
           <span class="officer-id">AUDITOR-VIGILANCE-01</span>
           <span class="officer-jurisdiction">ALL DISTRICTS</span>
+        </div>
+
+        <!-- Live Date/Time & Indian Flag -->
+        <div class="officer-live-clock" style="display:flex; flex-direction:column; align-items:flex-end; font-size:0.75rem; color:#94a3b8; line-height:1.2; text-align:right;">
+          <span id="officer-date" style="font-weight:600; color:#f1f5f9;">Loading Date...</span>
+          <span id="officer-time" style="font-family:'JetBrains Mono', monospace; font-size:0.75rem; color:#38bdf8;">Loading Time...</span>
+        </div>
+        <div class="officer-flag-wrap" title="National Flag of India" style="border:1px solid rgba(255,255,255,0.25); border-radius:3px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.3); display:flex; align-items:center; background:#ffffff;">
+          <img src="./assets/india_flag.png" alt="National Flag of India" style="height:30px; width:auto; display:block;" />
         </div>
       </div>
     </header>
@@ -523,5 +534,22 @@
   
   <!-- Main Application Entrypoint -->
   <script type="module" src="js/app.js"></script>
+
+  <!-- Live Date/Time Clock (GIGW Standard) -->
+  <script>
+    function updateOfficerClock() {
+      const now = new Date();
+      const dateOptions = { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' };
+      const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+
+      const dElem = document.getElementById('officer-date');
+      if (dElem) dElem.textContent = now.toLocaleDateString('en-IN', dateOptions);
+
+      const tElem = document.getElementById('officer-time');
+      if (tElem) tElem.textContent = now.toLocaleTimeString('en-IN', timeOptions) + ' IST';
+    }
+    updateOfficerClock();
+    setInterval(updateOfficerClock, 1000);
+  </script>
 </body>
 </html>

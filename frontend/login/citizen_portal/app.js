@@ -1842,8 +1842,29 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
 
+// ─── Live Date and Time Clock (GIGW Standard) ─────────────────────────────────
+function updateCitizenLiveClock() {
+  const now = new Date();
+  const dateOptions = { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' };
+  const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+
+  const dateStr = now.toLocaleDateString('en-IN', dateOptions);
+  const timeStr = now.toLocaleTimeString('en-IN', timeOptions);
+
+  const topbarClock = document.getElementById('citizen-topbar-clock');
+  if (topbarClock) topbarClock.textContent = `${dateStr} | ${timeStr} IST`;
+
+  const headerDate = document.getElementById('citizen-header-date');
+  if (headerDate) headerDate.textContent = dateStr;
+
+  const headerTime = document.getElementById('citizen-header-time');
+  if (headerTime) headerTime.textContent = `${timeStr} IST`;
+}
+
 // ─── Startup ──────────────────────────────────────────────────────────────────
 (async () => {
+  updateCitizenLiveClock();
+  setInterval(updateCitizenLiveClock, 1000);
   updateOnlineStatus();
   initTooltips(document);
   renderInitialState();
@@ -1857,3 +1878,4 @@ if ('serviceWorker' in navigator) {
   await refreshPendingBanner();
   await checkBackendHealth();
 })();
+

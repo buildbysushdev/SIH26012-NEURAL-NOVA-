@@ -49,7 +49,11 @@
 
   <!-- Government top bar -->
   <div class="gov-topbar">
-    <span class="gov-topbar-left">भारत सरकार | Government of India</span>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="gov-topbar-left">भारत सरकार | Government of India</span>
+      <span style="color: rgba(255,255,255,0.4); margin: 0 4px;">•</span>
+      <span id="citizen-topbar-clock" style="font-weight: 500; font-size: 0.75rem; color: #93c5fd;">Loading Date & Time...</span>
+    </div>
     <!-- Live/Demo mode indicator -->
     <div class="header-mode">
       <span id="mode-badge" class="mode-badge live">● LIVE</span>
@@ -59,13 +63,29 @@
   </div>
 
   <!-- Header (shared across all screens) -->
-  <header class="app-header">
-    <button id="back-btn" class="back-btn hidden" aria-label="Go back" type="button">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-    </button>
-    <div class="app-header-content">
-      <h1 class="app-header-title">MPLAD Citizen Portal</h1>
-      <p class="app-header-subtitle">Report issues with local development projects</p>
+  <header class="app-header" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+    <div style="display: flex; align-items: center; gap: 12px; min-width:0;">
+      <button id="back-btn" class="back-btn hidden" aria-label="Go back" type="button">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      </button>
+      <div class="header-emblem-wrap" title="State Emblem of India (3 Lions)" style="flex-shrink:0;">
+        <img src="./assets/emblem_cleaned.png" alt="State Emblem of India" style="height: 48px; width: auto; object-fit: contain; display: block; border-radius: 4px; background: #ffffff; padding: 2px;" />
+      </div>
+      <div class="app-header-content">
+        <h1 class="app-header-title">MPLAD Citizen Portal</h1>
+        <p class="app-header-subtitle">Report issues with local development projects</p>
+      </div>
+    </div>
+
+    <!-- Right: Indian Flag and Live Date/Time Badge -->
+    <div class="app-header-right" style="display: flex; align-items: center; gap: 10px; margin-left: auto; flex-shrink:0;">
+      <div class="header-clock-wrap" style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; line-height:1.2;">
+        <span id="citizen-header-date" style="font-size: 0.75rem; font-weight: 700; color: #1f2937;">Loading Date...</span>
+        <span id="citizen-header-time" style="font-family: monospace; font-size: 0.6875rem; color: #003366; font-weight: 600;">Loading Time...</span>
+      </div>
+      <div class="header-flag-wrap" title="National Flag of India" style="border: 1px solid #d1d5db; border-radius: 3px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.15); background: #ffffff; display:flex; align-items:center;">
+        <img src="./assets/india_flag.png" alt="National Flag of India" style="height: 32px; width: auto; display: block;" />
+      </div>
     </div>
   </header>
 
@@ -1069,5 +1089,27 @@
 <script src="./db.js"></script>
 <script src="./voice_recorder.js"></script>
 <script src="./app.js"></script>
+<script>
+  (function initClock() {
+    function tick() {
+      const now = new Date();
+      const dateOptions = { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' };
+      const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+      const dateStr = now.toLocaleDateString('en-IN', dateOptions);
+      const timeStr = now.toLocaleTimeString('en-IN', timeOptions);
+
+      const topClock = document.getElementById('citizen-topbar-clock');
+      if (topClock) topClock.textContent = `${dateStr} | ${timeStr} IST`;
+
+      const hDate = document.getElementById('citizen-header-date');
+      if (hDate) hDate.textContent = dateStr;
+
+      const hTime = document.getElementById('citizen-header-time');
+      if (hTime) hTime.textContent = `${timeStr} IST`;
+    }
+    tick();
+    setInterval(tick, 1000);
+  })();
+</script>
 </body>
 </html>

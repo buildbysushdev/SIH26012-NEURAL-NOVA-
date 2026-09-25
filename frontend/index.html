@@ -702,6 +702,8 @@
       <span class="gov-hindi-badge">भारत सरकार</span>
       <span>|</span>
       <span>Government of India</span>
+      <span style="color:#cbd5e1; margin: 0 4px;">•</span>
+      <span id="top-bar-clock" style="font-weight:600; color:var(--gov-blue-primary);">Loading Date & Time...</span>
     </div>
     <div class="gov-accessibility">
       <div class="gov-acc-btn-group" aria-label="Font Size Controls">
@@ -720,63 +722,9 @@
       
       <!-- Brand & Emblem -->
       <div class="gov-brand-left">
-        <!-- State Emblem of India (3 Lions Capital with Satyameva Jayate) SVG -->
+        <!-- State Emblem of India (Lion Capital with Satyameva Jayate) -->
         <div class="gov-emblem-wrap" title="State Emblem of India (Lion Capital of Ashoka)">
-          <svg class="gov-emblem-svg" viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="State Emblem of India">
-            <!-- Lion Capital: Abacus Plinth -->
-            <rect x="18" y="106" width="64" height="7" rx="1.5" fill="#003366"/>
-            <rect x="14" y="113" width="72" height="4" rx="1" fill="#002147"/>
-            
-            <!-- Satyameva Jayate in Devanagari -->
-            <text x="50" y="126" font-family="'Noto Sans Devanagari', sans-serif" font-size="8.5" font-weight="800" text-anchor="middle" fill="#002147">सत्यमेव जयते</text>
-            
-            <!-- Abacus Center Wheel (Dharma Chakra) -->
-            <circle cx="50" cy="99" r="6" stroke="#003366" stroke-width="1.6" fill="#ffffff"/>
-            <circle cx="50" cy="99" r="1.6" fill="#003366"/>
-            <!-- 8 tiny radial indicators for base chakra -->
-            <line x1="50" y1="93" x2="50" y2="105" stroke="#003366" stroke-width="0.8"/>
-            <line x1="44" y1="99" x2="56" y2="99" stroke="#003366" stroke-width="0.8"/>
-            <line x1="46" y1="95" x2="54" y2="103" stroke="#003366" stroke-width="0.8"/>
-            <line x1="54" y1="95" x2="46" y2="103" stroke="#003366" stroke-width="0.8"/>
-
-            <!-- Abacus Animal Sculptures (Horse on Left, Bull on Right) in Navy -->
-            <path d="M26 99 C29 96 32 96 35 99" stroke="#003366" stroke-width="1.8" fill="none"/>
-            <circle cx="28" cy="97" r="1" fill="#003366"/>
-            <path d="M65 99 C68 96 71 96 74 99" stroke="#003366" stroke-width="1.8" fill="none"/>
-            <circle cx="72" cy="97" r="1" fill="#003366"/>
-
-            <!-- Lotus / Decorative Plinth Layer -->
-            <path d="M24 95 C34 92 44 94 50 94 C56 94 66 92 76 95 L74 104 L26 104 Z" fill="#e1ebf5" stroke="#003366" stroke-width="1.2"/>
-
-            <!-- THREE LIONS STRUCTURE (Official Indian National Emblem) -->
-            <!-- 1. Center Lion Body & Head -->
-            <path d="M38 46 C38 29 42 20 50 20 C58 20 62 29 62 46 C62 62 60 76 58 93 L42 93 C40 76 38 62 38 46 Z" fill="#003366"/>
-            <!-- Center Lion Mane Texture -->
-            <circle cx="50" cy="32" r="7" fill="#002147"/>
-            <path d="M47 38 L53 38 L50 43 Z" fill="#ffffff"/>
-            <!-- Center Lion Crown & Ears -->
-            <path d="M44 21 L42 14 L47 18 Z" fill="#002147"/>
-            <path d="M56 21 L58 14 L53 18 Z" fill="#002147"/>
-            <!-- Facial feature highlights -->
-            <circle cx="47" cy="30" r="1.2" fill="#ffffff"/>
-            <circle cx="53" cy="30" r="1.2" fill="#ffffff"/>
-
-            <!-- 2. Left Lion (Looking Left) -->
-            <path d="M24 51 C24 38 28 32 36 32 C38 42 38 60 40 85 L30 89 C26 76 24 63 24 51 Z" fill="#002147"/>
-            <path d="M26 34 L21 27 L28 30 Z" fill="#003366"/>
-            <circle cx="31" cy="40" r="4" fill="#003366"/>
-            <!-- Left muzzle & jaw -->
-            <path d="M24 43 Q20 44 23 48 Z" fill="#002147"/>
-            <circle cx="28" cy="38" r="1.2" fill="#ffffff"/>
-
-            <!-- 3. Right Lion (Looking Right) -->
-            <path d="M76 51 C76 38 72 32 64 32 C62 42 62 60 60 85 L70 89 C74 76 76 63 76 51 Z" fill="#002147"/>
-            <path d="M74 34 L79 27 L72 30 Z" fill="#003366"/>
-            <circle cx="69" cy="40" r="4" fill="#003366"/>
-            <!-- Right muzzle & jaw -->
-            <path d="M76 43 Q80 44 77 48 Z" fill="#002147"/>
-            <circle cx="72" cy="38" r="1.2" fill="#ffffff"/>
-          </svg>
+          <img src="./assets/emblem_cleaned.png" alt="State Emblem of India" class="gov-emblem-img" style="height: 76px; width: auto; object-fit: contain; display: block; border-radius: 4px;" />
         </div>
 
         <div class="gov-titles">
@@ -786,57 +734,17 @@
         </div>
       </div>
 
-      <!-- Right: Official Ashok Chakra (24-spoke Navy Wheel) -->
-      <div class="gov-chakra-wrap">
-        <svg class="gov-chakra-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ashok Chakra 24 Spokes">
-          <!-- Outer circular rims -->
-          <circle cx="50" cy="50" r="46" stroke="#003366" stroke-width="4.5" fill="#ffffff"/>
-          <circle cx="50" cy="50" r="43" stroke="#002147" stroke-width="1.2" fill="none"/>
-          
-          <!-- Central Hub -->
-          <circle cx="50" cy="50" r="9.5" fill="#003366"/>
-          <circle cx="50" cy="50" r="4" fill="#ffffff"/>
+      <!-- Right: Official India Flag & Live Date/Time Badge -->
+      <div class="gov-masthead-right" style="display: flex; align-items: center; gap: 16px;">
+        <div class="gov-live-datetime-card" style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center; text-align: right; border-right: 1px solid var(--gov-border); padding-right: 14px;">
+          <div style="font-size: 0.6875rem; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">National Portal Standard</div>
+          <div id="masthead-date" style="font-size: 0.8125rem; font-weight: 700; color: var(--gov-blue-primary);">Loading Date...</div>
+          <div id="masthead-time" style="font-family: 'JetBrains Mono', monospace; font-size: 0.875rem; font-weight: 800; color: #002147;">Loading Time...</div>
+        </div>
 
-          <!-- Exactly 24 Spokes at 15-degree increments -->
-          <g stroke="#003366" stroke-width="2" stroke-linecap="round">
-            <!-- 0 deg & 180 deg -->
-            <line x1="50" y1="50" x2="50" y2="7"/>
-            <line x1="50" y1="50" x2="50" y2="93"/>
-            <!-- 90 deg & 270 deg -->
-            <line x1="50" y1="50" x2="7" y2="50"/>
-            <line x1="50" y1="50" x2="93" y2="50"/>
-            <!-- 45 deg & 225 deg -->
-            <line x1="50" y1="50" x2="80.4" y2="19.6"/>
-            <line x1="50" y1="50" x2="19.6" y2="80.4"/>
-            <!-- 135 deg & 315 deg -->
-            <line x1="50" y1="50" x2="80.4" y2="80.4"/>
-            <line x1="50" y1="50" x2="19.6" y2="19.6"/>
-            <!-- 15 deg & 195 deg -->
-            <line x1="50" y1="50" x2="61.1" y2="8.4"/>
-            <line x1="50" y1="50" x2="38.9" y2="91.6"/>
-            <!-- 30 deg & 210 deg -->
-            <line x1="50" y1="50" x2="71.5" y2="12.7"/>
-            <line x1="50" y1="50" x2="28.5" y2="87.3"/>
-            <!-- 60 deg & 240 deg -->
-            <line x1="50" y1="50" x2="87.3" y2="28.5"/>
-            <line x1="50" y1="50" x2="12.7" y2="71.5"/>
-            <!-- 75 deg & 255 deg -->
-            <line x1="50" y1="50" x2="91.6" y2="38.9"/>
-            <line x1="50" y1="50" x2="8.4" y2="61.1"/>
-            <!-- 105 deg & 285 deg -->
-            <line x1="50" y1="50" x2="91.6" y2="61.1"/>
-            <line x1="50" y1="50" x2="8.4" y2="38.9"/>
-            <!-- 120 deg & 300 deg -->
-            <line x1="50" y1="50" x2="87.3" y2="71.5"/>
-            <line x1="50" y1="50" x2="12.7" y2="28.5"/>
-            <!-- 150 deg & 330 deg -->
-            <line x1="50" y1="50" x2="71.5" y2="87.3"/>
-            <line x1="50" y1="50" x2="28.5" y2="12.7"/>
-            <!-- 165 deg & 345 deg -->
-            <line x1="50" y1="50" x2="61.1" y2="91.6"/>
-            <line x1="50" y1="50" x2="38.9" y2="8.4"/>
-          </g>
-        </svg>
+        <div class="gov-flag-wrap" title="National Flag of India (Tiranga)" style="display: flex; align-items: center; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.12); background: #ffffff;">
+          <img src="./assets/india_flag.png" alt="National Flag of India" style="height: 48px; width: auto; display: block;" />
+        </div>
 
         <div class="gov-portal-badge">
           <span class="gov-badge-secure">NIC SECURE ACCESS</span>
@@ -1240,6 +1148,27 @@
         return _origFetch(url, options);
       };
     }
+
+    // ─── Live Date and Time Clock (Official GIGW Standard) ───
+    function updateLiveClock() {
+      const now = new Date();
+      const dateOptions = { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' };
+      const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+      
+      const dateStr = now.toLocaleDateString('en-IN', dateOptions);
+      const timeStr = now.toLocaleTimeString('en-IN', timeOptions);
+      
+      const topBarElem = document.getElementById('top-bar-clock');
+      if (topBarElem) topBarElem.textContent = `${dateStr} | ${timeStr} IST`;
+      
+      const mastheadDate = document.getElementById('masthead-date');
+      if (mastheadDate) mastheadDate.textContent = dateStr;
+      
+      const mastheadTime = document.getElementById('masthead-time');
+      if (mastheadTime) mastheadTime.textContent = `${timeStr} IST`;
+    }
+    updateLiveClock();
+    setInterval(updateLiveClock, 1000);
   </script>
 </body>
 </html>

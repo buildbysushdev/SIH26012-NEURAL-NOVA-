@@ -206,6 +206,7 @@ _portal_dir   = os.path.join(_SCRIPT_DIR, "frontend", "citizen-portal")
 _officer_dir  = os.path.join(_SCRIPT_DIR, "frontend", "officer-dashboard")
 _login_dir    = os.path.join(_SCRIPT_DIR, "frontend", "login")
 _frontend_dir = os.path.join(_SCRIPT_DIR, "frontend")
+_assets_dir   = os.path.join(_SCRIPT_DIR, "frontend", "assets")
 _uploads_dir  = os.path.join(_SCRIPT_DIR, "uploads")
 
 if os.path.exists(_portal_dir):
@@ -218,6 +219,8 @@ if os.path.exists(_login_dir):
     app.mount("/login", StaticFiles(directory=_login_dir, html=True), name="login")
 if os.path.exists(_frontend_dir):
     app.mount("/frontend", StaticFiles(directory=_frontend_dir, html=True), name="frontend")
+if os.path.exists(_assets_dir):
+    app.mount("/assets", StaticFiles(directory=_assets_dir), name="assets")
 if os.path.exists(_uploads_dir):
     app.mount("/uploads", StaticFiles(directory=_uploads_dir), name="uploads")
 
