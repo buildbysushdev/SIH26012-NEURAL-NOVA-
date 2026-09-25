@@ -1,7 +1,12 @@
 # MPLADS Risk Intelligence System
 
 **AI-Powered Vigilance Decision-Support System for MPLAD Scheme Public Works**  
-*Smart India Hackathon 2026 &bull; Problem Statement: SIH26102 &bull; Team: Neural Nova*
+*Smart India Hackathon 2026 &bull; Problem Statement: SIH26102 &bull; Team: Neural Nova*  
+[![System Architecture PDF](https://img.shields.io/badge/System_Flowcharts-Vector_PDF-003366?style=flat&logo=adobeacrobatreader)](./MPLADS_System_Flowcharts_SIH26102.pdf)
+
+---
+
+> 📄 **Official Blueprint PDF:** A publication-grade, 4-page vector PDF containing all ultra-high-definition architectural flowcharts, mathematical formulas, and sequence diagrams is available for auditors and evaluators: [`MPLADS_System_Flowcharts_SIH26102.pdf`](./MPLADS_System_Flowcharts_SIH26102.pdf).
 
 ---
 
