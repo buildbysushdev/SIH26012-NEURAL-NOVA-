@@ -24,6 +24,7 @@
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/field-capture.css">
+  <link rel="stylesheet" href="css/modules.css">
 
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0D1322">
@@ -88,6 +89,36 @@
         </div>
       </div>
     </header>
+
+    <!-- ─────────────────────────────────────────────────────────────────
+         PRIMARY NAVIGATION TABS & ROLE SWITCHER
+         ───────────────────────────────────────────────────────────────── -->
+    <nav class="app-nav-bar" id="app-nav-bar">
+      <div class="nav-tabs-group">
+        <button type="button" class="nav-tab-btn active" id="tab-btn-worklist" data-tab="worklist">
+          <span>📋 Prioritized Worklist</span>
+        </button>
+        <button type="button" class="nav-tab-btn" id="tab-btn-fund-tracking" data-tab="fund-tracking">
+          <span>💰 Fund &amp; Payment Tracking</span>
+        </button>
+        <button type="button" class="nav-tab-btn" id="tab-btn-progress-delays" data-tab="progress-delays">
+          <span>⏱️ Progress &amp; Delays</span>
+        </button>
+        <button type="button" class="nav-tab-btn" id="tab-btn-compliance" data-tab="compliance">
+          <span>🚨 Compliance &amp; Early-Warnings</span>
+        </button>
+      </div>
+
+      <div class="role-switcher-container">
+        <span class="role-switcher-label">Stakeholder Role:</span>
+        <select id="role-switcher-select" class="role-select">
+          <option value="AUDITOR-VIGILANCE-01">🏛️ MoSPI National Admin (All India)</option>
+          <option value="STATE-KA-NODAL">🏢 State Nodal Authority (Karnataka)</option>
+          <option value="OFFICER-DELHI-01">📍 District Authority (Delhi)</option>
+          <option value="MP-DHARWAD-01">👤 MP Dashboard (Dharwad Constituency)</option>
+        </select>
+      </div>
+    </nav>
 
     <!-- ─────────────────────────────────────────────────────────────────
          MAIN CONTENT AREA
@@ -494,6 +525,339 @@
 
       </section>
 
+      <!-- ===============================================================
+           SCREEN 3: FUND UTILIZATION & PAYMENT TRACKING
+           =============================================================== -->
+      <section id="view-fund-tracking" class="view-panel">
+        
+        <!-- Metrics Summary Strip -->
+        <div class="metrics-strip">
+          <div class="metric-card">
+            <span class="metric-label">Total Sanctioned Fund</span>
+            <div class="metric-value-row">
+              <span class="metric-value" id="fund-kpi-sanctioned">₹ 0.00 Cr</span>
+              <span class="metric-caption">Statutory approved</span>
+            </div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Funds Released (Disbursed)</span>
+            <div class="metric-value-row">
+              <span class="metric-value" id="fund-kpi-released" style="color: #38BDF8;">₹ 0.00 Cr</span>
+              <span class="metric-caption">Released to IDA</span>
+            </div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Actual Expenditure</span>
+            <div class="metric-value-row">
+              <span class="metric-value" id="fund-kpi-expenditure">₹ 0.00 Cr</span>
+              <span class="metric-caption">Disbursed on works</span>
+            </div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Remaining Unspent Balance</span>
+            <div class="metric-value-row">
+              <span class="metric-value" id="fund-kpi-balance" style="color: #10B981;">₹ 0.00 Cr</span>
+              <span class="metric-caption">Released minus Spent</span>
+            </div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Overall Fund Utilization</span>
+            <div class="metric-value-row" style="flex-direction:column; gap:4px; width:100%;">
+              <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                <span class="metric-value" id="fund-kpi-utilization">0.0%</span>
+                <span class="metric-caption">Expenditure / Released</span>
+              </div>
+              <div style="background:rgba(255,255,255,0.08); height:6px; border-radius:3px; overflow:hidden; width:100%;">
+                <div id="fund-kpi-util-progress" style="width:0%; height:100%; background:#10B981; border-radius:3px; transition:width 300ms ease;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Pending Payments &amp; Alerts</span>
+            <div class="metric-value-row">
+              <span class="metric-value" id="fund-kpi-pending">0</span>
+              <span class="metric-caption" id="fund-overrun-badge-count" style="color:#EF4444; font-weight:600;">0 Overruns</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter Controls Bar -->
+        <div class="filter-bar">
+          <div class="filter-group">
+            <label for="fund-filter-fy" class="filter-label">Financial Year</label>
+            <select id="fund-filter-fy" class="filter-select">
+              <option value="ALL">All Financial Years</option>
+              <option value="2024-2025">2024-2025</option>
+              <option value="2023-2024">2023-2024</option>
+              <option value="2022-2023">2022-2023</option>
+              <option value="2021-2022">2021-2022</option>
+              <option value="2020-2021">2020-2021</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="fund-filter-state" class="filter-label">State Scope</label>
+            <select id="fund-filter-state" class="filter-select">
+              <option value="ALL">All States / UTs</option>
+              <option value="KARNATAKA">Karnataka</option>
+              <option value="MAHARASHTRA">Maharashtra</option>
+              <option value="DELHI">Delhi</option>
+              <option value="JHARKHAND">Jharkhand</option>
+              <option value="UTTAR PRADESH">Uttar Pradesh</option>
+              <option value="TAMIL NADU">Tamil Nadu</option>
+              <option value="GUJARAT">Gujarat</option>
+              <option value="BIHAR">Bihar</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="fund-filter-payment" class="filter-label">Payment Status</label>
+            <select id="fund-filter-payment" class="filter-select">
+              <option value="ALL">All Payment Statuses</option>
+              <option value="SUCCESSFUL">Successful</option>
+              <option value="PENDING">Pending</option>
+              <option value="FAILED">Failed</option>
+            </select>
+          </div>
+
+          <button id="fund-filter-overrun-btn" class="btn-filter-toggle" type="button">
+            🚨 Cost Overruns Only
+          </button>
+
+          <span class="filter-count-badge" id="fund-counter-badge" style="margin-left:auto;">Loading projects...</span>
+        </div>
+
+        <!-- Dense Data Table -->
+        <div class="table-wrapper">
+          <table class="dense-table">
+            <thead>
+              <tr>
+                <th style="width: 200px;">Work ID</th>
+                <th>Work Description &amp; Category</th>
+                <th style="width: 140px;">State / IDA</th>
+                <th style="width: 130px; text-align:right;">Sanctioned</th>
+                <th style="width: 130px; text-align:right;">Released</th>
+                <th style="width: 140px; text-align:right;">Expenditure</th>
+                <th style="width: 130px; text-align:right;">Balance</th>
+                <th style="width: 120px;">Utilization</th>
+                <th style="width: 120px;">Payment Status</th>
+              </tr>
+            </thead>
+            <tbody id="fund-projects-tbody">
+              <!-- Populated dynamically via fund-tracking.js -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:var(--bg-primary); border:1px solid var(--border-subtle); border-radius:var(--radius-lg);">
+          <button id="fund-page-prev" class="btn-filter-toggle" type="button" disabled>← Previous Page</button>
+          <span id="fund-page-num" style="font-family:var(--font-mono); font-size:12px; color:var(--text-secondary);">Page 1 of 1</span>
+          <button id="fund-page-next" class="btn-filter-toggle" type="button">Next Page →</button>
+        </div>
+
+      </section>
+
+      <!-- ===============================================================
+           SCREEN 4: PROJECT PROGRESS & DELAY MONITORING
+           =============================================================== -->
+      <section id="view-progress-delays" class="view-panel">
+        
+        <!-- Metrics Summary Strip -->
+        <div class="metrics-strip">
+          <div class="metric-card">
+            <span class="metric-label">Delayed Works (>365d)</span>
+            <div class="metric-value-row">
+              <span class="metric-value" id="delay-kpi-total" style="color:#EF4444;">0</span>
+              <span class="metric-caption">Exceeded statutory limit</span>
+            </div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Critical Delay (>180 Days)</span>
+            <div class="metric-value-row">
+              <span class="metric-value" id="delay-kpi-critical" style="color:#EF4444;">0</span>
+              <span class="metric-caption">Urgent DISHA review</span>
+            </div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Moderate Delay (90-180d)</span>
+            <div class="metric-value-row">
+              <span class="metric-value" id="delay-kpi-moderate" style="color:#F59E0B;">0</span>
+              <span class="metric-caption">Notice served to IDA</span>
+            </div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Average Project Delay</span>
+            <div class="metric-value-row">
+              <span class="metric-value" id="delay-kpi-avg">0 Days</span>
+              <span class="metric-caption">Past expected date</span>
+            </div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Active Works in Progress</span>
+            <div class="metric-value-row">
+              <span class="metric-value" id="delay-kpi-active" style="color:#38BDF8;">0</span>
+              <span class="metric-caption">In execution</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Milestones Pipeline Strip -->
+        <div class="milestones-strip-wrap" id="milestones-progress-strip">
+          <!-- Populated dynamically via progress-delays.js -->
+        </div>
+
+        <!-- Filter Controls Bar -->
+        <div class="filter-bar">
+          <div class="filter-group">
+            <label for="delay-filter-bucket" class="filter-label">Delay Severity</label>
+            <select id="delay-filter-bucket" class="filter-select">
+              <option value="ALL">All Delay Buckets</option>
+              <option value="critical">🚨 Critical (>180 Days Overdue)</option>
+              <option value="high">⚠️ Elevated (90 - 180 Days)</option>
+              <option value="moderate">⏱️ Moderate (30 - 90 Days)</option>
+              <option value="minor">ℹ️ Minor (&lt;30 Days)</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="delay-filter-status" class="filter-label">Execution Status</label>
+            <select id="delay-filter-status" class="filter-select">
+              <option value="ALL">All Statuses</option>
+              <option value="Delayed">Delayed</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Not Started">Not Started</option>
+              <option value="On Hold">On Hold</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </div>
+
+          <button id="delay-filter-warning-btn" class="btn-filter-toggle" type="button">
+            ⚠️ Early-Warning Works Only
+          </button>
+
+          <span class="filter-count-badge" id="delay-counter-badge" style="margin-left:auto;">Loading delay records...</span>
+        </div>
+
+        <!-- Dense Data Table -->
+        <div class="table-wrapper">
+          <table class="dense-table">
+            <thead>
+              <tr>
+                <th style="width: 200px;">Work ID</th>
+                <th>Work Description &amp; Category</th>
+                <th style="width: 140px;">District / State</th>
+                <th style="width: 110px;">Sanction Date</th>
+                <th style="width: 110px;">Elapsed</th>
+                <th style="width: 150px;">Statutory Delay</th>
+                <th style="width: 150px;">Milestone Stage</th>
+                <th style="width: 200px;">Early-Warning Indicators</th>
+              </tr>
+            </thead>
+            <tbody id="delay-projects-tbody">
+              <!-- Populated dynamically via progress-delays.js -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:var(--bg-primary); border:1px solid var(--border-subtle); border-radius:var(--radius-lg);">
+          <button id="delay-page-prev" class="btn-filter-toggle" type="button" disabled>← Previous Page</button>
+          <span id="delay-page-num" style="font-family:var(--font-mono); font-size:12px; color:var(--text-secondary);">Page 1 of 1</span>
+          <button id="delay-page-next" class="btn-filter-toggle" type="button">Next Page →</button>
+        </div>
+
+      </section>
+
+      <!-- ===============================================================
+           SCREEN 5: AUTOMATED COMPLIANCE & EARLY-WARNING ALERTS
+           =============================================================== -->
+      <section id="view-compliance" class="view-panel">
+        
+        <!-- Metrics Summary Strip -->
+        <div class="metrics-strip">
+          <div class="metric-card">
+            <span class="metric-label">Critical Compliance Alerts</span>
+            <div class="metric-value-row">
+              <span class="metric-value" id="comp-kpi-crit" style="color:#EF4444;">0</span>
+              <span class="metric-caption">High statutory exposure</span>
+            </div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">High Severity Alerts</span>
+            <div class="metric-value-row">
+              <span class="metric-value" id="comp-kpi-high" style="color:#F59E0B;">0</span>
+              <span class="metric-caption">Require review</span>
+            </div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Medium Severity Alerts</span>
+            <div class="metric-value-row">
+              <span class="metric-value" id="comp-kpi-med" style="color:#FACC15;">0</span>
+              <span class="metric-caption">Routine audit flag</span>
+            </div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Open Statutory Cases</span>
+            <div class="metric-value-row">
+              <span class="metric-value" id="comp-kpi-open" style="color:#38BDF8;">0</span>
+              <span class="metric-caption">Awaiting disposition</span>
+            </div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Resolved / Addressed</span>
+            <div class="metric-value-row">
+              <span class="metric-value" id="comp-kpi-resolved" style="color:#10B981;">0</span>
+              <span class="metric-caption">Closed with audit trail</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter Controls Bar -->
+        <div class="filter-bar">
+          <div class="filter-group">
+            <label for="compliance-filter-severity" class="filter-label">Severity</label>
+            <select id="compliance-filter-severity" class="filter-select">
+              <option value="ALL">All Severities</option>
+              <option value="CRITICAL">🔴 Critical</option>
+              <option value="HIGH">🟠 High</option>
+              <option value="MEDIUM">🟡 Medium</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="compliance-filter-type" class="filter-label">Rule Vector</label>
+            <select id="compliance-filter-type" class="filter-select">
+              <option value="ALL">All Alert Types</option>
+              <option value="DEADLINE_EXCEEDED">Deadline Exceeded (>365d)</option>
+              <option value="COST_OVERRUN">Cost Overrun (>Sanction)</option>
+              <option value="COST_ANOMALY_HIGH">Isolation Forest ML Outlier</option>
+              <option value="DUPLICATE_WORKS_SUSPECT">Sentence-BERT Duplicate Suspect</option>
+              <option value="INSPECTION_OVERDUE">Physical Inspection Overdue</option>
+              <option value="CITIZEN_GRIEVANCE_ACTIVE">Active Citizen Grievance</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="compliance-filter-status" class="filter-label">Disposition Status</label>
+            <select id="compliance-filter-status" class="filter-select">
+              <option value="ALL">All Statuses</option>
+              <option value="OPEN">Open</option>
+              <option value="ACKNOWLEDGED">Acknowledged</option>
+              <option value="RESOLVED">Resolved</option>
+            </select>
+          </div>
+
+          <span class="filter-count-badge" id="compliance-counter-badge" style="margin-left:auto;">Loading statutory alerts...</span>
+        </div>
+
+        <!-- Alerts Cards List -->
+        <div class="compliance-alerts-list" id="compliance-alerts-list">
+          <!-- Populated dynamically via compliance.js -->
+        </div>
+
+      </section>
+
     </main>
 
     <!-- ─────────────────────────────────────────────────────────────────
@@ -547,6 +911,52 @@
         <div class="modal-footer">
           <button class="btn-modal-cancel" id="btn-cancel-capture">Cancel</button>
           <button class="btn-modal-submit" id="btn-submit-capture" disabled>Confirm & Seal Evidence</button>
+        </div>
+    <!-- ─────────────────────────────────────────────────────────────────
+         MODAL: AUDITOR COMPLIANCE ACTION & REMARKS
+         ───────────────────────────────────────────────────────────────── -->
+    <div class="modal-backdrop" id="modal-compliance-action">
+      <div class="field-capture-modal" style="max-width:540px;">
+        <div class="modal-header">
+          <div class="modal-title">
+            <span>⚖️ Official Auditor Action &amp; Remarks</span>
+            <span style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-secondary);" id="action-modal-alert-id">ALT-...</span>
+          </div>
+          <button class="btn-close-modal" id="btn-close-action-modal">&times;</button>
+        </div>
+
+        <div class="modal-body">
+          <div style="font-size:12px; color:var(--text-tertiary); margin-bottom:8px;">
+            Work ID: <span id="action-modal-project-id" style="font-family:var(--font-mono); color:#38BDF8; font-weight:600;">–</span>
+          </div>
+          <div id="action-modal-reason" style="font-size:13px; color:var(--text-primary); background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle); padding:10px; border-radius:6px; margin-bottom:14px; line-height:1.4;">
+            –
+          </div>
+
+          <div class="modal-form-group">
+            <label class="modal-form-label">Official Action</label>
+            <select id="action-modal-type-select" class="modal-form-input">
+              <option value="acknowledge">Acknowledge Alert (Case in Review)</option>
+              <option value="assign">Assign to Technical / Field Officer</option>
+              <option value="remark">Enter Field Observation / Audit Remark</option>
+              <option value="resolve">Resolve Alert (No Anomaly / Rectified)</option>
+            </select>
+          </div>
+
+          <div class="modal-form-group">
+            <label class="modal-form-label">Assignee / Designated Authority</label>
+            <input type="text" id="action-modal-assign-input" class="modal-form-input" placeholder="e.g. District Executive Engineer / DISHA Unit">
+          </div>
+
+          <div class="modal-form-group">
+            <label class="modal-form-label">Auditor Observations / Statutory Remarks</label>
+            <textarea id="action-modal-remarks-input" class="modal-form-textarea" rows="3" placeholder="Enter administrative observations, physical site notes, or reconciliation reference..."></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-modal-cancel" id="btn-cancel-action-modal">Cancel</button>
+          <button class="btn-modal-submit" id="btn-submit-action-modal">Submit Official Action</button>
         </div>
       </div>
     </div>

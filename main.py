@@ -47,6 +47,9 @@ import auth_jwt
 import officer_checklist
 import voice_transcriber
 import demo_showcase
+import fund_tracking
+import progress_delay
+import compliance_alerts
 
 from explain_gemini import explain_flagged_project  # noqa: F401 (used by audit_brief)
 
@@ -160,6 +163,9 @@ async def lifespan(app: FastAPI):
     feedback_loop.set_main_dataframe_reference(_df)
     audit_brief.set_main_dataframe_reference(_df)
     demo_showcase.set_main_dataframe_reference(_df)
+    fund_tracking.set_fund_dataframe(_df)
+    progress_delay.set_progress_dataframe(_df)
+    compliance_alerts.set_compliance_dataframe(_df)
 
     yield  # Server is running
 
@@ -199,7 +205,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers from existing modules
+# Include routers from existing and enhanced modules
 app.include_router(auth_jwt.router)
 app.include_router(citizen_reports.router)
 app.include_router(feedback_loop.router)
@@ -207,6 +213,9 @@ app.include_router(audit_brief.router)
 app.include_router(officer_checklist.router)
 app.include_router(voice_transcriber.router)
 app.include_router(demo_showcase.router)
+app.include_router(fund_tracking.router)
+app.include_router(progress_delay.router)
+app.include_router(compliance_alerts.router)
 
 # Mount static web frontends: Citizen Portal, Officer Dashboard, Login Gateway, and Uploads
 from fastapi.staticfiles import StaticFiles

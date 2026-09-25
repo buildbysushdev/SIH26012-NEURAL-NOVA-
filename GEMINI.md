@@ -60,10 +60,13 @@ citizen_reports.py	Citizen report submission + AI verification + dynamic risk sc
 location_enricher.py	Locality extraction from work_description + two-tier geocode cache (district CSV + locality CSV); tags every project with location_precision ('precise'/'locality'/'district'/'unavailable'); called at startup from main.py lifespan	✅ Validated
 Feedback loop (in main.py)	Officer false-positive downweighting	✅ Working
 Audit brief PDF (in main.py)	One-page PDF generation per flagged project	✅ Working
-auth_jwt.py	Server-side HMAC-SHA256 JWT auth + district jurisdiction scoping	✅ Validated
+auth_jwt.py	Server-side HMAC-SHA256 JWT auth + 4-tier stakeholder role scoping (MoSPI National Admin, State Nodal, District Officer, MP Dashboard)	✅ Validated
+fund_tracking.py	Statutory fund utilization & payment tracking service (Sanctioned, Released, Expenditure, Balance, Utilization %, Overruns)	✅ Validated
+progress_delay.py	Project timeline & delay monitoring (365d statutory baseline, M1-M5 milestones, delay buckets, early warnings)	✅ Validated
+compliance_alerts.py	Automated compliance & early-warning alerts engine (multi-vector statutory rules + audit action logs)	✅ Validated
 supabase_sync.py	Supabase cloud sync (citizen-evidence storage, reports, verifications, feedback, checklists, SHA-256 photo seals, audit logs)	✅ Validated
 officer_checklist.py	DISHA on-site inspection checklist API (POST/GET) with cloud upsert + local CSV cache	✅ Validated
-Officer Dashboard (frontend/officer-dashboard)	Authoritative DISHA inspection case-management workspace + PWA offline sync	✅ Validated
+Officer Dashboard (frontend/officer-dashboard)	Authoritative DISHA inspection workspace, 4 primary views (Worklist, Fund Tracking, Progress Delays, Compliance) + Stakeholder Role Switcher	✅ Validated
 
 Known fixed bugs — do not reintroduce:
 

@@ -1,0 +1,489 @@
+/* ==========================================================================
+   MODULES EXTENSION CSS — Team Neural Nova (SIH26102)
+   Navigation Tabs, Role Switcher, Fund Tracking, Progress Delays, Compliance
+   ========================================================================== */
+
+/* ─────────────────────────────────────────────────────────────────────────
+   PRIMARY NAVIGATION TABS
+   ───────────────────────────────────────────────────────────────────────── */
+.app-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0 var(--spacing-6);
+  gap: var(--spacing-4);
+  overflow-x: auto;
+}
+
+.nav-tabs-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.nav-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+  white-space: nowrap;
+}
+
+.nav-tab-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.nav-tab-btn.active {
+  color: #38BDF8;
+  border-bottom-color: #38BDF8;
+  font-weight: 600;
+  background: rgba(56, 189, 248, 0.05);
+}
+
+.nav-tab-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+.nav-tab-btn.active .nav-tab-badge {
+  background: rgba(56, 189, 248, 0.2);
+  color: #38BDF8;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   STAKEHOLDER ROLE SWITCHER
+   ───────────────────────────────────────────────────────────────────────── */
+.role-switcher-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+}
+
+.role-switcher-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.role-select {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  color: #38BDF8;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.role-select:focus {
+  outline: none;
+  border-color: #38BDF8;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   FUND UTILIZATION & PAYMENT TRACKING
+   ───────────────────────────────────────────────────────────────────────── */
+.badge-overrun {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(239, 68, 68, 0.2);
+  color: #EF4444;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  margin-top: 2px;
+}
+
+.btn-filter-toggle {
+  height: 32px;
+  padding: 0 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 150ms ease;
+}
+
+.btn-filter-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.btn-filter-toggle.active {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #F87171;
+  font-weight: 600;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   PROGRESS & DELAY MONITORING
+   ───────────────────────────────────────────────────────────────────────── */
+.milestones-strip-wrap {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  overflow-x: auto;
+}
+
+.milestone-step-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  flex: 1;
+  min-width: 140px;
+}
+
+.milestone-step-pill.active {
+  border-color: #38BDF8;
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.milestone-step-pill.done {
+  border-color: #10B981;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.m-step {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.m-name {
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.m-val {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.milestone-arrow {
+  color: var(--text-tertiary);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.delay-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge-delay-crit {
+  background: rgba(239, 68, 68, 0.2);
+  color: #EF4444;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.badge-delay-high {
+  background: rgba(245, 158, 11, 0.2);
+  color: #F59E0B;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.badge-delay-mid {
+  background: rgba(234, 179, 8, 0.15);
+  color: #FACC15;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.badge-delay-low {
+  background: rgba(148, 163, 184, 0.12);
+  color: #94A3B8;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.milestone-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+  color: #38BDF8;
+}
+
+.flag-chip {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(245, 158, 11, 0.15);
+  color: #FDE68A;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   COMPLIANCE & EARLY WARNING ALERTS
+   ───────────────────────────────────────────────────────────────────────── */
+.compliance-alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.compliance-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-4);
+  transition: border-color 150ms ease;
+}
+
+.compliance-card:hover {
+  border-color: var(--border-strong);
+}
+
+.compliance-card.sev-crit {
+  border-left: 4px solid #EF4444;
+}
+
+.compliance-card.sev-high {
+  border-left: 4px solid #F59E0B;
+}
+
+.compliance-card.sev-med {
+  border-left: 4px solid #FACC15;
+}
+
+.compliance-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-2);
+}
+
+.severity-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.severity-badge.sev-crit {
+  background: rgba(239, 68, 68, 0.2);
+  color: #EF4444;
+}
+
+.severity-badge.sev-high {
+  background: rgba(245, 158, 11, 0.2);
+  color: #F59E0B;
+}
+
+.severity-badge.sev-med {
+  background: rgba(234, 179, 8, 0.2);
+  color: #FACC15;
+}
+
+.alert-type-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.alert-id-text {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+.status-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.status-pill.badge-open {
+  background: rgba(239, 68, 68, 0.15);
+  color: #F87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.status-pill.badge-acknowledged {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38BDF8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.status-pill.badge-resolved {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10B981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.project-link {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: #38BDF8;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.project-link:hover {
+  color: #60A5FA;
+}
+
+.compliance-reason-box {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.reason-icon {
+  font-size: 14px;
+}
+
+.reason-text {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.audit-remarks-box {
+  background: rgba(56, 189, 248, 0.05);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.compliance-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 8px;
+}
+
+.compliance-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-action-ack {
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: #38BDF8;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.btn-action-ack:hover {
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.btn-action-manage {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.btn-action-manage:hover {
+  background: var(--bg-elevated);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   ACTION MODAL
+   ───────────────────────────────────────────────────────────────────────── */
+.modal-form-group {
+  margin-bottom: var(--spacing-3);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modal-form-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.modal-form-input, .modal-form-textarea {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.modal-form-input:focus, .modal-form-textarea:focus {
+  outline: none;
+  border-color: #38BDF8;
+}

@@ -287,6 +287,126 @@ export const ApiClient = {
    */
   getSatelliteImageUrl(workId) {
     return `${API_BASE_URL}/project-satellite-image?work_id=${encodeURIComponent(workId)}`;
+  },
+
+  /**
+   * Fund Tracking Summary KPIs
+   */
+  async getFundTrackingSummary({ state = null, financialYear = null, constituency = null } = {}) {
+    const params = new URLSearchParams();
+    if (state && state !== 'ALL') params.set('state', state);
+    if (financialYear && financialYear !== 'ALL') params.set('financial_year', financialYear);
+    if (constituency && constituency !== 'ALL') params.set('constituency', constituency);
+    const res = await fetch(`${API_BASE_URL}/api/fund-tracking/summary?${params.toString()}`, {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error(`Failed to load fund tracking summary (${res.status})`);
+    return await res.json();
+  },
+
+  /**
+   * Fund Tracking Project Records with Pagination & Filters
+   */
+  async getFundTrackingProjects({ page = 1, pageSize = 25, state = null, financialYear = null, status = null, paymentStatus = null, costOverrunOnly = false } = {}) {
+    const params = new URLSearchParams();
+    params.set('page', String(page));
+    params.set('page_size', String(pageSize));
+    if (state && state !== 'ALL') params.set('state', state);
+    if (financialYear && financialYear !== 'ALL') params.set('financial_year', financialYear);
+    if (status && status !== 'ALL') params.set('status', status);
+    if (paymentStatus && paymentStatus !== 'ALL') params.set('payment_status', paymentStatus);
+    if (costOverrunOnly) params.set('cost_overrun_only', 'true');
+    const res = await fetch(`${API_BASE_URL}/api/fund-tracking/projects?${params.toString()}`, {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error(`Failed to load fund tracking projects (${res.status})`);
+    return await res.json();
+  },
+
+  /**
+   * Progress & Delays Summary
+   */
+  async getProgressDelaysSummary({ state = null, district = null } = {}) {
+    const params = new URLSearchParams();
+    if (state && state !== 'ALL') params.set('state', state);
+    if (district && district !== 'ALL') params.set('district', district);
+    const res = await fetch(`${API_BASE_URL}/api/progress-delays/summary?${params.toString()}`, {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error(`Failed to load progress summary (${res.status})`);
+    return await res.json();
+  },
+
+  /**
+   * Progress & Delays Worklist
+   */
+  async getProgressDelaysWorklist({ page = 1, pageSize = 25, status = null, delayBucket = null, state = null, district = null, earlyWarningOnly = false } = {}) {
+    const params = new URLSearchParams();
+    params.set('page', String(page));
+    params.set('page_size', String(pageSize));
+    if (status && status !== 'ALL') params.set('status', status);
+    if (delayBucket && delayBucket !== 'ALL') params.set('delay_bucket', delayBucket);
+    if (state && state !== 'ALL') params.set('state', state);
+    if (district && district !== 'ALL') params.set('district', district);
+    if (earlyWarningOnly) params.set('early_warning_only', 'true');
+    const res = await fetch(`${API_BASE_URL}/api/progress-delays/worklist?${params.toString()}`, {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error(`Failed to load progress worklist (${res.status})`);
+    return await res.json();
+  },
+
+  /**
+   * Compliance & Early Warning Alerts
+   */
+  async getComplianceAlerts({ severity = null, alertType = null, state = null, district = null, status = null, limit = 50, offset = 0 } = {}) {
+    const params = new URLSearchParams();
+    params.set('limit', String(limit));
+    params.set('offset', String(offset));
+    if (severity && severity !== 'ALL') params.set('severity', severity);
+    if (alertType && alertType !== 'ALL') params.set('alert_type', alertType);
+    if (state && state !== 'ALL') params.set('state', state);
+    if (district && district !== 'ALL') params.set('district', district);
+    if (status && status !== 'ALL') params.set('status', status);
+    const res = await fetch(`${API_BASE_URL}/api/compliance/alerts?${params.toString()}`, {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error(`Failed to load compliance alerts (${res.status})`);
+    return await res.json();
+  },
+
+  /**
+   * Record Official Auditor Action on Alert
+   */
+  async recordComplianceAction(actionData) {
+    const res = await fetch(`${API_BASE_URL}/api/compliance/action`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
+      body: JSON.stringify(actionData)
+    });
+    if (!res.ok) throw new Error(`Failed to record compliance action (${res.status})`);
+    return await res.json();
+  },
+
+  /**
+   * Role Switcher Authentication
+   */
+  async switchRoleLogin(badgeId, password) {
+    const res = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ officer_id: badgeId, password: password })
+    });
+    if (!res.ok) throw new Error(`Login failed for ${badgeId}`);
+    const data = await res.json();
+    localStorage.setItem('mplads_token', data.access_token);
+    sessionStorage.setItem('mplads_officer_jwt_token', data.access_token);
+    localStorage.setItem('mplads_officer_jwt_token', data.access_token);
+    localStorage.setItem('mplads_officer', JSON.stringify(data.officer));
+    return data;
   }
 };
 
