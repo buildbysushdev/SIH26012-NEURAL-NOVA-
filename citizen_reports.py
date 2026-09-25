@@ -168,10 +168,11 @@ def _analyze_photo_integrity(contents: bytes, filename: str) -> list:
 import verification_pipeline
 import supabase_sync
 
-UPLOADS_DIR = Path("uploads/citizen_reports")
-REPORTS_CSV = Path("citizen_reports.csv")
-VERIFICATIONS_CSV = Path("citizen_report_verifications.csv")
-BACKEND_VERIFICATIONS_CSV = Path("backend/data/citizen_report_verifications.csv")
+_BASE_DIR = Path(__file__).resolve().parent
+UPLOADS_DIR = _BASE_DIR / "uploads" / "citizen_reports"
+REPORTS_CSV = _BASE_DIR / "citizen_reports.csv"
+VERIFICATIONS_CSV = _BASE_DIR / "citizen_report_verifications.csv"
+BACKEND_VERIFICATIONS_CSV = _BASE_DIR / "backend" / "data" / "citizen_report_verifications.csv"
 try:
     BACKEND_VERIFICATIONS_CSV.parent.mkdir(parents=True, exist_ok=True)
 except Exception:

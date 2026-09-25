@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Literal
 
+import math
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -218,4 +219,17 @@ def get_feedback_logs(work_id: Optional[str] = None):
         return []
     if work_id:
         fb_df = fb_df[fb_df["work_id"] == work_id.strip()]
-    return fb_df.where(pd.notnull(fb_df), None).to_dict(orient="records")
+    records = fb_df.to_dict(orient="records")
+    clean_records = []
+    for r in records:
+        clean = {}
+        for k, v in r.items():
+            if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+                clean[k] = None
+            elif pd.isna(v):
+                clean[k] = None
+            else:
+                clean[k] = v
+        clean_records.append(clean)
+    return clean_records
+

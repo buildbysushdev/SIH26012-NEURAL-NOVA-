@@ -1,4 +1,5 @@
 work_id,chk_exists,chk_specs,chk_duplicate,chk_citizen,chk_plaque,chk_photo,officer_notes,updated_at
 WS/MP999/2026/ba54,True,True,False,True,True,True,Field inspection completed by Team Neural Nova auditor.,2026-09-23T17:07:06.615780+00:00
 WS/MP999/2026/c642,True,True,False,True,True,True,Field inspection completed by Team Neural Nova auditor.,2026-09-23T17:19:34.402776+00:00
-WS/MP317/2024-2025/145198,True,False,False,True,True,True,Technical specs deviation recorded. Plaque installed.,2026-09-23T17:37:30.507719+00:00
+WS/MP317/2024-2025/145198,True,True,False,True,True,True,All 6 DISHA checklist items verified by field auditor.,2026-09-25T14:20:36.734810+00:00
+WS/MP418/2024-2025/133409,False,False,False,False,False,False,,2026-09-25T14:43:06.239639+00:00

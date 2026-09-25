@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, Any
 
+import math
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -116,7 +117,15 @@ def get_checklist(work_id: str = Query(..., description="MPLADS project work_id"
             match = df[df["work_id"] == work_id]
             if not match.empty:
                 rec = match.iloc[-1].to_dict()
-                return {"status": "success", "source": "local_csv", "checklist": rec}
+                clean_rec = {}
+                for k, v in rec.items():
+                    if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+                        clean_rec[k] = None
+                    elif pd.isna(v):
+                        clean_rec[k] = None
+                    else:
+                        clean_rec[k] = v
+                return {"status": "success", "source": "local_csv", "checklist": clean_rec}
         except Exception:
             pass
 

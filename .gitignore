@@ -45,3 +45,10 @@ satellite_tiles_cache/
 Thumbs.db
 drive-download-*/
 
+# Frontend dependencies & build artifacts
+node_modules/
+*/node_modules/
+dist/
+*/dist/
+.vite/
+
