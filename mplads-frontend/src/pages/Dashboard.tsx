@@ -33,7 +33,9 @@ import {
   getFlaggedProjects,
   getCitizenReports,
   getAIInsights,
+  getFundTrackingSummary,
   type ProjectFilters,
+  type FundTrackingSummary,
 } from "../services/api";
 import { PROJECTS, DISTRICTS_BY_STATE, ALL_CATEGORIES } from "../data/mockData";
 import type { DashboardStats, Project, CitizenReport } from "../types";
@@ -58,6 +60,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [reports, setReports] = useState<CitizenReport[] | null>(null);
   const [insights, setInsights] = useState<{ id: string; text: string }[] | null>(null);
+  const [fundSummary, setFundSummary] = useState<FundTrackingSummary | null>(null);
 
   // Main Flagged Projects Section state
   const [flaggedProjects, setFlaggedProjects] = useState<Project[] | null>(null);
@@ -78,6 +81,7 @@ export default function Dashboard() {
   // Keep state filter synced if user switches
   useEffect(() => {
     setFilters((f) => ({ ...f, state: assignedState, district: "All" }));
+    getFundTrackingSummary({ state: assignedState }).then(setFundSummary);
   }, [assignedState]);
 
   // Initial load for dashboard KPIs and background widgets
@@ -94,6 +98,7 @@ export default function Dashboard() {
       setReports(stateReports);
     });
     getAIInsights().then(setInsights);
+    getFundTrackingSummary({ state: assignedState }).then(setFundSummary);
   }, [assignedState]);
 
   // Fetch Flagged Projects whenever filters or page changes
@@ -134,10 +139,18 @@ export default function Dashboard() {
 
   // Two new KPI cards scoped to officer's state (Section 2C)
   const stateExpenditure = useMemo(() => {
+    if (fundSummary && fundSummary.total_expenditure > 0) {
+      return fundSummary.total_expenditure;
+    }
     return scopedStateProjects.reduce((sum, p) => sum + p.expenditure, 0);
-  }, [scopedStateProjects]);
+  }, [scopedStateProjects, fundSummary]);
 
-  const stateSanctionedCount = scopedStateProjects.length;
+  const stateSanctionedCount = useMemo(() => {
+    if (fundSummary && fundSummary.total_projects > 0) {
+      return fundSummary.total_projects;
+    }
+    return scopedStateProjects.length;
+  }, [scopedStateProjects, fundSummary]);
 
   const formattedStateExpenditure = useMemo(() => {
     if (stateExpenditure >= 10000000) {

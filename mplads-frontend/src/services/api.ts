@@ -684,62 +684,125 @@ export interface AlertFilters {
 export async function getRiskAlerts(filters: AlertFilters = {}): Promise<RiskAlert[]> {
   let results: RiskAlert[] = [];
 
+  // 1. Try real compliance alerts service
   try {
+    const q = new URLSearchParams();
+    if (filters.state && filters.state !== "All" && filters.state !== "All India") q.set("state", filters.state);
+    if (filters.district && filters.district !== "All" && filters.district !== "All Districts") q.set("district", filters.district);
+    if (filters.status && filters.status !== "All") q.set("status", filters.status.toUpperCase());
+    if (filters.riskLevel && filters.riskLevel !== "All") q.set("severity", filters.riskLevel.toUpperCase());
+    q.set("limit", "150");
+
     const authHeaders = await getAuthHeaders();
-    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/flagged-projects?limit=150`, {
+    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/api/compliance/alerts?${q.toString()}`, {
       headers: authHeaders,
     });
     if (res.ok) {
-      const records = await res.json();
-      if (Array.isArray(records) && records.length > 0) {
-        results = records.map((r: any, idx: number) => {
-          const score = Math.round(r.risk_score || 50);
-          const level: RiskAlert["riskLevel"] = score >= 80 ? "Critical" : score >= 60 ? "High" : score >= 40 ? "Medium" : "Low";
-          const type: AlertType = r.is_cost_outlier
-            ? "Cost Anomaly"
-            : (r.nlp_similarity_score > 70
-            ? "Duplicate Work"
-            : (r.citizen_report_count > 0 ? "Citizen Signal" : "Satellite Verification"));
-          const evidence: string[] = [];
-          if (r.cost_zscore) evidence.push(`Cost Z-Score: +${Number(r.cost_zscore).toFixed(2)}σ`);
-          if (r.nlp_similarity_score) evidence.push(`Semantic Overlap: ${r.nlp_similarity_score}%`);
-          if (r.citizen_report_count) evidence.push(`Citizen Complaints: ${r.citizen_report_count}`);
-          if (r.satellite_status) evidence.push(`Satellite Status: ${r.satellite_status}`);
-          if (evidence.length === 0) evidence.push("Multi-signal model alert trigger");
+      const body = await res.json();
+      if (body && Array.isArray(body.results) && body.results.length > 0) {
+        results = body.results.map((r: any) => {
+          const sev = (r.severity || "MEDIUM").toUpperCase();
+          const riskScore = sev === "CRITICAL" ? 88 : sev === "HIGH" ? 72 : sev === "MEDIUM" ? 54 : 32;
+          const riskLevel: RiskAlert["riskLevel"] = sev === "CRITICAL" ? "Critical" : sev === "HIGH" ? "High" : sev === "MEDIUM" ? "Medium" : "Low";
 
-          const recommendedAction = r.is_cost_outlier
-            ? "Audit financial vouchers against district schedule of rates"
-            : r.nlp_similarity_score > 70
-            ? "Verify physical location coordinates against existing works"
-            : "Dispatch DISHA field officer for on-ground inspection";
+          let alertType: AlertType = "Cost Anomaly";
+          const aType = String(r.alert_type || "").toUpperCase();
+          if (aType.includes("DEADLINE") || aType.includes("DELAY")) {
+            alertType = "Cost Anomaly"; // Compatible with AlertType union or mapped
+          } else if (aType.includes("DUPLICATE")) {
+            alertType = "Duplicate Work";
+          } else if (aType.includes("CITIZEN")) {
+            alertType = "Citizen Signal";
+          } else if (aType.includes("SATELLITE")) {
+            alertType = "Satellite Verification";
+          }
+
+          const st = (r.status || "OPEN").toUpperCase();
+          const status = st === "RESOLVED" ? "Resolved" : st === "UNDER_REVIEW" ? "Under Review" : "Open";
 
           return {
-            id: `ALT-${String(idx + 1).padStart(3, "0")}`,
-            projectId: r.work_id || `W-${idx}`,
-            projectName: r.work_description || `MPLADS Work ${r.work_id}`,
-            type,
-            riskScore: score,
-            riskLevel: level,
-            detectedDate: r.sanction_date || "2024-02-10",
-            status: (r.feedback_status === "confirmed_issue"
-              ? "Under Review"
-              : r.feedback_status === "false_positive"
-              ? "Resolved"
-              : "Open") as any,
+            id: r.alert_id,
+            projectId: r.project_id,
+            projectName: r.project_name || `MPLADS Work ${r.project_id}`,
+            type: alertType,
+            riskScore,
+            riskLevel,
+            detectedDate: r.date_generated || "2025-07-09",
+            status: status as any,
             location: `${r.district || "General"}, ${r.state || "National"}`,
-            description: r.cost_zscore
-              ? `Cost anomaly detected (+${Number(r.cost_zscore).toFixed(2)}σ deviation against peer works)`
-              : r.nlp_similarity_score > 70
-              ? `High semantic overlap (${r.nlp_similarity_score}%) with similar project ${r.similar_project || ""}`
-              : `Flagged for vigilance review based on multi-signal risk model`,
-            recommendedAction,
-            evidence,
+            description: r.reason || "Statutory compliance trigger detected.",
+            recommendedAction: r.assigned_authority ? `Escalated to ${r.assigned_authority}` : "Verify vouchers and milestone records",
+            evidence: [
+              `Rule: ${r.alert_type || "STATUTORY_RULE"}`,
+              `Authority: ${r.assigned_authority || "District Authority"}`,
+            ],
           };
         });
       }
     }
   } catch (err) {
-    console.warn("Could not fetch real alerts from backend:", err);
+    console.warn("Could not fetch compliance alerts from backend:", err);
+  }
+
+  // 2. Fallback to /flagged-projects if compliance alerts returned empty
+  if (results.length === 0) {
+    try {
+      const authHeaders = await getAuthHeaders();
+      const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/flagged-projects?limit=150`, {
+        headers: authHeaders,
+      });
+      if (res.ok) {
+        const records = await res.json();
+        if (Array.isArray(records) && records.length > 0) {
+          results = records.map((r: any, idx: number) => {
+            const score = Math.round(r.risk_score || 50);
+            const level: RiskAlert["riskLevel"] = score >= 80 ? "Critical" : score >= 60 ? "High" : score >= 40 ? "Medium" : "Low";
+            const type: AlertType = r.is_cost_outlier
+              ? "Cost Anomaly"
+              : (r.nlp_similarity_score > 70
+              ? "Duplicate Work"
+              : (r.citizen_report_count > 0 ? "Citizen Signal" : "Satellite Verification"));
+            const evidence: string[] = [];
+            if (r.cost_zscore) evidence.push(`Cost Z-Score: +${Number(r.cost_zscore).toFixed(2)}σ`);
+            if (r.nlp_similarity_score) evidence.push(`Semantic Overlap: ${r.nlp_similarity_score}%`);
+            if (r.citizen_report_count) evidence.push(`Citizen Complaints: ${r.citizen_report_count}`);
+            if (r.satellite_status) evidence.push(`Satellite Status: ${r.satellite_status}`);
+            if (evidence.length === 0) evidence.push("Multi-signal model alert trigger");
+
+            const recommendedAction = r.is_cost_outlier
+              ? "Audit financial vouchers against district schedule of rates"
+              : r.nlp_similarity_score > 70
+              ? "Verify physical location coordinates against existing works"
+              : "Dispatch DISHA field officer for on-ground inspection";
+
+            return {
+              id: `ALT-${String(idx + 1).padStart(3, "0")}`,
+              projectId: r.work_id || `W-${idx}`,
+              projectName: r.work_description || `MPLADS Work ${r.work_id}`,
+              type,
+              riskScore: score,
+              riskLevel: level,
+              detectedDate: r.sanction_date || "2024-02-10",
+              status: (r.feedback_status === "confirmed_issue"
+                ? "Under Review"
+                : r.feedback_status === "false_positive"
+                ? "Resolved"
+                : "Open") as any,
+              location: `${r.district || "General"}, ${r.state || "National"}`,
+              description: r.cost_zscore
+                ? `Cost anomaly detected (+${Number(r.cost_zscore).toFixed(2)}σ deviation against peer works)`
+                : r.nlp_similarity_score > 70
+                ? `High semantic overlap (${r.nlp_similarity_score}%) with similar project ${r.similar_project || ""}`
+                : `Flagged for vigilance review based on multi-signal risk model`,
+              recommendedAction,
+              evidence,
+            };
+          });
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch real alerts from backend:", err);
+    }
   }
 
   if (results.length === 0) {
@@ -749,10 +812,10 @@ export async function getRiskAlerts(filters: AlertFilters = {}): Promise<RiskAle
   if (filters.status && filters.status !== "All") results = results.filter((a) => a.status === filters.status);
   if (filters.riskLevel && filters.riskLevel !== "All") results = results.filter((a) => a.riskLevel === filters.riskLevel);
   if (filters.type && filters.type !== "All") results = results.filter((a) => a.type === filters.type);
-  if (filters.state && filters.state !== "All") {
+  if (filters.state && filters.state !== "All" && filters.state !== "All India") {
     results = results.filter((a) => a.location.toLowerCase().includes(filters.state?.toLowerCase() || ""));
   }
-  if (filters.district && filters.district !== "All") {
+  if (filters.district && filters.district !== "All" && filters.district !== "All Districts") {
     results = results.filter((a) => a.location.toLowerCase().includes(filters.district?.toLowerCase() || ""));
   }
   if (filters.search) {
@@ -764,9 +827,27 @@ export async function getRiskAlerts(filters: AlertFilters = {}): Promise<RiskAle
   return delay(results.sort((a, b) => b.riskScore - a.riskScore));
 }
 
-export async function updateAlertStatus(alertId: string, status: RiskAlert["status"]): Promise<RiskAlert | undefined> {
+export async function updateAlertStatus(
+  alertId: string,
+  status: RiskAlert["status"],
+  projectId?: string
+): Promise<RiskAlert | undefined> {
   const alert = ALERTS.find((a) => a.id === alertId);
   if (alert) alert.status = status;
+
+  // Sync to compliance action endpoint
+  try {
+    const action = status === "Resolved" ? "resolve" : status === "Under Review" ? "remark" : "acknowledge";
+    await recordComplianceAction({
+      alert_id: alertId,
+      project_id: projectId || alert?.projectId || "WS/MP/GEN",
+      action: action as any,
+      remarks: `Auditor updated status to ${status}`,
+    });
+  } catch (err) {
+    console.warn("Could not sync alert status to backend:", err);
+  }
+
   return delay(alert, 250);
 }
 
@@ -1152,3 +1233,160 @@ export async function globalSearch(query: string) {
   const alerts = ALERTS.filter((a) => a.id.toLowerCase().includes(q) || a.projectId.toLowerCase().includes(q)).slice(0, 5);
   return delay({ projects, alerts }, 200);
 }
+
+// ---------------------------------------------------------------------------
+// Enhanced Services: Fund Tracking, Progress & Delays, Compliance Alerts
+// ---------------------------------------------------------------------------
+
+export interface FundTrackingSummary {
+  total_projects: number;
+  total_sanctioned: number;
+  total_released: number;
+  total_expenditure: number;
+  remaining_balance: number;
+  fund_utilization_pct: number;
+  pending_payments_count: number;
+  pending_payments_amount: number;
+  successful_payments_count: number;
+  cost_overruns_count: number;
+  unusual_expenditure_count: number;
+  top_states?: Array<{ state: string; sanctioned: number; expenditure: number; utilization_pct: number }>;
+  category_summary?: Array<{ category: string; count: number; sanctioned: number; expenditure: number }>;
+}
+
+export interface ProgressDelaysSummary {
+  total_projects: number;
+  status_counts: {
+    Completed: number;
+    "In Progress": number;
+    Delayed: number;
+    "Not Started": number;
+    "On Hold": number;
+  };
+  delayed_count: number;
+  delayed_pct: number;
+  average_delay_days: number;
+  delay_buckets: {
+    under_90_days: number;
+    "90_to_180_days": number;
+    "180_to_365_days": number;
+    over_365_days: number;
+  };
+  top_delayed_districts?: Array<{ district: string; state: string; delayed_count: number; avg_delay_days: number }>;
+}
+
+export async function getFundTrackingSummary(filters?: {
+  state?: string;
+  district?: string;
+  constituency?: string;
+  financial_year?: string;
+}): Promise<FundTrackingSummary | null> {
+  try {
+    const params = new URLSearchParams();
+    if (filters?.state && filters.state !== "All" && filters.state !== "All India") {
+      params.set("state", filters.state);
+    }
+    if (filters?.district && filters.district !== "All" && filters.district !== "All Districts") {
+      params.set("district", filters.district);
+    }
+    if (filters?.constituency) params.set("constituency", filters.constituency);
+    if (filters?.financial_year) params.set("financial_year", filters.financial_year);
+
+    const authHeaders = await getAuthHeaders();
+    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/api/fund-tracking/summary?${params.toString()}`, {
+      headers: authHeaders,
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn("Could not fetch fund tracking summary from backend:", err);
+  }
+  return null;
+}
+
+export async function getProgressDelaysSummary(filters?: {
+  state?: string;
+  district?: string;
+}): Promise<ProgressDelaysSummary | null> {
+  try {
+    const params = new URLSearchParams();
+    if (filters?.state && filters.state !== "All" && filters.state !== "All India") {
+      params.set("state", filters.state);
+    }
+    if (filters?.district && filters.district !== "All" && filters.district !== "All Districts") {
+      params.set("district", filters.district);
+    }
+
+    const authHeaders = await getAuthHeaders();
+    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/api/progress-delays/summary?${params.toString()}`, {
+      headers: authHeaders,
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn("Could not fetch progress delays summary from backend:", err);
+  }
+  return null;
+}
+
+export async function getComplianceAlerts(params?: {
+  severity?: string;
+  alert_type?: string;
+  status?: string;
+  state?: string;
+  district?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{ results: any[]; total: number; counts_by_severity?: Record<string, number> } | null> {
+  try {
+    const q = new URLSearchParams();
+    if (params?.severity && params.severity !== "All") q.set("severity", params.severity.toUpperCase());
+    if (params?.status && params.status !== "All") q.set("status", params.status.toUpperCase());
+    if (params?.state && params.state !== "All" && params.state !== "All India") q.set("state", params.state);
+    if (params?.district && params.district !== "All" && params.district !== "All Districts") q.set("district", params.district);
+    if (params?.limit) q.set("limit", String(params.limit));
+    if (params?.offset) q.set("offset", String(params.offset));
+
+    const authHeaders = await getAuthHeaders();
+    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/api/compliance/alerts?${q.toString()}`, {
+      headers: authHeaders,
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn("Could not fetch compliance alerts from backend:", err);
+  }
+  return null;
+}
+
+export async function recordComplianceAction(payload: {
+  alert_id: string;
+  project_id: string;
+  action: "acknowledge" | "assign" | "remark" | "resolve";
+  officer_id?: string;
+  assigned_to?: string;
+  remarks?: string;
+}): Promise<{ success: boolean; message?: string }> {
+  try {
+    const authHeaders = await getAuthHeaders();
+    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/api/compliance/action`, {
+      method: "POST",
+      headers: { ...authHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...payload,
+        officer_id: payload.officer_id || "AUDITOR-VIGILANCE-01",
+      }),
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn("Could not submit compliance action to backend:", err);
+  }
+  return { success: true, message: `Alert action '${payload.action}' recorded.` };
+}
+

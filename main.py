@@ -226,6 +226,8 @@ _frontend_dir = os.path.join(_SCRIPT_DIR, "frontend")
 _assets_dir   = os.path.join(_SCRIPT_DIR, "frontend", "assets")
 _uploads_dir  = os.path.join(_SCRIPT_DIR, "uploads")
 
+_react_dist  = os.path.join(_SCRIPT_DIR, "mplads-frontend", "dist")
+
 if os.path.exists(_portal_dir):
     app.mount("/portal", StaticFiles(directory=_portal_dir, html=True), name="portal")
     app.mount("/citizen-portal", StaticFiles(directory=_portal_dir, html=True), name="citizen_portal")
@@ -240,6 +242,9 @@ if os.path.exists(_assets_dir):
     app.mount("/assets", StaticFiles(directory=_assets_dir), name="assets")
 if os.path.exists(_uploads_dir):
     app.mount("/uploads", StaticFiles(directory=_uploads_dir), name="uploads")
+if os.path.exists(_react_dist):
+    app.mount("/app", StaticFiles(directory=_react_dist, html=True), name="react_app")
+
 
 
 # ─────────────────────────────────────────────

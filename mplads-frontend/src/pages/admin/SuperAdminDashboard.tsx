@@ -17,7 +17,17 @@ import PriorityAlerts from "../../components/dashboard/PriorityAlerts";
 import { CardSkeleton } from "../../components/ui/Feedback";
 import Card from "../../components/ui/Card";
 import { StatusBadge } from "../../components/ui/Badge";
-import { getSystemOverview, getRiskMapData, getRiskAlerts, getOfficers, getAuditLogs } from "../../services/api";
+import {
+  getSystemOverview,
+  getRiskMapData,
+  getRiskAlerts,
+  getOfficers,
+  getAuditLogs,
+  getFundTrackingSummary,
+  getProgressDelaysSummary,
+  type FundTrackingSummary,
+  type ProgressDelaysSummary,
+} from "../../services/api";
 import { PROJECTS, DISTRICTS_BY_STATE } from "../../data/mockData";
 import { formatDate } from "../../lib/format";
 import GovPageHeader from "../../components/layout/GovPageHeader";
@@ -29,6 +39,8 @@ export default function SuperAdminDashboard() {
   const [alerts, setAlerts] = useState<any[] | null>(null);
   const [officers, setOfficers] = useState<any[] | null>(null);
   const [logs, setLogs] = useState<any[] | null>(null);
+  const [fundSummary, setFundSummary] = useState<FundTrackingSummary | null>(null);
+  const [progressSummary, setProgressSummary] = useState<ProgressDelaysSummary | null>(null);
 
   // Filters: State defaults to "All India"
   const [selectedState, setSelectedState] = useState("All India");
@@ -41,6 +53,18 @@ export default function SuperAdminDashboard() {
     getOfficers().then(setOfficers);
     getAuditLogs(6).then(setLogs);
   }, []);
+
+  useEffect(() => {
+    getFundTrackingSummary({
+      state: selectedState !== "All India" ? selectedState : undefined,
+      district: selectedDistrict !== "All Districts" ? selectedDistrict : undefined,
+    }).then(setFundSummary);
+
+    getProgressDelaysSummary({
+      state: selectedState !== "All India" ? selectedState : undefined,
+      district: selectedDistrict !== "All Districts" ? selectedDistrict : undefined,
+    }).then(setProgressSummary);
+  }, [selectedState, selectedDistrict]);
 
   const stateList = useMemo(() => ["All India", ...Object.keys(DISTRICTS_BY_STATE).sort()], []);
 
@@ -60,25 +84,38 @@ export default function SuperAdminDashboard() {
 
   // Compute live aggregates for KPIs
   const totalExpenditure = useMemo(() => {
+    if (fundSummary && fundSummary.total_expenditure > 0) {
+      return fundSummary.total_expenditure;
+    }
     return filteredProjects.reduce((sum, p) => sum + p.expenditure, 0);
-  }, [filteredProjects]);
+  }, [filteredProjects, fundSummary]);
 
   const totalSanctionedProjects = useMemo(() => {
+    if (fundSummary && fundSummary.total_projects > 0) {
+      return fundSummary.total_projects;
+    }
     if (selectedState === "All India") {
       return overview?.totalProjects || 77312;
     }
     return filteredProjects.length;
-  }, [selectedState, overview, filteredProjects]);
+  }, [selectedState, overview, filteredProjects, fundSummary]);
 
   const formattedExpenditure = useMemo(() => {
+    if (fundSummary && fundSummary.total_expenditure > 0) {
+      const exp = fundSummary.total_expenditure;
+      if (exp >= 10000000) {
+        return `₹${(exp / 10000000).toFixed(2)} Cr`;
+      }
+      return `₹${(exp / 100000).toFixed(2)} L`;
+    }
     if (selectedState === "All India") {
-      return "₹3,865.60 Cr";
+      return "₹2,290.88 Cr";
     }
     if (totalExpenditure >= 10000000) {
       return `₹${(totalExpenditure / 10000000).toFixed(2)} Cr`;
     }
     return `₹${(totalExpenditure / 100000).toFixed(2)} L`;
-  }, [selectedState, totalExpenditure]);
+  }, [selectedState, totalExpenditure, fundSummary]);
 
   // Reactive Risk Distribution Chart Data
   const reactiveRiskDist = useMemo(() => {
@@ -205,6 +242,63 @@ export default function SuperAdminDashboard() {
             />
           </>
         )}
+      </div>
+
+      {/* Statutory Fund Tracking & Timeline Monitoring Strip */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white dark:bg-navy-900 p-3.5 rounded-lg border border-gray-200 dark:border-navy-800 shadow-sm">
+        <div className="flex items-center gap-3 border-r border-gray-100 dark:border-navy-800 pr-3">
+          <div className="w-9 h-9 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <span className="text-xs font-bold">%</span>
+          </div>
+          <div>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Fund Utilization</p>
+            <p className="text-base font-bold text-gray-900 dark:text-white">
+              {fundSummary ? `${fundSummary.fund_utilization_pct.toFixed(1)}%` : "64.6%"}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 border-r border-gray-100 dark:border-navy-800 pr-3">
+          <div className="w-9 h-9 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+            <IndianRupee size={16} />
+          </div>
+          <div>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Unspent Balance</p>
+            <p className="text-base font-bold text-gray-900 dark:text-white">
+              {fundSummary && fundSummary.remaining_balance > 0
+                ? (fundSummary.remaining_balance >= 10000000
+                    ? `₹${(fundSummary.remaining_balance / 10000000).toFixed(2)} Cr`
+                    : `₹${(fundSummary.remaining_balance / 100000).toFixed(2)} L`)
+                : "₹1,257.79 Cr"}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 border-r border-gray-100 dark:border-navy-800 pr-3">
+          <div className="w-9 h-9 rounded bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
+            <ShieldAlert size={16} />
+          </div>
+          <div>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Delayed Works</p>
+            <p className="text-base font-bold text-gray-900 dark:text-white">
+              {progressSummary ? `${progressSummary.delayed_pct}% (${progressSummary.delayed_count.toLocaleString()})` : "58.3% (45,035)"}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+            <FolderCheck size={16} />
+          </div>
+          <div>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Completed Works</p>
+            <p className="text-base font-bold text-gray-900 dark:text-white">
+              {progressSummary?.status_counts?.Completed
+                ? `${progressSummary.status_counts.Completed.toLocaleString()} (${Math.round((progressSummary.status_counts.Completed / (progressSummary.total_projects || 1)) * 100)}%)`
+                : "5,010 (6.5%)"}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Charts & Officer Summary Section */}
