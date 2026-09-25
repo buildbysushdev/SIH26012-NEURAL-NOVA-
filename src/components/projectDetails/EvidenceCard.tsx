@@ -14,6 +14,7 @@ import Modal from "../ui/Modal";
 import type { Project } from "../../types";
 import { formatINR } from "../../lib/format";
 import { useToast } from "../../context/ToastContext";
+import { getSatelliteImageUrl, getAuditBriefPdfUrl } from "../../services/api";
 
 const ICONS: Record<string, any> = {
   Financial: FileText,
@@ -101,7 +102,11 @@ export default function EvidenceCard({
           variant="outline"
           size="sm"
           icon={<Download size={14} />}
-          onClick={() => showToast("Evidence dossier generated successfully.", "success")}
+          onClick={() => {
+            const url = getAuditBriefPdfUrl(project.id);
+            window.open(url, "_blank");
+            showToast("Opening official AI Audit Dossier PDF...", "info");
+          }}
         >
           Download Evidence Dossier
         </Button>
@@ -226,14 +231,21 @@ export default function EvidenceCard({
 
         {modal === "Satellite" && (
           <div className="text-sm text-gray-700 space-y-3">
-            <div className="aspect-video bg-gray-900 rounded-lg flex flex-col items-center justify-center text-gray-300 text-xs gap-2 p-4 text-center">
-              <Satellite size={28} className="text-blue-400" />
-              <p className="font-mono text-gray-200">
-                Coords: {project.latitude.toFixed(4)}° N, {project.longitude.toFixed(4)}° E
-              </p>
-              <span className="text-[11px] text-gray-400">
-                Sentinel-2 / Cartosat Multispectral Earth Observation Tile
-              </span>
+            <div className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden flex flex-col items-center justify-center text-gray-300 text-xs">
+              <img
+                src={getSatelliteImageUrl(project.id)}
+                alt={`Satellite image for ${project.id}`}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = "none";
+                }}
+              />
+              <div className="absolute bottom-2 left-2 right-2 bg-navy-950/80 backdrop-blur-sm px-3 py-1.5 rounded text-[11px] text-gray-200 flex items-center justify-between">
+                <span className="font-mono">
+                  {project.latitude.toFixed(4)}° N, {project.longitude.toFixed(4)}° E
+                </span>
+                <span className="text-emerald-400 font-medium">Sentinel-2 MSI (10m L2A)</span>
+              </div>
             </div>
             <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-1.5">
               <div className="flex justify-between">
@@ -250,7 +262,7 @@ export default function EvidenceCard({
               )}
             </div>
             <p className="text-xs text-gray-500">
-              Satellite verification detects structural disturbance, ground footprint alterations, and vegetation clearing corresponding to the work coordinates.
+              High-resolution Copernicus Sentinel-2 multispectral earth observation tile centered on project geocoordinates.
             </p>
           </div>
         )}

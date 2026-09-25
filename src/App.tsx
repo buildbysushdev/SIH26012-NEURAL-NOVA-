@@ -75,6 +75,8 @@ export default function App() {
             <Route element={<ProtectedOfficerLayout title="Project Details" breadcrumb={["Projects"]} />}>
               <Route path="/projects/:id" element={<ProjectDetail />} />
               <Route path="/project/:id" element={<ProjectDetail />} />
+              <Route path="/projects/*" element={<ProjectDetail />} />
+              <Route path="/project/*" element={<ProjectDetail />} />
             </Route>
             <Route element={<ProtectedOfficerLayout title="Risk & Alerts" />}>
               <Route path="/alerts" element={<Alerts />} />
@@ -108,6 +110,8 @@ export default function App() {
             <Route element={<ProtectedAdminLayout title="Project Details" breadcrumb={["Projects"]} />}>
               <Route path="/admin/projects/:id" element={<ProjectDetail />} />
               <Route path="/admin/project/:id" element={<ProjectDetail />} />
+              <Route path="/admin/projects/*" element={<ProjectDetail />} />
+              <Route path="/admin/project/*" element={<ProjectDetail />} />
             </Route>
             <Route element={<ProtectedAdminLayout title="Risk & Alerts" />}>
               <Route path="/admin/alerts" element={<Alerts />} />
@@ -138,6 +142,7 @@ export default function App() {
             <Route element={<CitizenLayout />}>
               <Route path="/citizen" element={<CitizenHome />} />
               <Route path="/citizen/project/:id" element={<CitizenProjectDetail />} />
+              <Route path="/citizen/project/*" element={<CitizenProjectDetail />} />
               <Route path="/citizen/report" element={<CitizenReport />} />
             </Route>
 

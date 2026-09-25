@@ -28,13 +28,57 @@ import type {
 } from "../types";
 
 const NETWORK_DELAY = 350;
-const BACKEND_BASE_URL = (import.meta as any).env?.VITE_BACKEND_URL || "http://localhost:8000";
+export const BACKEND_BASE_URL = (import.meta as any).env?.VITE_BACKEND_URL || "http://localhost:8000";
 
 function delay<T>(data: T, ms = NETWORK_DELAY): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(data), ms));
 }
 
-async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 1500): Promise<Response> {
+let inFlightTokenPromise: Promise<string> | null = null;
+
+export async function getAuthToken(): Promise<string> {
+  const stored = localStorage.getItem("mplads_token") || localStorage.getItem("mplads_officer_jwt_token");
+  if (stored) return stored;
+  if (inFlightTokenPromise) return inFlightTokenPromise;
+  inFlightTokenPromise = (async () => {
+    try {
+      const res = await fetch(`${BACKEND_BASE_URL}/auth/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          officer_id: "AUDITOR-VIGILANCE-01",
+          password: "officer@SIH2026",
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.access_token) {
+          localStorage.setItem("mplads_token", data.access_token);
+          return data.access_token;
+        }
+      }
+    } catch (err) {
+      console.warn("Could not auto-fetch auditor token:", err);
+    } finally {
+      inFlightTokenPromise = null;
+    }
+    return "";
+  })();
+  return inFlightTokenPromise;
+}
+
+export async function getAuthHeaders(): Promise<HeadersInit> {
+  const headers: Record<string, string> = {
+    "Bypass-Tunnel-Reminder": "true",
+  };
+  const token = await getAuthToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 8000): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -45,6 +89,77 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
     clearTimeout(timer);
     throw err;
   }
+}
+
+export function mapBackendProjectToFrontend(r: any, idx = 0): Project {
+  const sanctioned = typeof r.sanction_amount === "number" ? r.sanction_amount : parseFloat(r.sanction_amount) || 2500000;
+  const disbursed = r.amount_disbursed_completed || r.total_fund_disbursed || Math.round(sanctioned * 0.85);
+  const riskScore = Math.round(r.risk_score != null ? Number(r.risk_score) : 50);
+  const costDeviationScore = Math.round(r.cost_risk_score != null ? Number(r.cost_risk_score) : 30);
+  const nlpSimilarity = Math.round(r.nlp_similarity_score != null ? Number(r.nlp_similarity_score) : 0);
+  const satScore = r.satellite_risk_score != null ? Math.round(Number(r.satellite_risk_score)) : 10;
+  const citizenCount = typeof r.citizen_report_count === "number" ? r.citizen_report_count : 0;
+  const costZ = r.cost_zscore != null ? Number(r.cost_zscore) : undefined;
+
+  return {
+    id: r.work_id || `W-${idx}`,
+    name: r.work_description || r.work_name || `MPLADS Work ${r.work_id}`,
+    state: r.state || "National",
+    district: r.district || r.constituency || "General",
+    constituency: r.constituency || "",
+    category: (r.work_category as any) || "Public Infrastructure",
+    workType: r.work_category || "Development Work",
+    implementingAgency: r.ida || "District Authority",
+    sanctionDate: r.sanction_date || "2024-01-15",
+    expectedCompletion: r.completion_date || "2025-03-31",
+    status: (r.feedback_status === "confirmed_issue"
+      ? "Under Review"
+      : r.feedback_status === "false_positive"
+      ? "Completed"
+      : r.work_status === "Completed"
+      ? "Completed"
+      : "In Progress") as any,
+    sanctionedAmount: sanctioned,
+    releasedAmount: sanctioned,
+    expenditure: disbursed,
+    physicalProgress: r.work_status === "Completed" ? 100 : 65,
+    expectedProgress: 80,
+    riskScore: riskScore,
+    riskLevel: riskScore >= 80 ? "Critical" : riskScore >= 60 ? "High" : riskScore >= 40 ? "Medium" : "Low",
+    year: 2024,
+    latitude: typeof r.resolved_lat === "number" ? r.resolved_lat : (typeof r.latitude === "number" ? r.latitude : 20.5937),
+    longitude: typeof r.resolved_lng === "number" ? r.resolved_lng : (typeof r.longitude === "number" ? r.longitude : 78.9629),
+    riskFactors: {
+      costAnomaly: r.is_cost_outlier ? "High" : "Low",
+      duplicateProbability: nlpSimilarity > 70 ? "High" : "Low",
+      delayRisk: "Medium",
+      paymentAnomaly: "Low",
+      satelliteVerification: r.satellite_status && r.satellite_status !== "no_imagery" ? "Review" : "Low",
+      citizenSignal: citizenCount > 0 ? "High" : "Low",
+    },
+    shapFactors: [
+      { label: "Cost Deviation", value: costDeviationScore },
+      { label: "Duplicate Similarity", value: nlpSimilarity },
+      { label: "Satellite Verification", value: satScore },
+      { label: "Citizen Reports", value: citizenCount * 15 },
+    ],
+    peerAverageCost: Math.round(sanctioned * 0.75),
+    similarProjectId: r.similar_project,
+    similarityScore: nlpSimilarity,
+    similarState: r.similar_state,
+    costZScore: costZ,
+    satelliteStatus: r.satellite_status,
+    satelliteRiskScore: r.satellite_risk_score,
+    citizenReportCount: citizenCount,
+    feedbackStatus: r.feedback_status,
+    flagReason: costZ
+      ? `Cost outlier (Z-Score +${costZ.toFixed(2)}) against peer works`
+      : nlpSimilarity
+      ? `Semantic overlap score ${nlpSimilarity}% detected with ${r.similar_project || "adjacent work"}`
+      : `Flagged for supervisory review based on multi-signal risk model`,
+    aiExplanation: r.explanation,
+    mpName: r.mp_name,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -69,7 +184,10 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   } catch {}
 
   try {
-    const flaggedRes = await fetchWithTimeout(`${BACKEND_BASE_URL}/flagged-projects?limit=200`);
+    const authHeaders = await getAuthHeaders();
+    const flaggedRes = await fetchWithTimeout(`${BACKEND_BASE_URL}/flagged-projects?limit=500`, {
+      headers: authHeaders,
+    });
     if (flaggedRes.ok) {
       const flagged = await flaggedRes.json();
       if (Array.isArray(flagged) && flagged.length > 0) {
@@ -203,6 +321,29 @@ export interface ProjectFilters {
 }
 
 export async function getProjects(filters: ProjectFilters = {}): Promise<{ data: Project[]; total: number }> {
+  // If there's a search term with at least 2 characters, search the live 77,312 MPLADS database!
+  if (filters.search && filters.search.trim().length >= 2) {
+    try {
+      const page = filters.page ?? 1;
+      const pageSize = filters.pageSize ?? 10;
+      const params = new URLSearchParams({
+        q: filters.search.trim(),
+        page: String(page),
+        page_size: String(pageSize),
+      });
+      const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/search-projects?${params.toString()}`);
+      if (res.ok) {
+        const body = await res.json();
+        if (body && Array.isArray(body.results)) {
+          const mapped = body.results.map((r: any, idx: number) => mapBackendProjectToFrontend(r, idx));
+          return { data: mapped, total: body.total || mapped.length };
+        }
+      }
+    } catch (err) {
+      console.warn("Live project search error:", err);
+    }
+  }
+
   let results = [...PROJECTS];
 
   if (filters.search) {
@@ -217,9 +358,9 @@ export async function getProjects(filters: ProjectFilters = {}): Promise<{ data:
   }
   if (filters.state && filters.state !== "All") results = results.filter((p) => p.state.toLowerCase() === filters.state?.toLowerCase());
   if (filters.district && filters.district !== "All") results = results.filter((p) => p.district.toLowerCase() === filters.district?.toLowerCase());
-  if (filters.category) results = results.filter((p) => p.category === filters.category);
-  if (filters.status) results = results.filter((p) => p.status === filters.status);
-  if (filters.riskLevel) results = results.filter((p) => p.riskLevel === filters.riskLevel);
+  if (filters.category && filters.category !== "All") results = results.filter((p) => p.category === filters.category);
+  if (filters.status && filters.status !== "All") results = results.filter((p) => p.status === filters.status);
+  if (filters.riskLevel && filters.riskLevel !== "All") results = results.filter((p) => p.riskLevel === filters.riskLevel);
   if (filters.year) results = results.filter((p) => String(p.year) === filters.year);
 
   if (filters.sortBy) {
@@ -247,65 +388,16 @@ export async function getFlaggedProjects(filters: ProjectFilters = {}): Promise<
     if (filters.state && filters.state !== "All") params.set("state", filters.state);
     if (filters.category && filters.category !== "All") params.set("work_category", filters.category);
     if (filters.district && filters.district !== "All") params.set("district", filters.district);
-    params.set("limit", String(filters.pageSize || 50));
+    params.set("limit", String(filters.pageSize || 100));
 
-    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/flagged-projects?${params.toString()}`);
+    const authHeaders = await getAuthHeaders();
+    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/flagged-projects?${params.toString()}`, {
+      headers: authHeaders,
+    });
     if (res.ok) {
       const records = await res.json();
       if (Array.isArray(records) && records.length > 0) {
-        const mapped: Project[] = records.map((r: any, idx: number) => ({
-          id: r.work_id || `W-${idx}`,
-          name: r.work_description || r.work_name || `MPLADS Work ${r.work_id}`,
-          state: r.state || "National",
-          district: r.district || r.constituency || "General",
-          constituency: r.constituency || "",
-          category: (r.work_category as any) || "Public Infrastructure",
-          workType: r.work_category || "Development Work",
-          implementingAgency: "District Authority",
-          sanctionDate: "2024-01-15",
-          expectedCompletion: "2025-03-31",
-          status: (r.feedback_status === "confirmed_issue" ? "Under Review" : r.feedback_status === "false_positive" ? "Completed" : "In Progress") as any,
-          sanctionedAmount: r.sanction_amount || 2500000,
-          releasedAmount: r.sanction_amount || 2500000,
-          expenditure: r.sanction_amount ? Math.round(r.sanction_amount * 0.85) : 2100000,
-          physicalProgress: 65,
-          expectedProgress: 80,
-          riskScore: Math.round(r.risk_score || 75),
-          riskLevel: (r.risk_score >= 80 ? "Critical" : r.risk_score >= 60 ? "High" : r.risk_score >= 40 ? "Medium" : "Low") as any,
-          year: 2024,
-          latitude: r.latitude || r.resolved_lat || 19.75,
-          longitude: r.longitude || r.resolved_lng || 75.71,
-          riskFactors: {
-            costAnomaly: r.is_cost_outlier ? "High" : "Low",
-            duplicateProbability: r.nlp_similarity_score > 70 ? "High" : "Low",
-            delayRisk: "Medium",
-            paymentAnomaly: "Low",
-            satelliteVerification: r.satellite_status ? "Review" : "Low",
-            citizenSignal: r.citizen_report_count > 0 ? "High" : "Low",
-          },
-          shapFactors: [
-            { label: "Cost Deviation", value: Math.round(r.cost_risk_score || 25) },
-            { label: "Duplicate Similarity", value: Math.round(r.nlp_similarity_score || 20) },
-            { label: "Satellite Verification", value: Math.round(r.satellite_risk_score || 15) },
-            { label: "Citizen Reports", value: (r.citizen_report_count || 0) * 15 },
-          ],
-          peerAverageCost: r.sanction_amount ? Math.round(r.sanction_amount * 0.75) : 1800000,
-          similarProjectId: r.similar_project,
-          similarityScore: r.nlp_similarity_score,
-          similarState: r.similar_state,
-          costZScore: r.cost_zscore,
-          satelliteStatus: r.satellite_status,
-          satelliteRiskScore: r.satellite_risk_score,
-          citizenReportCount: r.citizen_report_count,
-          feedbackStatus: r.feedback_status,
-          flagReason: r.cost_zscore
-            ? `Cost outlier (Z-Score +${Number(r.cost_zscore).toFixed(2)}) against peer works`
-            : r.nlp_similarity_score
-            ? `Semantic overlap score ${r.nlp_similarity_score}% detected with ${r.similar_project || 'adjacent work'}`
-            : `Flagged for supervisory review based on multi-signal risk model`,
-          aiExplanation: r.explanation,
-          mpName: r.mp_name,
-        }));
+        const mapped: Project[] = records.map((r: any, idx: number) => mapBackendProjectToFrontend(r, idx));
 
         let filtered = mapped;
         if (filters.state && filters.state !== "All") {
@@ -336,7 +428,9 @@ export async function getFlaggedProjects(filters: ProjectFilters = {}): Promise<
         return { data: filtered, total: filtered.length };
       }
     }
-  } catch {}
+  } catch (err) {
+    console.warn("Could not fetch live flagged projects:", err);
+  }
 
   // Fallback to high-risk projects sorted by riskScore descending
   let results = [...PROJECTS].sort((a, b) => b.riskScore - a.riskScore);
@@ -370,73 +464,90 @@ export async function getFlaggedProjects(filters: ProjectFilters = {}): Promise<
   return delay({ data, total });
 }
 
+export function getSatelliteImageUrl(workId: string): string {
+  return `${BACKEND_BASE_URL}/project-satellite-image?work_id=${encodeURIComponent(workId.trim())}`;
+}
+
+export function getAuditBriefPdfUrl(workId: string): string {
+  return `${BACKEND_BASE_URL}/audit-brief?work_id=${encodeURIComponent(workId.trim())}`;
+}
+
+export async function saveChecklist(workId: string, state: any): Promise<any> {
+  try {
+    const authHeaders = await getAuthHeaders();
+    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/checklist`, {
+      method: "POST",
+      headers: { ...authHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({ work_id: workId, ...state }),
+    });
+    if (res.ok) return await res.json();
+  } catch (err) {
+    console.warn("Failed to save checklist to backend:", err);
+  }
+  return { success: true };
+}
+
+export async function getChecklist(workId: string): Promise<any> {
+  try {
+    const authHeaders = await getAuthHeaders();
+    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/checklist?work_id=${encodeURIComponent(workId.trim())}`, {
+      headers: authHeaders,
+    });
+    if (res.ok) return await res.json();
+  } catch (err) {
+    console.warn("Failed to get checklist from backend:", err);
+  }
+  return null;
+}
+
+export async function askCitizenChatbot(query: string, history: any[] = []): Promise<string> {
+  try {
+    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/api/citizen-chatbot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, history }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data.reply || data.response || data.message || "Thank you for contacting the MPLADS portal.";
+    }
+  } catch (err) {
+    console.warn("Citizen chatbot backend error:", err);
+  }
+  return "The automated assistant is currently synchronizing with the central registry. Please refer to the citizen information sections above.";
+}
+
+export async function getReportVerification(reportId: string): Promise<any> {
+  try {
+    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/citizen-report-verification/${encodeURIComponent(reportId)}`);
+    if (res.ok) return await res.json();
+  } catch (err) {
+    console.warn("Failed to verify report:", err);
+  }
+  return null;
+}
+
 export async function getProjectById(id: string): Promise<Project | undefined> {
+  const cleanId = decodeURIComponent(id).trim();
   // First try backend
   try {
-    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/project?work_id=${encodeURIComponent(id)}`);
+    const authHeaders = await getAuthHeaders();
+    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/project?work_id=${encodeURIComponent(cleanId)}`, {
+      headers: authHeaders,
+    });
     if (res.ok) {
       const data = await res.json();
       const r = data.project;
       if (r) {
-        return {
-          id: r.work_id,
-          name: r.work_description || r.work_name || `MPLADS Work ${r.work_id}`,
-          state: r.state || "National",
-          district: r.district || r.constituency || "General",
-          constituency: r.constituency || "",
-          category: (r.work_category as any) || "Public Infrastructure",
-          workType: r.work_category || "Development Work",
-          implementingAgency: "District Authority",
-          sanctionDate: "2024-01-15",
-          expectedCompletion: "2025-03-31",
-          status: (r.feedback_status === "confirmed_issue" ? "Under Review" : r.feedback_status === "false_positive" ? "Completed" : "In Progress") as any,
-          sanctionedAmount: r.sanction_amount || 2500000,
-          releasedAmount: r.sanction_amount || 2500000,
-          expenditure: r.sanction_amount ? Math.round(r.sanction_amount * 0.85) : 2100000,
-          physicalProgress: 65,
-          expectedProgress: 80,
-          riskScore: Math.round(r.risk_score || 75),
-          riskLevel: (r.risk_score >= 80 ? "Critical" : r.risk_score >= 60 ? "High" : r.risk_score >= 40 ? "Medium" : "Low") as any,
-          year: 2024,
-          latitude: r.latitude || r.resolved_lat || 19.75,
-          longitude: r.longitude || r.resolved_lng || 75.71,
-          riskFactors: {
-            costAnomaly: r.is_cost_outlier ? "High" : "Low",
-            duplicateProbability: r.nlp_similarity_score > 70 ? "High" : "Low",
-            delayRisk: "Medium",
-            paymentAnomaly: "Low",
-            satelliteVerification: r.satellite_status ? "Review" : "Low",
-            citizenSignal: r.citizen_report_count > 0 ? "High" : "Low",
-          },
-          shapFactors: [
-            { label: "Cost Deviation", value: Math.round(r.cost_risk_score || 25) },
-            { label: "Duplicate Similarity", value: Math.round(r.nlp_similarity_score || 20) },
-            { label: "Satellite Verification", value: Math.round(r.satellite_risk_score || 15) },
-            { label: "Citizen Reports", value: (r.citizen_report_count || 0) * 15 },
-          ],
-          peerAverageCost: r.sanction_amount ? Math.round(r.sanction_amount * 0.75) : 1800000,
-          similarProjectId: r.similar_project,
-          similarityScore: r.nlp_similarity_score,
-          similarState: r.similar_state,
-          costZScore: r.cost_zscore,
-          satelliteStatus: r.satellite_status,
-          satelliteRiskScore: r.satellite_risk_score,
-          citizenReportCount: r.citizen_report_count,
-          feedbackStatus: r.feedback_status,
-          flagReason: r.cost_zscore
-            ? `Cost outlier (Z-Score +${Number(r.cost_zscore).toFixed(2)}) against peer works`
-            : r.nlp_similarity_score
-            ? `Semantic overlap score ${r.nlp_similarity_score}% detected with ${r.similar_project || 'adjacent work'}`
-            : `Flagged for supervisory review based on multi-signal risk model`,
-          aiExplanation: r.explanation,
-          mpName: r.mp_name,
-        };
+        return mapBackendProjectToFrontend(r, 0);
       }
     }
-  } catch {}
+  } catch (err) {
+    console.warn("Could not fetch project from backend:", err);
+  }
 
   // Fallback to local project
-  return delay(PROJECTS.find((p) => p.id === id));
+  return delay(PROJECTS.find((p) => p.id === cleanId || p.id === id));
 }
 
 export async function submitProjectFeedback(

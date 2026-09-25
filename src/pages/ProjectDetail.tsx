@@ -31,7 +31,9 @@ import ProjectCitizenReports from "../components/projectDetails/ProjectCitizenRe
 const TABS = ["Overview", "Financial", "Progress", "AI Analysis", "Evidence", "Citizen Reports"];
 
 export default function ProjectDetail() {
-  const { id } = useParams();
+  const params = useParams();
+  const rawId = params["*"] || params.id || "";
+  const id = rawId ? decodeURIComponent(rawId).trim() : "";
   const navigate = useNavigate();
   const portalBase = usePortalBase();
   const { showToast } = useToast();

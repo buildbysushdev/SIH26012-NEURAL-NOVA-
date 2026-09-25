@@ -9,7 +9,9 @@ import type { Project } from "../../types";
 import CitizenTimeline from "../../components/citizen/CitizenTimeline";
 
 export default function CitizenProjectDetail() {
-  const { id } = useParams();
+  const params = useParams();
+  const rawId = params["*"] || params.id || "";
+  const id = rawId ? decodeURIComponent(rawId).trim() : "";
   const navigate = useNavigate();
   const [project, setProject] = useState<Project | null | undefined>(null);
 

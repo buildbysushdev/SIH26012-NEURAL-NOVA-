@@ -13,6 +13,8 @@ import {
   Filter,
   IndianRupee,
   FolderCheck,
+  MapPin,
+  Building2,
 } from "lucide-react";
 import Card from "../components/ui/Card";
 import GovPageHeader from "../components/layout/GovPageHeader";
