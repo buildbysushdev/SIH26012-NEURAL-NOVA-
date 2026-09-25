@@ -46,6 +46,7 @@ import location_enricher
 import auth_jwt
 import officer_checklist
 import voice_transcriber
+import demo_showcase
 
 from explain_gemini import explain_flagged_project  # noqa: F401 (used by audit_brief)
 
@@ -146,6 +147,9 @@ async def lifespan(app: FastAPI):
     df["search_district"]     = df["district"].astype(str).str.lower().str.replace(" ", "", regex=False) if "district" in df.columns else df["search_constituency"]
     df["search_desc"]         = df["work_description"].astype(str).str.lower()
 
+    # Initialize verified demo showcase indicators (curated localities & verified tiles)
+    df = demo_showcase.initialize_showcase_signals(df)
+
     _df = df
     top = _df["risk_score"].max()
     avg = _df["risk_score"].mean()
@@ -155,6 +159,7 @@ async def lifespan(app: FastAPI):
     citizen_reports.set_main_dataframe_reference(_df)
     feedback_loop.set_main_dataframe_reference(_df)
     audit_brief.set_main_dataframe_reference(_df)
+    demo_showcase.set_main_dataframe_reference(_df)
 
     yield  # Server is running
 
@@ -201,6 +206,7 @@ app.include_router(feedback_loop.router)
 app.include_router(audit_brief.router)
 app.include_router(officer_checklist.router)
 app.include_router(voice_transcriber.router)
+app.include_router(demo_showcase.router)
 
 # Mount static web frontends: Citizen Portal, Officer Dashboard, Login Gateway, and Uploads
 from fastapi.staticfiles import StaticFiles
@@ -236,6 +242,14 @@ def root():
     """Health check — returns total project count."""
     total = len(_df) if _df is not None else 0
     return {"status": "MPLADS Risk Intelligence System is running", "total_projects": total}
+
+
+@app.get("/health", tags=["Status"])
+def health():
+    """Lightweight health check endpoint."""
+    total = len(_df) if _df is not None else 0
+    return {"status": "ok", "total_projects": total}
+
 
 
 @app.get("/flagged-projects", tags=["Projects"])
@@ -426,8 +440,8 @@ def search_projects(
 @app.get("/project-satellite-image", tags=["Projects"])
 def get_project_satellite_image(
     work_id: Optional[str] = Query(default=None, description="Work ID of project"),
-    lat: Optional[float] = Query(default=None, description="Latitude"),
-    lng: Optional[float] = Query(default=None, description="Longitude"),
+    lat: Optional[str] = Query(default=None, description="Latitude"),
+    lng: Optional[str] = Query(default=None, description="Longitude"),
     district: Optional[str] = Query(default=None, description="District / Constituency"),
     state: Optional[str] = Query(default=None, description="State"),
 ):
@@ -437,11 +451,26 @@ def get_project_satellite_image(
     """
     from satellite_check import generate_satellite_thumbnail
 
-    target_lat = lat
-    target_lng = lng
+    clean_lat = None
+    clean_lng = None
+    if lat not in [None, "", "null", "undefined"]:
+        try:
+            clean_lat = float(lat)
+        except (ValueError, TypeError):
+            clean_lat = None
+    if lng not in [None, "", "null", "undefined"]:
+        try:
+            clean_lng = float(lng)
+        except (ValueError, TypeError):
+            clean_lng = None
+
+    target_lat = clean_lat
+    target_lng = clean_lng
     dist_name = district or "District"
     st_name = state or "India"
     sat_status = "visible"
+    pass_date = None
+    prec = "district"
 
     if _df is not None and work_id:
         match = _df[_df["work_id"] == work_id]
@@ -449,11 +478,23 @@ def get_project_satellite_image(
             row = match.iloc[0]
             dist_name = str(row.get("constituency") or row.get("district") or dist_name)
             st_name = str(row.get("state") or st_name)
-            sat_status = str(row.get("satellite_status") or "visible")
+            sat_status = str(row.get("satellite_status") or "no_imagery")
+            pass_date = row.get("satellite_pass_date")
+            prec = str(row.get("location_precision") or row.get("coord_precision") or "district")
             if target_lat is None and pd.notnull(row.get("resolved_lat")):
-                target_lat = float(row["resolved_lat"])
+                try:
+                    target_lat = float(row["resolved_lat"])
+                except Exception:
+                    pass
             if target_lng is None and pd.notnull(row.get("resolved_lng")):
-                target_lng = float(row["resolved_lng"])
+                try:
+                    target_lng = float(row["resolved_lng"])
+                except Exception:
+                    pass
+
+    # If coordinates are missing or precision is district-level/unavailable, enforce honest status
+    if prec in ["district", "unavailable"] or target_lat is None or target_lng is None:
+        sat_status = "location_precision_insufficient"
 
     coords = (target_lat, target_lng) if (target_lat is not None and target_lng is not None) else None
     buf = generate_satellite_thumbnail(
@@ -461,10 +502,11 @@ def get_project_satellite_image(
         state=st_name,
         status=sat_status,
         coordinates=coords,
-        width=540,
-        height=220
+        pass_date=pass_date,
+        precision=prec
     )
     return Response(content=buf.getvalue(), media_type="image/png")
+
 
 
 # --- Interactive Citizen Assistance Chatbot (Sahayak) ---

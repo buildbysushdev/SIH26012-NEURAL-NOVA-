@@ -18,10 +18,79 @@ export const WorklistView = {
   sortField: 'risk_score',
   sortAsc: false,
   onSelectProjectCallback: null,
+  currentShowcaseState: 'ALL',
 
   init(onSelectProject) {
     this.onSelectProjectCallback = onSelectProject;
     this.bindFilterEvents();
+    this.initShowcasePills();
+  },
+
+  async initShowcasePills() {
+    const pillsBar = document.getElementById('officer-showcase-pills');
+    if (!pillsBar) return;
+
+    try {
+      const data = await ApiClient.getDemoShowcaseStates();
+      if (!data || !data.states || !data.states.length) return;
+
+      const totalCount = data.total_verified || 6487;
+      const countEl = document.getElementById('officer-showcase-all-count');
+      if (countEl) countEl.textContent = totalCount.toLocaleString('en-IN');
+
+      pillsBar.innerHTML = '';
+
+      // All States Pill
+      const allPill = document.createElement('button');
+      allPill.type = 'button';
+      allPill.className = 'officer-showcase-pill active';
+      allPill.dataset.state = 'ALL';
+      allPill.innerHTML = `<span>All States</span><span class="pill-badge">${totalCount.toLocaleString('en-IN')}</span>`;
+      allPill.addEventListener('click', async () => {
+        pillsBar.querySelectorAll('.officer-showcase-pill').forEach(b => b.classList.remove('active'));
+        allPill.classList.add('active');
+        await this.loadShowcaseState('ALL');
+      });
+      pillsBar.appendChild(allPill);
+
+      // State Pills
+      data.states.forEach(s => {
+        const pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = 'officer-showcase-pill';
+        pill.dataset.state = s.state;
+        pill.innerHTML = `<span>${escapeHtml(s.state)}</span><span class="pill-badge">${s.count.toLocaleString('en-IN')}</span>`;
+        pill.addEventListener('click', async () => {
+          pillsBar.querySelectorAll('.officer-showcase-pill').forEach(b => b.classList.remove('active'));
+          pill.classList.add('active');
+          await this.loadShowcaseState(s.state);
+        });
+        pillsBar.appendChild(pill);
+      });
+    } catch (err) {
+      console.warn('Could not initialize officer showcase pills:', err);
+    }
+  },
+
+  async loadShowcaseState(state = 'ALL') {
+    this.currentShowcaseState = state;
+    const tableBody = document.getElementById('worklist-tbody');
+    if (tableBody) {
+      tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 32px; color: var(--text-tertiary);">Loading verified showcase works for ${state === 'ALL' ? 'all states' : escapeHtml(state)}…</td></tr>`;
+    }
+
+    try {
+      const data = await ApiClient.getDemoShowcase({ state, limit: 50 });
+      this.allProjects = data.items || [];
+      await OfficerDB.cacheProjects(this.allProjects);
+    } catch (err) {
+      console.warn('Failed to fetch showcase projects, falling back to standard pool:', err);
+      return this.load();
+    }
+
+    this.populateDistrictFilter();
+    this.applyFilters();
+    this.renderMetrics();
   },
 
   bindFilterEvents() {

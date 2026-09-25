@@ -45,12 +45,13 @@ if (typeof window !== 'undefined' && window.fetch) {
 }
 
 // ─── Config ──────────────────────────────────────────────────────────────────
-const API_BASE = (typeof window !== 'undefined' && window.API_BASE_URL)
+const API_BASE = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:' || window.location.origin.includes('8080') || window.location.origin.includes('8000')))
+  ? (window.location.origin && window.location.origin.startsWith('http') ? window.location.origin : 'http://localhost:8000')
+  : (typeof window !== 'undefined' && window.API_BASE_URL)
   || (typeof window !== 'undefined' && (localStorage.getItem('MPLADS_API_URL') || localStorage.getItem('mplads_api_url')))
-  || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:' || window.location.origin.includes('8080'))
-      ? 'http://localhost:8000'
-      : (typeof window !== 'undefined' && document.querySelector('meta[name="backend-url"]')?.content)
-        || 'https://mplads-neural-nova-26102.loca.lt');
+  || (typeof window !== 'undefined' && document.querySelector('meta[name="backend-url"]')?.content)
+  || 'https://mplads-neural-nova-26102.loca.lt';
+
 
 // ─── State ───────────────────────────────────────────────────────────────────
 let mode           = 'live';   // 'live' | 'demo'
@@ -749,10 +750,60 @@ function openSatelliteProofModal(p) {
   const lng = p.resolved_lng || p.longitude;
   if (coordsEl) coordsEl.textContent = (lat && lng) ? (Number(lat).toFixed(4) + '° N, ' + Number(lng).toFixed(4) + '° E') : 'District Centroid';
   if (tierEl) tierEl.textContent = (p.location_precision || p.coord_precision || 'District').toUpperCase();
-  if (statusEl) statusEl.textContent = p.satellite_status === 'not_visible' ? 'Structure Absent / Alert' : 'Structure Consistent with Construction';
+  
+  const prec = (p.location_precision || p.coord_precision || 'district').toLowerCase();
+  const isPreciseOrLocality = (prec === 'precise' || prec === 'locality');
+  const hasPass = Boolean(p.satellite_pass_date);
+
+  // Strict 3-state display
+  if (statusEl) {
+    if (!isPreciseOrLocality) {
+      statusEl.textContent = 'Location precision insufficient';
+      statusEl.style.color = '#94a3b8';
+    } else if (!hasPass || p.satellite_status === 'imagery_unavailable') {
+      statusEl.textContent = 'Imagery unavailable';
+      statusEl.style.color = '#f59e0b';
+    } else {
+      statusEl.textContent = p.satellite_status === 'not_visible' ? 'Verified (Structure Absent)' : 'Verified (Structure Present)';
+      statusEl.style.color = p.satellite_status === 'not_visible' ? '#ef4444' : '#16a34a';
+    }
+  }
+
+  // Prominent Capture Date Display (e.g. "Imagery captured: 14 Mar 2024")
+  const passDateEl = document.getElementById('sat-modal-passdate');
+  if (passDateEl) {
+    if (isPreciseOrLocality && p.satellite_pass_date) {
+      try {
+        const dObj = new Date(p.satellite_pass_date);
+        const dStr = isNaN(dObj.getTime()) ? p.satellite_pass_date : dObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        passDateEl.textContent = `Imagery captured: ${dStr}`;
+      } catch (_) {
+        passDateEl.textContent = `Imagery captured: ${p.satellite_pass_date}`;
+      }
+      passDateEl.style.display = 'inline-block';
+      passDateEl.style.background = '#10b981';
+      passDateEl.style.color = '#ffffff';
+    } else if (!isPreciseOrLocality) {
+      passDateEl.textContent = 'OPTICAL AUDIT SKIPPED (DISTRICT CENTROID)';
+      passDateEl.style.display = 'inline-block';
+      passDateEl.style.background = '#475569';
+      passDateEl.style.color = '#ffffff';
+    } else {
+      passDateEl.textContent = 'OPTICAL WINDOW: NO QUALIFYING PASS';
+      passDateEl.style.display = 'inline-block';
+      passDateEl.style.background = '#d97706';
+      passDateEl.style.color = '#ffffff';
+    }
+  }
 
   if (descEl) {
-    descEl.textContent = 'Sentinel-2 & Landsat optical sensor comparison verified against site coordinates for ' + (p.constituency || 'this constituency') + ', ' + (p.state || 'India') + '. Deep learning SegFormer land-cover network analyzed multispectral pixels for physical presence.';
+    if (!isPreciseOrLocality) {
+      descEl.textContent = 'Location precision is district-level or unavailable. Satellite optical verification is intentionally skipped against imprecise centroids to prevent misleading audit artifacts.';
+    } else if (!hasPass || p.satellite_status === 'imagery_unavailable') {
+      descEl.textContent = 'No cloud-free Sentinel-2 optical pass (<20% cloud cover) was recorded within the 90-day or expanded 180-day lookback window. On-site DISHA physical verification required.';
+    } else {
+      descEl.textContent = 'Sentinel-2 Level-2A 10m multispectral pass verified against resolved locality coordinates in ' + (p.locality_name || p.constituency || 'this locality') + ', ' + (p.state || 'India') + '. Deep learning SegFormer land-cover network analyzed multispectral pixels for built structures.';
+    }
   }
 
   // Load satellite image from backend endpoint
@@ -2052,6 +2103,132 @@ function updateCitizenLiveClock() {
   if (headerTime) headerTime.textContent = `${timeStr} IST`;
 }
 
+// ─── Verified Demo Showcase by State ──────────────────────────────────────────
+let currentShowcaseState = 'ALL';
+
+async function initVerifiedDemoShowcase() {
+  const pillsBar = document.getElementById('showcase-pills-bar');
+  const modalPills = document.getElementById('modal-showcase-pills');
+  if (!pillsBar) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/demo-showcase/states`, {
+      headers: { 'Bypass-Tunnel-Reminder': 'true' }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data || !data.states || !data.states.length) return;
+
+    // Update total count
+    const allCountEl = document.getElementById('showcase-all-count');
+    if (allCountEl && data.total_verified) {
+      allCountEl.textContent = data.total_verified.toLocaleString('en-IN');
+    }
+
+    // Clear and rebuild pills bar
+    pillsBar.innerHTML = '';
+
+    // "All States" Pill
+    const allPill = document.createElement('button');
+    allPill.type = 'button';
+    allPill.className = 'showcase-pill active';
+    allPill.dataset.state = 'ALL';
+    allPill.innerHTML = `<span class="pill-state">All States</span><span class="pill-count">${(data.total_verified || 6487).toLocaleString('en-IN')}</span>`;
+    allPill.addEventListener('click', () => {
+      document.querySelectorAll('#showcase-pills-bar .showcase-pill').forEach(b => b.classList.remove('active'));
+      allPill.classList.add('active');
+      loadShowcaseProjects('ALL');
+    });
+    pillsBar.appendChild(allPill);
+
+    // Build pill for each state
+    data.states.forEach((s) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'showcase-pill';
+      btn.dataset.state = s.state;
+      btn.innerHTML = `<span class="pill-state">${esc(s.state)}</span><span class="pill-count">${s.count.toLocaleString('en-IN')}</span>`;
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#showcase-pills-bar .showcase-pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        loadShowcaseProjects(s.state);
+      });
+      pillsBar.appendChild(btn);
+    });
+
+    // Populate modal quick jump chips
+    if (modalPills) {
+      modalPills.innerHTML = '';
+      data.states.slice(0, 10).forEach((s) => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'modal-showcase-chip';
+        chip.textContent = `${s.state} (${s.count})`;
+        chip.addEventListener('click', async () => {
+          document.querySelectorAll('.modal-showcase-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          try {
+            const sampleRes = await fetch(`${API_BASE}/demo-showcase/sample?state=${encodeURIComponent(s.state)}`, {
+              headers: { 'Bypass-Tunnel-Reminder': 'true' }
+            });
+            if (sampleRes.ok) {
+              const sampleProj = await sampleRes.json();
+              if (sampleProj && sampleProj.work_id) {
+                openSatelliteProofModal(sampleProj);
+              }
+            }
+          } catch (e) {
+            console.warn('Failed to load showcase sample for', s.state, e);
+          }
+        });
+        modalPills.appendChild(chip);
+      });
+    }
+
+  } catch (err) {
+    console.warn('Could not initialize verified demo showcase:', err);
+  }
+}
+
+async function loadShowcaseProjects(state = 'ALL') {
+  currentShowcaseState = state;
+  hasUserSearched = true;
+  switchView('list');
+
+  resultsList.innerHTML = `<div class="loading-text">Loading verified showcase for ${state === 'ALL' ? 'all states' : esc(state)} (Locality coordinates & Sentinel-2 passes)…</div>`;
+  resultCount.textContent = '';
+  hidePaginationControls();
+
+  const url = (state === 'ALL' || !state)
+    ? `${API_BASE}/demo-showcase?limit=50`
+    : `${API_BASE}/demo-showcase?state=${encodeURIComponent(state)}&limit=50`;
+
+  try {
+    const res = await fetch(url, {
+      headers: { 'Bypass-Tunnel-Reminder': 'true' }
+    });
+    if (!res.ok) throw new Error('http_' + res.status);
+    const data = await res.json();
+    const items = data.items || [];
+    const total = data.total || items.length;
+
+    if (searchInput) {
+      searchInput.value = state === 'ALL' ? '' : state;
+    }
+
+    const label = `Verified Showcase · Sentinel-2 Confirmed · ${state === 'ALL' ? '34 States' : state}`;
+    renderProjects(items, label, total, 1, Math.ceil(total / (data.limit || 50)));
+
+    const resultsEl = document.getElementById('results-list');
+    if (resultsEl) {
+      resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  } catch (err) {
+    console.error('Error loading showcase projects:', err);
+    resultsList.innerHTML = `<div class="state-message-box"><div class="state-title">Showcase Loading Failed</div><div class="state-subtitle">Could not connect to verified showcase endpoint. Please try again.</div></div>`;
+  }
+}
+
 // ─── Startup ──────────────────────────────────────────────────────────────────
 (async () => {
   updateCitizenLiveClock();
@@ -2074,5 +2251,7 @@ function updateCitizenLiveClock() {
   });
   await refreshPendingBanner();
   await checkBackendHealth();
+  await initVerifiedDemoShowcase();
 })();
+
 

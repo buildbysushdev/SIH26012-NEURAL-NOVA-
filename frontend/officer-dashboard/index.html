@@ -131,6 +131,23 @@
           </div>
         </div>
 
+        <!-- Verified Demo Showcase Strip for Live Judging -->
+        <div id="officer-showcase-strip" class="officer-showcase-strip" aria-label="Browse verified demo examples by state">
+          <div class="officer-showcase-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="officer-showcase-tag">🛰️ VERIFIED DEMO SHOWCASE</span>
+              <span class="officer-showcase-title">Browse Verified Projects by State (Sentinel-2 &amp; Locality Confirmed)</span>
+            </div>
+            <span style="font-size: 11px; color: var(--text-tertiary);">Curated for Live Judging Evaluation</span>
+          </div>
+          <div id="officer-showcase-pills" class="officer-showcase-pills" role="tablist">
+            <button type="button" class="officer-showcase-pill active" data-state="ALL">
+              <span>All States</span>
+              <span class="pill-badge" id="officer-showcase-all-count">6,487</span>
+            </button>
+          </div>
+        </div>
+
         <!-- Filter Controls Bar -->
         <div class="filter-bar">
           <div class="filter-group">
@@ -309,13 +326,23 @@
                 </div>
 
                 <!-- 3. Satellite Structure Status -->
-                <div class="signal-card">
+                <div class="signal-card" style="display: flex; flex-direction: column; gap: 8px;">
                   <div class="signal-header">
                     <span class="signal-name">3. Satellite Verify</span>
                     <span class="signal-score" id="signal-sat-score">–</span>
                   </div>
                   <div class="signal-desc" id="signal-sat-desc">
                     SegFormer structure detection over Sentinel-2 imagery.
+                  </div>
+                  <div id="officer-sat-preview-wrap" style="position: relative; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-default); background: #0b1120; min-height: 120px; display: flex; align-items: center; justify-content: center;">
+                    <img id="officer-sat-tile" src="" alt="Sentinel-2 Satellite Verification Imagery" style="width: 100%; height: 160px; object-fit: cover; display: none;" />
+                    <div id="officer-sat-overlay" style="position: absolute; top: 6px; left: 6px; right: 6px; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">
+                      <span id="officer-sat-sensor-tag" style="background: rgba(15,23,42,0.85); color: #38bdf8; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(56,189,248,0.4); text-transform: uppercase;">SENTINEL-2 L2A</span>
+                      <span id="officer-sat-pass-date" style="background: rgba(15,23,42,0.85); color: #f8fafc; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2);">PASS: 2024-03-14</span>
+                    </div>
+                    <div id="officer-sat-placeholder" style="color: var(--text-tertiary); font-size: 11px; text-align: center; padding: 16px;">
+                      Imagery pending pass or cloud cover
+                    </div>
                   </div>
                 </div>
 

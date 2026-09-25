@@ -40,3 +40,5 @@ uploads/citizen_reports/*
 *.swo
 .DS_Store
 Thumbs.db
+drive-download-*/
+

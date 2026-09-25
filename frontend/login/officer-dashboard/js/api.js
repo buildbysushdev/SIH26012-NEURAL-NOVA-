@@ -30,12 +30,13 @@ if (typeof window !== 'undefined' && window.fetch) {
   };
 }
 
-const API_BASE_URL = (typeof window !== 'undefined' && window.API_BASE_URL)
+const API_BASE_URL = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:' || window.location.origin.includes('8080') || window.location.origin.includes('8000')))
+  ? (window.location.origin && window.location.origin.startsWith('http') ? window.location.origin : 'http://localhost:8000')
+  : (typeof window !== 'undefined' && window.API_BASE_URL)
   || (typeof window !== 'undefined' && (localStorage.getItem('MPLADS_API_URL') || localStorage.getItem('mplads_api_url')))
-  || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-      ? 'http://localhost:8000'
-      : (typeof window !== 'undefined' && document.querySelector('meta[name="backend-url"]')?.content)
-        || 'https://mplads-neural-nova-26102.loca.lt');
+  || (typeof window !== 'undefined' && document.querySelector('meta[name="backend-url"]')?.content)
+  || 'https://mplads-neural-nova-26102.loca.lt';
+
 
 function getAuthHeaders() {
   const token = OfficerAuth.getToken();
@@ -250,5 +251,42 @@ export const ApiClient = {
       throw new Error(`Failed to upload field evidence (${res.status})`);
     }
     return await res.json();
+  },
+
+  /**
+   * Fetches state counts of verified demo showcase projects.
+   * @returns {Promise<Object>}
+   */
+  async getDemoShowcaseStates() {
+    const res = await fetch(`${API_BASE_URL}/demo-showcase/states`);
+    if (!res.ok) throw new Error(`Failed to load showcase states (${res.status})`);
+    return await res.json();
+  },
+
+  /**
+   * Fetches verified demo showcase projects filtered by state.
+   * @param {Object} options
+   * @param {string} [options.state]
+   * @param {number} [options.limit=50]
+   * @returns {Promise<Object>}
+   */
+  async getDemoShowcase({ state = null, limit = 50 } = {}) {
+    let url = `${API_BASE_URL}/demo-showcase?limit=${limit}`;
+    if (state && state !== 'ALL') {
+      url += `&state=${encodeURIComponent(state)}`;
+    }
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to load showcase projects (${res.status})`);
+    return await res.json();
+  },
+
+  /**
+   * Returns authenticated/queried satellite thumbnail image URL.
+   * @param {string} workId
+   * @returns {string}
+   */
+  getSatelliteImageUrl(workId) {
+    return `${API_BASE_URL}/project-satellite-image?work_id=${encodeURIComponent(workId)}`;
   }
 };
+

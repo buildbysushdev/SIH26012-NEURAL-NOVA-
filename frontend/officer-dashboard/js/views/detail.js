@@ -203,21 +203,94 @@ export const DetailView = {
       }
     }
 
-    // 3. Satellite Verification Signal
+    // 3. Satellite Verification Signal (Strict 3-State Model)
+    const prec = (p.location_precision || p.coord_precision || 'district').toLowerCase();
+    const isPreciseOrLocality = (prec === 'precise' || prec === 'locality');
     const satStatus = p.satellite_status || 'no_imagery';
+    const hasPass = Boolean(p.satellite_pass_date);
+    const isVerified = isPreciseOrLocality && hasPass && satStatus !== 'imagery_unavailable';
+    const isAbsent = isVerified && (satStatus === 'structure_absent' || satStatus === 'not_visible');
+
     const elSatScore = document.getElementById('signal-sat-score');
     const elSatDesc = document.getElementById('signal-sat-desc');
+    const elSatTile = document.getElementById('officer-sat-tile');
+    const elSatPlaceholder = document.getElementById('officer-sat-placeholder');
+    const elSatPassDate = document.getElementById('officer-sat-pass-date');
+    const elSatSensorTag = document.getElementById('officer-sat-sensor-tag');
+
     if (elSatScore) {
-      elSatScore.textContent = satStatus === 'structure_present' ? 'Verified ✓' : satStatus === 'structure_absent' ? 'Flagged (100)' : 'No Imagery';
-      elSatScore.style.color = satStatus === 'structure_absent' ? 'var(--risk-high)' : satStatus === 'structure_present' ? 'var(--status-verified)' : 'var(--text-tertiary)';
+      if (!isPreciseOrLocality) {
+        elSatScore.textContent = 'Location precision insufficient';
+        elSatScore.style.color = 'var(--text-tertiary)';
+      } else if (!hasPass || satStatus === 'imagery_unavailable') {
+        elSatScore.textContent = 'Imagery unavailable';
+        elSatScore.style.color = 'var(--risk-mid)';
+      } else {
+        elSatScore.textContent = isAbsent ? 'Verified (Structure Absent)' : 'Verified (Structure Present)';
+        elSatScore.style.color = isAbsent ? 'var(--risk-high)' : 'var(--status-verified)';
+      }
     }
+
     if (elSatDesc) {
-      elSatDesc.textContent = satStatus === 'structure_absent'
-        ? 'Sentinel-2 LandCover SegFormer detection found no built-up civil structures at declared coordinates.'
-        : satStatus === 'structure_present'
-        ? 'Deep learning segmentation confirmed built structure matches physical coordinates.'
-        : 'Cloud cover or optical imagery unavailable at reported site. On-site inspection required.';
+      if (!isPreciseOrLocality) {
+        elSatDesc.textContent = 'Location precision is district-level or unavailable. Optical satellite verification skipped against imprecise centroids to prevent false audit alarms.';
+      } else if (!hasPass || satStatus === 'imagery_unavailable') {
+        elSatDesc.textContent = 'No cloud-free Sentinel-2 optical pass (<20% cloud cover) was recorded within the 90-day or expanded 180-day lookback window. On-site DISHA physical verification required.';
+      } else {
+        elSatDesc.textContent = isAbsent
+          ? 'Sentinel-2 LandCover SegFormer detection found no built-up civil structures at declared coordinates despite disbursement.'
+          : 'Sentinel-2 Level-2A multispectral pass confirmed built structures consistent with civil construction at declared locality coordinates.';
+      }
     }
+
+    if (elSatPassDate) {
+      if (isVerified && p.satellite_pass_date) {
+        try {
+          const dObj = new Date(p.satellite_pass_date);
+          const dStr = isNaN(dObj.getTime()) ? p.satellite_pass_date : dObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+          elSatPassDate.textContent = `Imagery captured: ${dStr}`;
+        } catch (_) {
+          elSatPassDate.textContent = `Imagery captured: ${p.satellite_pass_date}`;
+        }
+        elSatPassDate.style.display = 'inline-block';
+        elSatPassDate.style.background = '#10b981';
+        elSatPassDate.style.color = '#ffffff';
+      } else if (!isPreciseOrLocality) {
+        elSatPassDate.textContent = 'OPTICAL AUDIT SKIPPED';
+        elSatPassDate.style.display = 'inline-block';
+        elSatPassDate.style.background = '#475569';
+        elSatPassDate.style.color = '#ffffff';
+      } else {
+        elSatPassDate.textContent = 'OPTICAL WINDOW: NO QUALIFYING PASS';
+        elSatPassDate.style.display = 'inline-block';
+        elSatPassDate.style.background = '#d97706';
+        elSatPassDate.style.color = '#ffffff';
+      }
+    }
+
+    if (elSatSensorTag) {
+      elSatSensorTag.textContent = prec === 'locality'
+        ? 'SENTINEL-2 (LOCALITY 2KM)'
+        : (prec === 'precise' ? 'SENTINEL-2 (PRECISE 100M)' : 'PRECISION INSUFFICIENT');
+    }
+
+    if (elSatTile) {
+      if (p.work_id && isVerified) {
+        elSatTile.src = ApiClient.getSatelliteImageUrl(p.work_id);
+        elSatTile.style.display = 'block';
+        if (elSatPlaceholder) elSatPlaceholder.style.display = 'none';
+      } else {
+        elSatTile.style.display = 'none';
+        if (elSatPlaceholder) {
+          elSatPlaceholder.style.display = 'block';
+          elSatPlaceholder.textContent = !isPreciseOrLocality
+            ? 'Optical satellite verification intentionally skipped for district centroid. Requires resolved locality GPS coordinates (tolerance <=2km).'
+            : 'No cloud-free Sentinel-2 optical pass (<20% cloud) found in 90-day or expanded 180-day window. On-site physical inspection required.';
+        }
+      }
+    }
+
+
 
     // 4. Citizen Intelligence Signal
     const count = Number(p.citizen_report_count || 0);

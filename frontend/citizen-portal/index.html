@@ -362,6 +362,23 @@
       </div>
     </div>
 
+    <!-- ─── BROWSE VERIFIED DEMO SHOWCASE BY STATE PANEL ─── -->
+    <div id="verified-showcase-panel" class="verified-showcase-panel" aria-label="Browse verified demo examples by state">
+      <div class="showcase-header">
+        <div class="showcase-title-row">
+          <span class="showcase-live-pill">🛰️ VERIFIED DEMO SHOWCASE</span>
+          <span class="showcase-title">Browse Verified Projects by State</span>
+        </div>
+        <span class="showcase-subtitle">Resolved Locality Coordinates &bull; Confirmed Sentinel-2 Passes (Ready for Live Judging)</span>
+      </div>
+      <div id="showcase-pills-bar" class="showcase-pills-bar" role="tablist">
+        <button type="button" class="showcase-pill active" data-state="ALL">
+          <span class="pill-state">All States</span>
+          <span class="pill-count" id="showcase-all-count">6,487</span>
+        </button>
+      </div>
+    </div>
+
     <!-- View Toggle bar (List | Map) -->
     <div id="view-toggle-bar" class="view-toggle-bar" style="display:none">
       <div class="view-toggle-buttons">
@@ -1085,10 +1102,15 @@
       <button type="button" class="modal-close-btn" id="btn-close-satellite-modal" aria-label="Close modal">✕</button>
     </div>
     <div class="satellite-modal-body">
+      <div class="sat-modal-showcase-bar">
+        <span class="sat-showcase-label">Quick Jump State:</span>
+        <div id="modal-showcase-pills" class="modal-showcase-pills"></div>
+      </div>
       <div class="sat-img-frame">
         <img id="sat-modal-image" src="" alt="Satellite Verification Imagery" class="sat-proof-img" />
         <div class="sat-img-overlay">
           <span class="sat-live-pill">● SENTINEL-2 SPECTRAL TILE</span>
+          <span id="sat-modal-passdate" class="sat-date-pill">ACQUIRED: 2024-03-14</span>
         </div>
       </div>
       <div class="sat-meta-grid">
