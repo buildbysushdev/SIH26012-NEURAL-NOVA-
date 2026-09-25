@@ -21,10 +21,10 @@ export default function StatCard({
   onClick?: () => void;
 }) {
   const toneStyles: Record<string, string> = {
-    navy: "bg-navy-50 text-navy-700",
+    navy: "bg-[#eef2f7] text-[#0b2545]",
     red: "bg-red-50 text-red-600",
-    amber: "bg-amber-50 text-amber-600",
-    green: "bg-emerald-50 text-emerald-600",
+    amber: "bg-amber-50 text-amber-700",
+    green: "bg-emerald-50 text-emerald-700",
   };
 
   const isGood = trend !== undefined && (trendGoodDirection === "up" ? trend >= 0 : trend <= 0);
@@ -34,11 +34,11 @@ export default function StatCard({
       onClick={onClick}
       className={clsx(
         "transition-all duration-150",
-        onClick && "cursor-pointer hover:shadow-md hover:-translate-y-0.5"
+        onClick && "cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:border-[#0b2545]/30"
       )}
     >
       <div className="flex items-start justify-between">
-        <div className={clsx("w-10 h-10 rounded-lg flex items-center justify-center", toneStyles[tone])}>
+        <div className={clsx("w-10 h-10 rounded-lg flex items-center justify-center shrink-0", toneStyles[tone])}>
           <Icon size={19} />
         </div>
         {trend !== undefined && (
@@ -53,7 +53,7 @@ export default function StatCard({
           </span>
         )}
       </div>
-      <p className="text-2xl font-bold text-gray-900 mt-3">{value}</p>
+      <p className="text-2xl font-bold text-[#0b2545] mt-3">{value}</p>
       <p className="text-sm text-gray-500 mt-0.5">{label}</p>
     </Card>
   );

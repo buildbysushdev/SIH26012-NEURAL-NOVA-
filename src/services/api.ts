@@ -28,9 +28,23 @@ import type {
 } from "../types";
 
 const NETWORK_DELAY = 350;
+const BACKEND_BASE_URL = (import.meta as any).env?.VITE_BACKEND_URL || "http://localhost:8000";
 
 function delay<T>(data: T, ms = NETWORK_DELAY): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(data), ms));
+}
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 1500): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timer);
+    return response;
+  } catch (err) {
+    clearTimeout(timer);
+    throw err;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -40,10 +54,44 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   const totalSanctioned = PROJECTS.reduce((s, p) => s + p.sanctionedAmount, 0);
   const totalExpenditure = PROJECTS.reduce((s, p) => s + p.expenditure, 0);
 
-  return delay({
-    totalProjects: 12842,
+  let totalProjectsScanned = 77312;
+  let highRiskCount = PROJECTS.filter((p) => p.riskScore >= 70).length;
+  let citizenCount = CITIZEN_REPORTS.length;
+  const highRiskSubset = PROJECTS.filter((p) => p.riskScore >= 50);
+  let avgRisk = Math.round(highRiskSubset.reduce((acc, p) => acc + p.riskScore, 0) / (highRiskSubset.length || 1));
+
+  try {
+    const rootRes = await fetchWithTimeout(`${BACKEND_BASE_URL}/`);
+    if (rootRes.ok) {
+      const data = await rootRes.json();
+      if (data.total_projects) totalProjectsScanned = data.total_projects;
+    }
+  } catch {}
+
+  try {
+    const flaggedRes = await fetchWithTimeout(`${BACKEND_BASE_URL}/flagged-projects?limit=200`);
+    if (flaggedRes.ok) {
+      const flagged = await flaggedRes.json();
+      if (Array.isArray(flagged) && flagged.length > 0) {
+        highRiskCount = flagged.filter((p: any) => (p.risk_score || 0) >= 70).length;
+        const totalScore = flagged.reduce((acc: number, p: any) => acc + (p.risk_score || 0), 0);
+        avgRisk = Math.round(totalScore / flagged.length);
+      }
+    }
+  } catch {}
+
+  try {
+    const citizenRes = await fetchWithTimeout(`${BACKEND_BASE_URL}/citizen-reports`);
+    if (citizenRes.ok) {
+      const reports = await citizenRes.json();
+      if (Array.isArray(reports)) citizenCount = reports.length;
+    }
+  } catch {}
+
+  return {
+    totalProjects: totalProjectsScanned,
     totalProjectsTrend: 3.2,
-    highRiskProjects: 82,
+    highRiskProjects: highRiskCount,
     highRiskTrend: 6.1,
     activeAlerts: ALERTS.filter((a) => a.status !== "Resolved").length + 300,
     activeAlertsTrend: -2.4,
@@ -52,7 +100,12 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     delayedProjects: 126,
     delayedTrend: 4.5,
     lastUpdated: new Date().toISOString(),
-  });
+    // 4 Primary KPI cards for redesigned dashboard
+    totalProjectsScanned,
+    highRiskFlaggedCount: highRiskCount,
+    citizenReportsCount: citizenCount,
+    avgRiskScore: avgRisk,
+  };
 }
 
 export async function getRiskDistribution() {
@@ -162,8 +215,8 @@ export async function getProjects(filters: ProjectFilters = {}): Promise<{ data:
         p.state.toLowerCase().includes(q)
     );
   }
-  if (filters.state) results = results.filter((p) => p.state === filters.state);
-  if (filters.district) results = results.filter((p) => p.district === filters.district);
+  if (filters.state && filters.state !== "All") results = results.filter((p) => p.state.toLowerCase() === filters.state?.toLowerCase());
+  if (filters.district && filters.district !== "All") results = results.filter((p) => p.district.toLowerCase() === filters.district?.toLowerCase());
   if (filters.category) results = results.filter((p) => p.category === filters.category);
   if (filters.status) results = results.filter((p) => p.status === filters.status);
   if (filters.riskLevel) results = results.filter((p) => p.riskLevel === filters.riskLevel);
@@ -188,8 +241,281 @@ export async function getProjects(filters: ProjectFilters = {}): Promise<{ data:
   return delay({ data, total });
 }
 
+export async function getFlaggedProjects(filters: ProjectFilters = {}): Promise<{ data: Project[]; total: number }> {
+  try {
+    const params = new URLSearchParams();
+    if (filters.state && filters.state !== "All") params.set("state", filters.state);
+    if (filters.category && filters.category !== "All") params.set("work_category", filters.category);
+    if (filters.district && filters.district !== "All") params.set("district", filters.district);
+    params.set("limit", String(filters.pageSize || 50));
+
+    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/flagged-projects?${params.toString()}`);
+    if (res.ok) {
+      const records = await res.json();
+      if (Array.isArray(records) && records.length > 0) {
+        const mapped: Project[] = records.map((r: any, idx: number) => ({
+          id: r.work_id || `W-${idx}`,
+          name: r.work_description || r.work_name || `MPLADS Work ${r.work_id}`,
+          state: r.state || "National",
+          district: r.district || r.constituency || "General",
+          constituency: r.constituency || "",
+          category: (r.work_category as any) || "Public Infrastructure",
+          workType: r.work_category || "Development Work",
+          implementingAgency: "District Authority",
+          sanctionDate: "2024-01-15",
+          expectedCompletion: "2025-03-31",
+          status: (r.feedback_status === "confirmed_issue" ? "Under Review" : r.feedback_status === "false_positive" ? "Completed" : "In Progress") as any,
+          sanctionedAmount: r.sanction_amount || 2500000,
+          releasedAmount: r.sanction_amount || 2500000,
+          expenditure: r.sanction_amount ? Math.round(r.sanction_amount * 0.85) : 2100000,
+          physicalProgress: 65,
+          expectedProgress: 80,
+          riskScore: Math.round(r.risk_score || 75),
+          riskLevel: (r.risk_score >= 80 ? "Critical" : r.risk_score >= 60 ? "High" : r.risk_score >= 40 ? "Medium" : "Low") as any,
+          year: 2024,
+          latitude: r.latitude || r.resolved_lat || 19.75,
+          longitude: r.longitude || r.resolved_lng || 75.71,
+          riskFactors: {
+            costAnomaly: r.is_cost_outlier ? "High" : "Low",
+            duplicateProbability: r.nlp_similarity_score > 70 ? "High" : "Low",
+            delayRisk: "Medium",
+            paymentAnomaly: "Low",
+            satelliteVerification: r.satellite_status ? "Review" : "Low",
+            citizenSignal: r.citizen_report_count > 0 ? "High" : "Low",
+          },
+          shapFactors: [
+            { label: "Cost Deviation", value: Math.round(r.cost_risk_score || 25) },
+            { label: "Duplicate Similarity", value: Math.round(r.nlp_similarity_score || 20) },
+            { label: "Satellite Verification", value: Math.round(r.satellite_risk_score || 15) },
+            { label: "Citizen Reports", value: (r.citizen_report_count || 0) * 15 },
+          ],
+          peerAverageCost: r.sanction_amount ? Math.round(r.sanction_amount * 0.75) : 1800000,
+          similarProjectId: r.similar_project,
+          similarityScore: r.nlp_similarity_score,
+          similarState: r.similar_state,
+          costZScore: r.cost_zscore,
+          satelliteStatus: r.satellite_status,
+          satelliteRiskScore: r.satellite_risk_score,
+          citizenReportCount: r.citizen_report_count,
+          feedbackStatus: r.feedback_status,
+          flagReason: r.cost_zscore
+            ? `Cost outlier (Z-Score +${Number(r.cost_zscore).toFixed(2)}) against peer works`
+            : r.nlp_similarity_score
+            ? `Semantic overlap score ${r.nlp_similarity_score}% detected with ${r.similar_project || 'adjacent work'}`
+            : `Flagged for supervisory review based on multi-signal risk model`,
+          aiExplanation: r.explanation,
+          mpName: r.mp_name,
+        }));
+
+        let filtered = mapped;
+        if (filters.state && filters.state !== "All") {
+          filtered = filtered.filter((p) => p.state.toLowerCase() === filters.state?.toLowerCase());
+        }
+        if (filters.district && filters.district !== "All") {
+          filtered = filtered.filter((p) => p.district.toLowerCase() === filters.district?.toLowerCase());
+        }
+        if (filters.riskLevel && filters.riskLevel !== "All") {
+          filtered = filtered.filter((p) => p.riskLevel === filters.riskLevel);
+        }
+        if (filters.status && filters.status !== "All") {
+          filtered = filtered.filter((p) => p.status === filters.status);
+        }
+        if (filters.category && filters.category !== "All") {
+          filtered = filtered.filter((p) => p.category === filters.category);
+        }
+        if (filters.search) {
+          const q = filters.search.toLowerCase();
+          filtered = filtered.filter(
+            (p) =>
+              p.id.toLowerCase().includes(q) ||
+              p.name.toLowerCase().includes(q) ||
+              p.district.toLowerCase().includes(q) ||
+              p.state.toLowerCase().includes(q)
+          );
+        }
+        return { data: filtered, total: filtered.length };
+      }
+    }
+  } catch {}
+
+  // Fallback to high-risk projects sorted by riskScore descending
+  let results = [...PROJECTS].sort((a, b) => b.riskScore - a.riskScore);
+
+  if (filters.search) {
+    const q = filters.search.toLowerCase();
+    results = results.filter(
+      (p) =>
+        p.id.toLowerCase().includes(q) ||
+        p.name.toLowerCase().includes(q) ||
+        p.district.toLowerCase().includes(q) ||
+        p.state.toLowerCase().includes(q)
+    );
+  }
+  if (filters.state && filters.state !== "All") {
+    results = results.filter((p) => p.state.toLowerCase() === filters.state?.toLowerCase());
+  }
+  if (filters.district && filters.district !== "All") {
+    results = results.filter((p) => p.district.toLowerCase() === filters.district?.toLowerCase());
+  }
+  if (filters.category && filters.category !== "All") results = results.filter((p) => p.category === filters.category);
+  if (filters.status && filters.status !== "All") results = results.filter((p) => p.status === filters.status);
+  if (filters.riskLevel && filters.riskLevel !== "All") results = results.filter((p) => p.riskLevel === filters.riskLevel);
+
+  const total = results.length;
+  const page = filters.page ?? 1;
+  const pageSize = filters.pageSize ?? 10;
+  const start = (page - 1) * pageSize;
+  const data = results.slice(start, start + pageSize);
+
+  return delay({ data, total });
+}
+
 export async function getProjectById(id: string): Promise<Project | undefined> {
+  // First try backend
+  try {
+    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/project?work_id=${encodeURIComponent(id)}`);
+    if (res.ok) {
+      const data = await res.json();
+      const r = data.project;
+      if (r) {
+        return {
+          id: r.work_id,
+          name: r.work_description || r.work_name || `MPLADS Work ${r.work_id}`,
+          state: r.state || "National",
+          district: r.district || r.constituency || "General",
+          constituency: r.constituency || "",
+          category: (r.work_category as any) || "Public Infrastructure",
+          workType: r.work_category || "Development Work",
+          implementingAgency: "District Authority",
+          sanctionDate: "2024-01-15",
+          expectedCompletion: "2025-03-31",
+          status: (r.feedback_status === "confirmed_issue" ? "Under Review" : r.feedback_status === "false_positive" ? "Completed" : "In Progress") as any,
+          sanctionedAmount: r.sanction_amount || 2500000,
+          releasedAmount: r.sanction_amount || 2500000,
+          expenditure: r.sanction_amount ? Math.round(r.sanction_amount * 0.85) : 2100000,
+          physicalProgress: 65,
+          expectedProgress: 80,
+          riskScore: Math.round(r.risk_score || 75),
+          riskLevel: (r.risk_score >= 80 ? "Critical" : r.risk_score >= 60 ? "High" : r.risk_score >= 40 ? "Medium" : "Low") as any,
+          year: 2024,
+          latitude: r.latitude || r.resolved_lat || 19.75,
+          longitude: r.longitude || r.resolved_lng || 75.71,
+          riskFactors: {
+            costAnomaly: r.is_cost_outlier ? "High" : "Low",
+            duplicateProbability: r.nlp_similarity_score > 70 ? "High" : "Low",
+            delayRisk: "Medium",
+            paymentAnomaly: "Low",
+            satelliteVerification: r.satellite_status ? "Review" : "Low",
+            citizenSignal: r.citizen_report_count > 0 ? "High" : "Low",
+          },
+          shapFactors: [
+            { label: "Cost Deviation", value: Math.round(r.cost_risk_score || 25) },
+            { label: "Duplicate Similarity", value: Math.round(r.nlp_similarity_score || 20) },
+            { label: "Satellite Verification", value: Math.round(r.satellite_risk_score || 15) },
+            { label: "Citizen Reports", value: (r.citizen_report_count || 0) * 15 },
+          ],
+          peerAverageCost: r.sanction_amount ? Math.round(r.sanction_amount * 0.75) : 1800000,
+          similarProjectId: r.similar_project,
+          similarityScore: r.nlp_similarity_score,
+          similarState: r.similar_state,
+          costZScore: r.cost_zscore,
+          satelliteStatus: r.satellite_status,
+          satelliteRiskScore: r.satellite_risk_score,
+          citizenReportCount: r.citizen_report_count,
+          feedbackStatus: r.feedback_status,
+          flagReason: r.cost_zscore
+            ? `Cost outlier (Z-Score +${Number(r.cost_zscore).toFixed(2)}) against peer works`
+            : r.nlp_similarity_score
+            ? `Semantic overlap score ${r.nlp_similarity_score}% detected with ${r.similar_project || 'adjacent work'}`
+            : `Flagged for supervisory review based on multi-signal risk model`,
+          aiExplanation: r.explanation,
+          mpName: r.mp_name,
+        };
+      }
+    }
+  } catch {}
+
+  // Fallback to local project
   return delay(PROJECTS.find((p) => p.id === id));
+}
+
+export async function submitProjectFeedback(
+  workId: string,
+  verdict: "confirmed_issue" | "false_positive",
+  officerNotes = "",
+  officerId = "OFF-001"
+): Promise<{ success: boolean; newRiskScore?: number; message: string }> {
+  // Update local memory
+  const localProject = PROJECTS.find((p) => p.id === workId);
+  let newScore: number | undefined;
+  if (localProject) {
+    if (verdict === "false_positive") {
+      localProject.feedbackStatus = "false_positive";
+      localProject.riskScore = Math.max(0, localProject.riskScore - 25);
+      localProject.riskLevel = localProject.riskScore >= 80 ? "Critical" : localProject.riskScore >= 60 ? "High" : localProject.riskScore >= 40 ? "Medium" : "Low";
+      newScore = localProject.riskScore;
+    } else {
+      localProject.feedbackStatus = "confirmed_issue";
+      localProject.riskScore = Math.min(100, localProject.riskScore + 5);
+      newScore = localProject.riskScore;
+    }
+  }
+
+  // Attempt backend update
+  try {
+    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        work_id: workId,
+        verdict,
+        officer_notes: officerNotes,
+        officer_id: officerId,
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        success: true,
+        newRiskScore: data.new_risk_score ?? newScore,
+        message: data.message || "Feedback recorded successfully.",
+      };
+    }
+  } catch {}
+
+  return delay({
+    success: true,
+    newRiskScore: newScore,
+    message: verdict === "false_positive"
+      ? "Project marked as False Positive. Risk score reduced by 25 points."
+      : "Project marked as Reviewed and verified for supervisory follow-up.",
+  }, 300);
+}
+
+export async function getCitizenReportsForProject(workId: string): Promise<CitizenReport[]> {
+  try {
+    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/citizen-reports?work_id=${encodeURIComponent(workId)}`);
+    if (res.ok) {
+      const records = await res.json();
+      if (Array.isArray(records) && records.length > 0) {
+        return records.map((r: any, i: number) => ({
+          id: r.report_id || `CR-${i + 1}`,
+          projectId: r.work_id || workId,
+          projectName: `Work ${workId}`,
+          location: r.captured_lat && r.captured_lng ? `${r.captured_lat}, ${r.captured_lng}` : "On-site GPS",
+          issueType: (r.category || "Poor quality") as any,
+          description: r.description || "Citizen field observation reported.",
+          submittedDate: r.timestamp || r.captured_timestamp || new Date().toISOString().split("T")[0],
+          status: "Received",
+          hasPhoto: Boolean(r.photo_saved || r.photo_url || r.photo_hash),
+        }));
+      }
+    }
+  } catch {}
+
+  // Fallback to local citizen reports matching this project
+  const matched = CITIZEN_REPORTS.filter((c) => c.projectId === workId);
+  return delay(matched);
 }
 
 // ---------------------------------------------------------------------------
@@ -200,13 +526,31 @@ export interface AlertFilters {
   riskLevel?: string;
   type?: string;
   search?: string;
+  state?: string;
+  district?: string;
 }
 
 export async function getRiskAlerts(filters: AlertFilters = {}): Promise<RiskAlert[]> {
   let results = [...ALERTS];
   if (filters.status && filters.status !== "All") results = results.filter((a) => a.status === filters.status);
   if (filters.riskLevel && filters.riskLevel !== "All") results = results.filter((a) => a.riskLevel === filters.riskLevel);
-  if (filters.type) results = results.filter((a) => a.type === filters.type);
+  if (filters.type && filters.type !== "All") results = results.filter((a) => a.type === filters.type);
+  if (filters.state && filters.state !== "All") {
+    results = results.filter((a) => {
+      const proj = PROJECTS.find((p) => p.id === a.projectId);
+      return proj
+        ? proj.state.toLowerCase() === filters.state?.toLowerCase()
+        : a.location.toLowerCase().includes(filters.state?.toLowerCase() || "");
+    });
+  }
+  if (filters.district && filters.district !== "All") {
+    results = results.filter((a) => {
+      const proj = PROJECTS.find((p) => p.id === a.projectId);
+      return proj
+        ? proj.district.toLowerCase() === filters.district?.toLowerCase()
+        : a.location.toLowerCase().includes(filters.district?.toLowerCase() || "");
+    });
+  }
   if (filters.search) {
     const q = filters.search.toLowerCase();
     results = results.filter(
@@ -300,6 +644,85 @@ export interface ReportRequest {
   state?: string;
   district?: string;
   riskLevel?: string;
+  projectId?: string;
+}
+
+export interface SubmittedOfficerReport {
+  id: string;
+  title?: string;
+  officerName: string;
+  officerEmail: string;
+  state: string;
+  district: string;
+  reportType: string;
+  projectName?: string;
+  generatedDate: string;
+  summary: { label: string; value: string }[];
+  rows: { project: string; risk: string; amount: string }[];
+}
+
+export async function getSubmittedOfficerReports(): Promise<SubmittedOfficerReport[]> {
+  const stored = localStorage.getItem("mplads_officer_submitted_reports");
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch {}
+  }
+  const defaults: SubmittedOfficerReport[] = [
+    {
+      id: "REP-OFF-101",
+      officerName: "R. Kulkarni",
+      officerEmail: "officer1@mplads.ai",
+      state: "Maharashtra",
+      district: "Pune",
+      reportType: "Risk Summary",
+      projectName: "Pune District High-Risk Works",
+      generatedDate: new Date(Date.now() - 3600000 * 24).toLocaleString("en-IN"),
+      summary: [
+        { label: "Scope", value: "Maharashtra · Pune" },
+        { label: "Flagged Projects", value: "5" },
+        { label: "Estimated Risk Value", value: "₹3.8 Cr" },
+      ],
+      rows: [
+        { project: "PRJ-MH-001 — Pune Rural Water Supply Augmentation", risk: "85/100 (Critical)", amount: "₹85.0L" },
+        { project: "PRJ-MH-003 — Primary Health Center Wing Extension", risk: "74/100 (High)", amount: "₹65.0L" },
+      ],
+    },
+    {
+      id: "REP-OFF-102",
+      officerName: "A. Deshmukh",
+      officerEmail: "officer2@mplads.ai",
+      state: "Karnataka",
+      district: "Bengaluru Urban",
+      reportType: "Project-wise",
+      projectName: "PRJ-KA-001 — Community Skill Development Center",
+      generatedDate: new Date(Date.now() - 3600000 * 12).toLocaleString("en-IN"),
+      summary: [
+        { label: "Scope", value: "Karnataka · Bengaluru Urban" },
+        { label: "Project ID", value: "PRJ-KA-001" },
+        { label: "Cost Deviation", value: "+28% vs Peer Avg" },
+      ],
+      rows: [
+        { project: "PRJ-KA-001 — Community Skill Development Center", risk: "78/100 (High)", amount: "₹120.0L" },
+      ],
+    },
+  ];
+  localStorage.setItem("mplads_officer_submitted_reports", JSON.stringify(defaults));
+  return delay(defaults, 250);
+}
+
+export async function submitReportToAdmin(
+  reportData: Omit<SubmittedOfficerReport, "id" | "generatedDate">
+): Promise<SubmittedOfficerReport> {
+  const existing = await getSubmittedOfficerReports();
+  const newReport: SubmittedOfficerReport = {
+    ...reportData,
+    id: `REP-OFF-${100 + existing.length + 1}`,
+    generatedDate: new Date().toLocaleString("en-IN"),
+  };
+  const updated = [newReport, ...existing];
+  localStorage.setItem("mplads_officer_submitted_reports", JSON.stringify(updated));
+  return delay(newReport, 300);
 }
 
 export async function generateReport(request: ReportRequest): Promise<{
@@ -308,16 +731,56 @@ export async function generateReport(request: ReportRequest): Promise<{
   summary: { label: string; value: string }[];
   rows: { project: string; risk: string; amount: string }[];
 }> {
-  const sample = PROJECTS.filter((p) => (request.riskLevel ? p.riskLevel === request.riskLevel : true)).slice(0, 8);
+  // If specific project requested
+  if (request.projectId) {
+    const singleProj = PROJECTS.find((p) => p.id === request.projectId);
+    if (singleProj) {
+      return delay(
+        {
+          title: `Project Audit Report: ${singleProj.name} (${singleProj.id})`,
+          generatedAt: new Date().toLocaleString("en-IN"),
+          summary: [
+            { label: "Project ID", value: singleProj.id },
+            { label: "State & District", value: `${singleProj.state} · ${singleProj.district}` },
+            { label: "Sanctioned Amount", value: `₹${(singleProj.sanctionedAmount / 100000).toFixed(1)}L` },
+            { label: "Expenditure", value: `₹${(singleProj.expenditure / 100000).toFixed(1)}L` },
+            { label: "Risk Score", value: `${singleProj.riskScore}/100 (${singleProj.riskLevel})` },
+            { label: "Physical Progress", value: `${singleProj.physicalProgress}%` },
+            { label: "Status", value: singleProj.status },
+          ],
+          rows: [
+            { project: `${singleProj.id} — ${singleProj.name}`, risk: `${singleProj.riskScore}/100 (${singleProj.riskLevel})`, amount: `₹${(singleProj.sanctionedAmount / 100000).toFixed(1)}L` },
+          ],
+        },
+        600
+      );
+    }
+  }
+
+  let pool = PROJECTS;
+  if (request.state && request.state !== "All India") {
+    pool = pool.filter((p) => p.state.toLowerCase() === request.state?.toLowerCase());
+  }
+  if (request.district && request.district !== "All Districts") {
+    pool = pool.filter((p) => p.district.toLowerCase() === request.district?.toLowerCase());
+  }
+  if (request.riskLevel && request.riskLevel !== "All Levels") {
+    pool = pool.filter((p) => p.riskLevel === request.riskLevel);
+  }
+
+  const sample = pool.slice(0, 10);
+  const totalAmount = pool.reduce((acc, p) => acc + p.sanctionedAmount, 0);
+  const highRiskCount = pool.filter((p) => p.riskScore >= 70).length;
+
   return delay(
     {
-      title: request.type,
+      title: request.type || "MPLADS Monitoring Report",
       generatedAt: new Date().toLocaleString("en-IN"),
       summary: [
-        { label: "Total Projects Covered", value: String(PROJECTS.length * 40) },
-        { label: "High Risk Identified", value: "82" },
-        { label: "Total Sanctioned Value", value: "₹412.6 Cr" },
-        { label: "Report Scope", value: request.state ?? "All India" },
+        { label: "Total Projects Covered", value: String(pool.length) },
+        { label: "High Risk Identified", value: String(highRiskCount) },
+        { label: "Total Sanctioned Value", value: `₹${(totalAmount / 10000000).toFixed(2)} Cr` },
+        { label: "Report Scope", value: request.state ? `${request.state}${request.district ? ` · ${request.district}` : ""}` : "All India" },
       ],
       rows: sample.map((p) => ({
         project: `${p.id} — ${p.name}`,
@@ -325,7 +788,7 @@ export async function generateReport(request: ReportRequest): Promise<{
         amount: `₹${(p.sanctionedAmount / 100000).toFixed(1)}L`,
       })),
     },
-    900
+    700
   );
 }
 

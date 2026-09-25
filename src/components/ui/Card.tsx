@@ -10,7 +10,7 @@ export default function Card({ children, className, noPadding, ...rest }: CardPr
   return (
     <div
       className={clsx(
-        "bg-white rounded-xl border border-gray-200 shadow-card",
+        "bg-white rounded-md border border-gray-200 shadow-sm text-gray-900",
         !noPadding && "p-5",
         className
       )}

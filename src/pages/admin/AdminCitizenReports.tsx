@@ -43,7 +43,7 @@ export default function AdminCitizenReports() {
 
   return (
     <div className="space-y-5 animate-fade-in">
-      <h2 className="text-xl font-bold text-gray-900">Citizen Reports</h2>
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white">Citizen Reports</h2>
 
       <Card>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

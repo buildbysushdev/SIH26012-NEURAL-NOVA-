@@ -45,8 +45,8 @@ export default function AuditLogs() {
   return (
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center gap-2">
-        <ScrollText size={20} className="text-navy-700" />
-        <h2 className="text-xl font-bold text-gray-900">Audit & Activity Logs</h2>
+        <ScrollText size={20} className="text-[#0b2545] dark:text-amber-400" />
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Audit & Activity Logs</h2>
       </div>
 
       <Card>

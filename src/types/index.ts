@@ -49,7 +49,20 @@ export interface Project {
   shapFactors: { label: string; value: number }[];
   peerAverageCost: number;
   similarProjectId?: string;
+  similarProjectName?: string;
   similarityScore?: number;
+  similarState?: string;
+  flagReason?: string;
+  costZScore?: number;
+  costAnomalyScore?: number;
+  duplicateSimilarityScore?: number;
+  satelliteStatus?: string;
+  satelliteRiskScore?: number;
+  citizenReportCount?: number;
+  feedbackStatus?: "confirmed_issue" | "false_positive" | "reviewed" | null;
+  aiExplanation?: string;
+  mpName?: string;
+  contractor?: string;
 }
 
 export type AlertType =
@@ -120,6 +133,11 @@ export interface DashboardStats {
   delayedProjects: number;
   delayedTrend: number;
   lastUpdated: string;
+  // 4 Top KPIs for Redesign
+  totalProjectsScanned?: number;
+  highRiskFlaggedCount?: number;
+  citizenReportsCount?: number;
+  avgRiskScore?: number;
 }
 
 export type OfficerStatus = "Active" | "Inactive";

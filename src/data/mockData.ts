@@ -142,6 +142,19 @@ function generateProject(index: number): Project {
 
   const riskOptions: (RiskLevel | "Review")[] = ["Low", "Medium", "High", "Critical", "Review"];
 
+  const flagReason = costDeviationPct > 20
+    ? `Expenditure exceeds sanctioned estimate by ${costDeviationPct}% (Cost outlier)`
+    : isAnomalous && rand() > 0.5
+    ? `High semantic overlap with adjacent sanctioned work (${randInt(82, 96)}% match)`
+    : expectedProgress - physicalProgress > 20
+    ? `Physical progress lagging ${expectedProgress - physicalProgress}% behind scheduled milestone`
+    : isAnomalous && rand() > 0.4
+    ? `Disbursement pattern irregularity flagged for supervisory review`
+    : `Multi-signal risk score exceeds monitoring threshold (${riskScore}/100)`;
+
+  const mpPool = ["Shri Prakash Jawadekar", "Smt. Supriya Sule", "Shri Nitin Gadkari", "Shri Rahul Gandhi", "Shri Anurag Thakur", "Dr. Shashi Tharoor"];
+  const contractorPool = ["Rites Infrastructure Ltd.", "Vikas Construction Co.", "National Building Const. Corp", "Shree Ram Engineering Works", "Adarsh Buildcon Pvt Ltd"];
+
   return {
     id: `MPL-${10001 + index}`,
     name: `${workType} — ${district}`,
@@ -175,7 +188,22 @@ function generateProject(index: number): Project {
     shapFactors,
     peerAverageCost: Math.round(sanctionedAmount * (0.9 + rand() * 0.2)),
     similarProjectId: isAnomalous && rand() > 0.5 ? `MPL-${10001 + ((index + 17) % 48)}` : undefined,
+    similarProjectName: isAnomalous && rand() > 0.5 ? `${pick(WORK_TYPE_BY_CATEGORY[category])} — ${district}` : undefined,
     similarityScore: isAnomalous ? randInt(80, 97) : undefined,
+    similarState: state,
+    flagReason,
+    costZScore: isAnomalous ? +(2.1 + rand() * 1.8).toFixed(2) : +(0.4 + rand() * 0.8).toFixed(2),
+    costAnomalyScore: costDeviationPct > 15 ? randInt(65, 95) : randInt(10, 40),
+    duplicateSimilarityScore: isAnomalous ? randInt(75, 95) : undefined,
+    satelliteStatus: isAnomalous && rand() > 0.5 ? "Spectral change unverified" : "Activity confirmed",
+    satelliteRiskScore: isAnomalous && rand() > 0.5 ? randInt(55, 88) : randInt(10, 30),
+    citizenReportCount: randInt(0, 3),
+    feedbackStatus: null,
+    aiExplanation: isAnomalous
+      ? `Flagged for supervisory review due to a ${costDeviationPct > 0 ? costDeviationPct + '% expenditure deviation' : 'schedule delay'} combined with semantic duplication markers in ${district}. Ground physical verification is recommended.`
+      : `Project metrics fall within standard baseline variance for ${category} works in ${district}. No critical intervention needed at this stage.`,
+    mpName: pick(mpPool),
+    contractor: pick(contractorPool),
   };
 }
 
@@ -324,8 +352,8 @@ export const OFFICERS: OfficerAccount[] = [
     name: "A. Deshmukh",
     email: "officer2@mplads.ai",
     title: "District Monitoring Officer",
-    jurisdiction: "Nashik, Maharashtra",
-    state: "Maharashtra",
+    jurisdiction: "Bengaluru, Karnataka",
+    state: "Karnataka",
     status: "Active",
     projectsAssigned: 178,
     alertsHandled: 29,
@@ -336,8 +364,8 @@ export const OFFICERS: OfficerAccount[] = [
     name: "K. Iyer",
     email: "officer3@mplads.ai",
     title: "State Nodal Officer",
-    jurisdiction: "Karnataka",
-    state: "Karnataka",
+    jurisdiction: "Lucknow, Uttar Pradesh",
+    state: "Uttar Pradesh",
     status: "Active",
     projectsAssigned: 342,
     alertsHandled: 61,
@@ -348,8 +376,8 @@ export const OFFICERS: OfficerAccount[] = [
     name: "S. Verma",
     email: "officer4@mplads.ai",
     title: "District Monitoring Officer",
-    jurisdiction: "Lucknow, Uttar Pradesh",
-    state: "Uttar Pradesh",
+    jurisdiction: "Jaipur, Rajasthan",
+    state: "Rajasthan",
     status: "Inactive",
     projectsAssigned: 96,
     alertsHandled: 12,

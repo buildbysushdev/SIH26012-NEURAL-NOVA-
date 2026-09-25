@@ -3,11 +3,13 @@ import clsx from "clsx";
 
 export function RiskBadge({ level, size = "md" }: { level: string; size?: "sm" | "md" }) {
   const styles: Record<string, string> = {
-    Low: "bg-risk-lowBg text-risk-low ring-1 ring-inset ring-green-200",
-    Medium: "bg-risk-mediumBg text-risk-medium ring-1 ring-inset ring-amber-200",
-    High: "bg-risk-highBg text-risk-high ring-1 ring-inset ring-orange-200",
-    Critical: "bg-risk-criticalBg text-risk-critical ring-1 ring-inset ring-red-200",
+    Low: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200",
+    Reviewed: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200",
+    Medium: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200",
+    High: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-200",
+    Critical: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-200",
     Review: "bg-gray-100 text-gray-600 ring-1 ring-inset ring-gray-200",
+    "False Positive": "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200",
   };
   return (
     <span
