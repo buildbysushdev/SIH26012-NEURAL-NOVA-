@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
+import AuditAssistantChatbot from "../chat/AuditAssistantChatbot";
 
 export default function OfficerLayout({ title, breadcrumb }: { title: string; breadcrumb?: string[] }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -13,6 +14,7 @@ export default function OfficerLayout({ title, breadcrumb }: { title: string; br
       <main className="flex-1 overflow-y-auto p-3 sm:p-5 md:p-6 max-w-7xl w-full mx-auto">
         <Outlet />
       </main>
+      <AuditAssistantChatbot variant="officer" currentPage={title} />
     </div>
   );
 }
