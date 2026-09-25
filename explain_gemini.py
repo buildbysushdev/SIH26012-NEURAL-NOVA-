@@ -136,12 +136,12 @@ def _get_client():
         return None
 
 
-# Preferred model names in priority order — gemini-3.6-flash first per API guidance
+# Preferred model names in priority order — tested working on Google AI Studio
 _MODEL_PREFERENCE = [
+    "gemini-flash-lite-latest",
     "gemini-3.6-flash",
-    "gemini-2.5-flash-preview-05-20",
-    "gemini-2.0-flash",
-    "gemini-1.5-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-flash-latest",
 ]
 
 
@@ -207,12 +207,10 @@ def _call_gemini(system_prompt: str, user_prompt: str, max_output_tokens: int) -
                 return text
             except Exception as e:
                 err_str = str(e)
-                if "404" in err_str or "no longer available" in err_str or "not found" in err_str.lower():
-                    logger.debug(f"Model {model_name} unavailable, trying next: {e}")
-                    continue
                 logger.warning(f"Gemini API call failed ({model_name}): {e}")
-                return None
-        logger.warning("All preferred Gemini models unavailable.")
+                # Rotate to next model in preference list on temporary spikes, 404, or 503
+                continue
+        logger.warning("All preferred Gemini models unavailable — falling back to template intelligence.")
         return None
     else:
         # ── Legacy google.generativeai SDK path ────────────────────────────
@@ -506,3 +504,180 @@ def synthesize_audit_doubts(project: dict, language: str = "English") -> str:
 
     logger.debug("synthesize_audit_doubts: using template fallback.")
     return _template_doubts(project)
+
+
+# ---------------------------------------------------------------------------
+# Official MoSPI Contact Information (Out-of-Context & Escalation Fallback)
+# ---------------------------------------------------------------------------
+OFFICIAL_HELPLINE = {
+    "toll_free_numbers": ["1800-11-2026", "1800-180-1926"],
+    "support_emails": ["mplads-support@nic.in", "grievance.mplad@gov.in"],
+    "authority": "Ministry of Statistics & Programme Implementation (MoSPI), Govt. of India",
+    "address": "Citizen Grievance Cell, Sardar Patel Bhavan, Sansad Marg, New Delhi - 110001",
+    "working_hours": "Monday – Friday, 09:30 AM – 05:30 PM IST"
+}
+
+_SYSTEM_CITIZEN_SAHAYAK = (
+    "You are 'MPLADS Sahayak', the official citizen assistance assistant for India's Member of Parliament "
+    "Local Area Development Scheme (MPLADS) Transparency & Risk Intelligence Portal (SIH26102). "
+    "Your mission is to answer citizen questions about MPLADS Scheme public works, project funds (Rs 5 Crore/year/MP), "
+    "risk scoring (cost anomaly + duplicate detection), grievance submission, voice notes, photo evidence, and audit tracking. "
+    "STRICT GUARDRAIL: If the user query is UNRELATED to MPLADS, public infrastructure works, civic vigilance, "
+    "or citizen reporting (such as cooking recipes, cricket/sports, cinema/entertainment, weather, coding, jokes, "
+    "medical advice, or unrelated government services like passport, PAN, driving license), "
+    "you MUST output JSON: {\"status\": \"out_of_context\", \"message\": \"I am specialized only for MPLADS Scheme questions.\"} "
+    "Otherwise, output JSON: {\"status\": \"success\", \"message\": \"<factual, helpful, polite answer under 120 words>\"}. "
+    "Output ONLY valid JSON."
+)
+
+_OUT_OF_CONTEXT_KEYWORDS = [
+    "recipe", "cook", "food", "dish", "biryani", "pizza", "burger", "curry", "maggi",
+    "weather", "rain", "temperature", "forecast", "climate", "monsoon",
+    "cricket", "ipl", "match score", "football", "fifa", "movie", "film", "actor", "actress",
+    "cinema", "song", "lyrics", "joke", "comedy", "game", "gaming", "playstation",
+    "passport", "visa", "pan card", "aadhaar card", "driving license", "dl status", "rc book",
+    "voter id", "train ticket", "pnr status", "flight booking", "hotel booking",
+    "stock market", "crypto", "bitcoin", "share market", "dating", "love", "relationship",
+    "python code", "javascript code", "programming tutorial", "solve math", "homework"
+]
+
+_MPLAD_DOMAINS = [
+    "mplad", "scheme", "fund", "project", "work", "risk", "anomaly", "duplicate",
+    "contractor", "panchayat", "district", "collector", "mp", "member of parliament",
+    "lok sabha", "rajya sabha", "sanction", "disha", "audit", "vigilance", "report",
+    "grievance", "track", "citizen", "evidence", "photo", "camera", "voice", "audio",
+    "gps", "location", "corruption", "ghost", "delay", "incomplete", "substandard",
+    "quality", "road", "school", "water", "drainage", "hospital", "dispensary", "community"
+]
+
+
+def answer_citizen_query(query: str, history: Optional[list] = None) -> dict:
+    """
+    Answers citizen questions using Gemini Flash with strict out-of-context guardrails.
+    If the question is out of context, returns the official MoSPI toll-free numbers and email.
+    """
+    q_clean = (query or "").strip()
+    if not q_clean:
+        return {
+            "status": "error",
+            "message": "Please enter a question to ask Sahayak.",
+            "helpline": OFFICIAL_HELPLINE
+        }
+
+    q_lower = q_clean.lower()
+
+    # Fast keyword guardrail for obvious out-of-context subjects
+    if any(re.search(r'\b' + re.escape(kw) + r'\b', q_lower) for kw in _OUT_OF_CONTEXT_KEYWORDS):
+        return {
+            "status": "out_of_context",
+            "message": (
+                "I am the MPLADS Sahayak Assistant, specifically dedicated to the Member of Parliament "
+                "Local Area Development Scheme (MPLADS), public works vigilance, and citizen grievance reporting.\n\n"
+                "Your inquiry appears outside this scope. For official administrative assistance, "
+                "please contact the Ministry of Statistics & Programme Implementation (MoSPI) Helpdesk below."
+            ),
+            "helpline": OFFICIAL_HELPLINE
+        }
+
+    # Query Gemini 3.6 Flash with strict guardrails
+    user_prompt = f"User Question: {q_clean}"
+    if history and isinstance(history, list):
+        recent_ctx = "\n".join([f"Q: {h.get('q', '')} A: {h.get('a', '')}" for h in history[-2:] if isinstance(h, dict)])
+        if recent_ctx:
+            user_prompt = f"Recent Context:\n{recent_ctx}\n\nUser Question: {q_clean}"
+
+    raw_text = _call_gemini(_SYSTEM_CITIZEN_SAHAYAK, user_prompt, max_output_tokens=250)
+
+    if raw_text:
+        try:
+            # Strip potential markdown fences
+            clean_json = raw_text.strip()
+            if clean_json.startswith("```"):
+                clean_json = re.sub(r"^```(?:json)?\s*", "", clean_json)
+                clean_json = re.sub(r"\s*```$", "", clean_json)
+            parsed = json.loads(clean_json)
+            if parsed.get("status") == "out_of_context":
+                return {
+                    "status": "out_of_context",
+                    "message": (
+                        "I am the MPLADS Sahayak Assistant, dedicated to MPLADS project monitoring and citizen reporting.\n\n"
+                        "For questions outside this scope, or for official government inquiries, please contact the MoSPI Grievance Cell:"
+                    ),
+                    "helpline": OFFICIAL_HELPLINE
+                }
+            if parsed.get("message"):
+                return {
+                    "status": "success",
+                    "message": parsed["message"],
+                    "helpline": OFFICIAL_HELPLINE
+                }
+        except Exception:
+            # If plain text returned
+            if "out_of_context" in raw_text.lower():
+                return {
+                    "status": "out_of_context",
+                    "message": "I am specialized only for MPLAD Scheme queries. For other topics, please contact the MoSPI Helpdesk.",
+                    "helpline": OFFICIAL_HELPLINE
+                }
+            return {
+                "status": "success",
+                "message": raw_text.strip(),
+                "helpline": OFFICIAL_HELPLINE
+            }
+
+    # Offline / rule-based fallback answering
+    if "risk" in q_lower and "score" in q_lower:
+        ans = (
+            "The Risk Score (0–100) combines two unsupervised signals: (1) Cost Anomaly Detection (50%) comparing work "
+            "cost against category peers via Isolation Forest Z-Scores, and (2) NLP Duplicate Detection (50%) flagging "
+            "identical descriptions via Sentence-BERT. A confirmed citizen report adds +15 to prioritize audit inspections."
+        )
+    elif "anonymous" in q_lower or "identity" in q_lower or "privacy" in q_lower:
+        ans = (
+            "Yes! Citizen reporting is 100% anonymous. We do not ask for or store your name, Aadhaar, or phone number. "
+            "Your GPS coordinates are strictly used to cross-verify that the photo was captured at the physical project location."
+        )
+    elif "voice" in q_lower or "record" in q_lower or "audio" in q_lower:
+        ans = (
+            "You can record a voice grievance in English, Hindi, Marathi, or Kannada by tapping the microphone in the report dialog. "
+            "Our system automatically transcribes your spoken words into text and attaches them to the audit report."
+        )
+    elif "photo" in q_lower or "evidence" in q_lower or "camera" in q_lower:
+        ans = (
+            "A live camera photo of the project site is required to prevent fake complaints. When captured, the photo's GPS coordinates, "
+            "timestamp, and a tamper-evident SHA-256 digital seal are recorded to protect evidence integrity."
+        )
+    elif "track" in q_lower or "reference" in q_lower or "cr-" in q_lower:
+        ans = (
+            "Upon submitting a report, you receive an 11-character Reference ID (e.g., CR-A1B2C3D4). You can enter this code in the "
+            "'Track Report' tab at any time to see the investigation progress and any officer updates."
+        )
+    elif "mplad" in q_lower or "scheme" in q_lower or "what is" in q_lower:
+        ans = (
+            "MPLADS (Member of Parliament Local Area Development Scheme) provides each MP with ₹5 Crore per year to recommend "
+            "durable community infrastructure works (drinking water, roads, education, health) in their constituencies."
+        )
+    else:
+        # If query has no connection to MPLADS domain, treat as out-of-context
+        if not any(k in q_lower for k in _MPLAD_DOMAINS):
+            return {
+                "status": "out_of_context",
+                "message": (
+                    "I am the MPLADS Sahayak Assistant, specifically dedicated to the Member of Parliament "
+                    "Local Area Development Scheme (MPLADS), public works vigilance, and citizen grievance reporting.\n\n"
+                    "Your inquiry appears outside this scope. For official administrative assistance, "
+                    "please contact the Ministry of Statistics & Programme Implementation (MoSPI) Helpdesk below."
+                ),
+                "helpline": OFFICIAL_HELPLINE
+            }
+        ans = (
+            "Welcome to MPLADS Sahayak! You can ask any question regarding MPLAD Scheme works, report issues with incomplete or "
+            "substandard projects, learn about the AI risk score, or track existing reports."
+        )
+
+    return {
+        "status": "success",
+        "message": ans,
+        "helpline": OFFICIAL_HELPLINE
+    }
+

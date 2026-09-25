@@ -14,12 +14,15 @@
  * - Rule 5 Compliance: Audio is never saved to disk; in-memory processing only.
  */
 
-let mediaRecorder = null;
-let audioChunks = [];
-let audioBlob = null;
-let timerInterval = null;
-let secondsElapsed = 0;
-const MAX_RECORDING_SECONDS = 90; // 1.5 minutes maximum
+(function(window) {
+  'use strict';
+
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let audioBlob = null;
+  let timerInterval = null;
+  let secondsElapsed = 0;
+  const MAX_RECORDING_SECONDS = 90; // 1.5 minutes maximum
 
 // Speech recognition handle
 let speechRecognition = null;
@@ -39,7 +42,7 @@ function getApiBase() {
   return 'https://mplads-neural-nova-26102.loca.lt';
 }
 
-export function initVoiceRecorder() {
+function initVoiceRecorder() {
   // Segmented input mode tabs & sections
   const tabInputText        = document.getElementById('tab-input-text');
   const tabInputVoice       = document.getElementById('tab-input-voice');
@@ -84,6 +87,9 @@ export function initVoiceRecorder() {
       if (sectionInputVoice) sectionInputVoice.style.display = 'block';
       if (sectionInputText) sectionInputText.style.display = 'none';
       if (legacyPanel) legacyPanel.style.display = 'block';
+      if (descriptionTextarea) {
+        descriptionTextarea.removeAttribute('required');
+      }
     } else {
       if (tabInputText) {
         tabInputText.classList.add('active');
@@ -96,6 +102,9 @@ export function initVoiceRecorder() {
       if (sectionInputText) sectionInputText.style.display = 'block';
       if (sectionInputVoice) sectionInputVoice.style.display = 'none';
       if (legacyPanel) legacyPanel.style.display = 'none';
+      if (descriptionTextarea) {
+        descriptionTextarea.setAttribute('required', 'true');
+      }
       if (mediaRecorder && mediaRecorder.state === 'recording') {
         stopRecording();
       }
@@ -451,7 +460,7 @@ export function initVoiceRecorder() {
 /**
  * Auto-suggests spoken language based on project state
  */
-export function suggestVoiceLanguage(stateName) {
+function suggestVoiceLanguage(stateName) {
   const langSelect = document.getElementById('voice-language-select');
   if (!langSelect || !stateName) return;
 
@@ -468,6 +477,136 @@ export function suggestVoiceLanguage(stateName) {
   }
 }
 
-export function getRecordedVoiceBlob() {
+function getRecordedVoiceBlob() {
   return audioBlob;
 }
+
+/**
+ * Voice Search Controller for spoken location / constituency lookup
+ */
+function initVoiceSearch(onSearchCallback) {
+  const tabSearchText  = document.getElementById('tab-search-text');
+  const tabSearchVoice = document.getElementById('tab-search-voice');
+  const secSearchText  = document.getElementById('section-search-text');
+  const secSearchVoice = document.getElementById('section-search-voice');
+  const micBtn         = document.getElementById('btn-voice-search-mic');
+  const statusEl       = document.getElementById('voice-search-status');
+  const transcriptEl   = document.getElementById('voice-search-transcript');
+  const langSelect     = document.getElementById('voice-search-lang');
+  const searchInput    = document.getElementById('search-input');
+
+  if (!tabSearchText || !tabSearchVoice) return;
+
+  function switchSearchMode(mode) {
+    if (mode === 'voice') {
+      tabSearchVoice.classList.add('active');
+      tabSearchVoice.setAttribute('aria-selected', 'true');
+      tabSearchText.classList.remove('active');
+      tabSearchText.setAttribute('aria-selected', 'false');
+      if (secSearchVoice) secSearchVoice.style.display = 'block';
+      if (secSearchText) secSearchText.style.display = 'none';
+    } else {
+      tabSearchText.classList.add('active');
+      tabSearchText.setAttribute('aria-selected', 'true');
+      tabSearchVoice.classList.remove('active');
+      tabSearchVoice.setAttribute('aria-selected', 'false');
+      if (secSearchText) secSearchText.style.display = 'block';
+      if (secSearchVoice) secSearchVoice.style.display = 'none';
+    }
+  }
+
+  tabSearchText.addEventListener('click', () => switchSearchMode('text'));
+  tabSearchVoice.addEventListener('click', () => switchSearchMode('voice'));
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null;
+  let isListening = false;
+
+  if (micBtn) {
+    micBtn.addEventListener('click', () => {
+      if (!SpeechRecognition) {
+        if (statusEl) {
+          statusEl.textContent = 'Voice recognition is not supported in this browser. Please use text search.';
+          statusEl.style.color = '#dc2626';
+        }
+        return;
+      }
+
+      if (isListening) {
+        if (recognition) recognition.stop();
+        return;
+      }
+
+      try {
+        recognition = new SpeechRecognition();
+        recognition.lang = langSelect ? langSelect.value : 'en-IN';
+        recognition.interimResults = true;
+        recognition.maxAlternatives = 1;
+
+        recognition.onstart = () => {
+          isListening = true;
+          micBtn.classList.add('listening');
+          if (statusEl) {
+            statusEl.textContent = 'Listening... Speak your city, district, or constituency name clearly.';
+            statusEl.style.color = '#b91c1c';
+          }
+          if (transcriptEl) {
+            transcriptEl.textContent = 'Listening...';
+            transcriptEl.style.display = 'inline-block';
+          }
+        };
+
+        recognition.onresult = (event) => {
+          const result = event.results[event.results.length - 1];
+          const text = result[0].transcript.trim();
+          if (transcriptEl) transcriptEl.textContent = '“' + text + '”';
+          if (result.isFinal && text) {
+            if (searchInput) searchInput.value = text;
+            if (statusEl) {
+              statusEl.textContent = 'Found: "' + text + '". Searching projects...';
+              statusEl.style.color = '#15803d';
+            }
+            setTimeout(() => {
+              switchSearchMode('text');
+              if (onSearchCallback) onSearchCallback(text);
+            }, 800);
+          }
+        };
+
+        recognition.onerror = (e) => {
+          isListening = false;
+          micBtn.classList.remove('listening');
+          if (statusEl) {
+            statusEl.textContent = 'Speech error (' + (e.error || 'not detected') + '). Tap microphone to try again.';
+            statusEl.style.color = '#dc2626';
+          }
+        };
+
+        recognition.onend = () => {
+          isListening = false;
+          micBtn.classList.remove('listening');
+        };
+
+        recognition.start();
+      } catch (err) {
+        isListening = false;
+        micBtn.classList.remove('listening');
+        if (statusEl) {
+          statusEl.textContent = 'Microphone permission denied or busy. Please allow microphone access.';
+          statusEl.style.color = '#dc2626';
+        }
+      }
+    });
+  }
+}
+
+  if (typeof window !== 'undefined') {
+    window.MPLAD_VOICE = {
+      initVoiceRecorder,
+      suggestVoiceLanguage,
+      getRecordedVoiceBlob,
+      initVoiceSearch
+    };
+  }
+})(typeof window !== 'undefined' ? window : this);
+

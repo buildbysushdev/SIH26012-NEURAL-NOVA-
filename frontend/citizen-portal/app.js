@@ -12,8 +12,18 @@
  * offline. Manual toggle is always available in the top bar.
  */
 
-import { queueReport, getAllQueued, deleteQueued, pendingCount } from './db.js';
-import { initVoiceRecorder, suggestVoiceLanguage } from './voice_recorder.js';
+// Database & Voice Module bindings (compatible with both file:// protocol and http:// servers)
+const getDb = () => (typeof window !== 'undefined' && window.MPLAD_DB) || {};
+const getVoice = () => (typeof window !== 'undefined' && window.MPLAD_VOICE) || {};
+
+const queueReport = (...args) => (getDb().queueReport ? getDb().queueReport(...args) : Promise.resolve());
+const getAllQueued = (...args) => (getDb().getAllQueued ? getDb().getAllQueued(...args) : Promise.resolve([]));
+const deleteQueued = (...args) => (getDb().deleteQueued ? getDb().deleteQueued(...args) : Promise.resolve());
+const pendingCount = (...args) => (getDb().pendingCount ? getDb().pendingCount(...args) : Promise.resolve(0));
+
+const initVoiceRecorder = (...args) => (getVoice().initVoiceRecorder ? getVoice().initVoiceRecorder(...args) : null);
+const suggestVoiceLanguage = (...args) => (getVoice().suggestVoiceLanguage ? getVoice().suggestVoiceLanguage(...args) : null);
+const initVoiceSearch = (...args) => (getVoice().initVoiceSearch ? getVoice().initVoiceSearch(...args) : null);
 
 // Auto-bypass tunnel reminder screen on tunnel requests
 if (typeof window !== 'undefined' && window.fetch) {
@@ -37,7 +47,7 @@ if (typeof window !== 'undefined' && window.fetch) {
 // ─── Config ──────────────────────────────────────────────────────────────────
 const API_BASE = (typeof window !== 'undefined' && window.API_BASE_URL)
   || (typeof window !== 'undefined' && (localStorage.getItem('MPLADS_API_URL') || localStorage.getItem('mplads_api_url')))
-  || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.origin.includes('8080'))
+  || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:' || window.location.origin.includes('8080'))
       ? 'http://localhost:8000'
       : (typeof window !== 'undefined' && document.querySelector('meta[name="backend-url"]')?.content)
         || 'https://mplads-neural-nova-26102.loca.lt');
@@ -701,12 +711,16 @@ function attachCityLinkListeners() {
 
 // ─── Demo data loader ────────────────────────────────────────────────────────
 async function loadDemoData() {
-  if (demoData) return demoData;
+  if (demoData && demoData.length) return demoData;
+  if (typeof window !== 'undefined' && window.MPLADS_DEMO_DATA && window.MPLADS_DEMO_DATA.length) {
+    demoData = window.MPLADS_DEMO_DATA;
+    return demoData;
+  }
   try {
     const r = await fetch('./demo_data.json', { cache: 'no-store' });
     demoData = await r.json();
   } catch (_) {
-    demoData = [];
+    demoData = (typeof window !== 'undefined' && window.MPLADS_DEMO_DATA) || [];
   }
   return demoData;
 }
@@ -716,15 +730,32 @@ function searchDemo(q) {
   const term = q.toLowerCase().trim();
   const cleanTerm = term.replace(/[\s-]/g, '');
   if (!term || term.length < 2) return demoData.slice(0, 20);
+
+  // Alias expansion for major search variations
+  const aliases = (term.includes('bengaluru') || cleanTerm.includes('bengaluru')) 
+    ? [term, cleanTerm, 'bangalore', 'bengaluru'] 
+    : (term.includes('bangalore') || cleanTerm.includes('bangalore'))
+    ? [term, cleanTerm, 'bangalore', 'bengaluru']
+    : [term, cleanTerm];
+
   return demoData.filter((p) => {
     const c = (p.constituency  || '').toLowerCase();
     const d = (p.work_description || '').toLowerCase();
     const s = (p.state         || '').toLowerCase();
+    const dist = (p.district   || '').toLowerCase();
     const m = (p.mp_name       || '').toLowerCase();
-    return c.indexOf(term) !== -1 || c.replace(/[\s-]/g, '').indexOf(cleanTerm) !== -1 ||
-           d.indexOf(term) !== -1 ||
-           s.indexOf(term) !== -1 || s.replace(/[\s-]/g, '').indexOf(cleanTerm) !== -1 ||
-           m.indexOf(term) !== -1;
+
+    const cClean = c.replace(/[\s-]/g, '');
+    const sClean = s.replace(/[\s-]/g, '');
+    const distClean = dist.replace(/[\s-]/g, '');
+
+    return aliases.some(a => 
+      c.includes(a) || cClean.includes(a) ||
+      d.includes(a) ||
+      s.includes(a) || sClean.includes(a) ||
+      dist.includes(a) || distClean.includes(a) ||
+      m.includes(a)
+    );
   }).slice(0, 30);
 }
 
@@ -813,7 +844,10 @@ async function doSearch() {
       setTimeout(() => ctrl.abort(), 12000);
       const res = await fetch(
         API_BASE + '/search-projects?q=' + encodeURIComponent(q) + '&limit=30',
-        { signal: ctrl.signal }
+        { 
+          signal: ctrl.signal,
+          headers: { 'Bypass-Tunnel-Reminder': 'true' }
+        }
       );
       if (!res.ok) throw new Error('http_' + res.status);
       const data = await res.json();
@@ -823,7 +857,10 @@ async function doSearch() {
     } else {
       const ctrl = new AbortController();
       setTimeout(() => ctrl.abort(), 12000);
-      const res = await fetch(API_BASE + '/flagged-projects?limit=500', { signal: ctrl.signal });
+      const res = await fetch(API_BASE + '/flagged-projects?limit=500', { 
+        signal: ctrl.signal,
+        headers: { 'Bypass-Tunnel-Reminder': 'true' }
+      });
       if (!res.ok) throw new Error('flagged_' + res.status);
       const all  = await res.json();
       const term = q.toLowerCase();
@@ -858,6 +895,63 @@ async function doSearch() {
 
 searchBtn.addEventListener('click', doSearch);
 searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
+
+// ─── Indian States Horizontal Carousel Initialization ─────────────────────────
+function initStatesCarousel() {
+  const track = document.getElementById('states-carousel-track');
+  const btnPrev = document.getElementById('carousel-btn-prev');
+  const btnNext = document.getElementById('carousel-btn-next');
+  if (!track) return;
+
+  if (btnPrev) {
+    btnPrev.addEventListener('click', (e) => {
+      e.preventDefault();
+      track.scrollBy({ left: -260, behavior: 'smooth' });
+    });
+  }
+
+  if (btnNext) {
+    btnNext.addEventListener('click', (e) => {
+      e.preventDefault();
+      track.scrollBy({ left: 260, behavior: 'smooth' });
+    });
+  }
+
+  const cards = track.querySelectorAll('.state-card');
+  cards.forEach((card) => {
+    const handleSelect = (e) => {
+      e.preventDefault();
+      const stateName = card.dataset.state;
+      if (!stateName) return;
+
+      cards.forEach((c) => c.classList.remove('active'));
+      card.classList.add('active');
+
+      // Switch to text search tab if voice mode is active
+      const tabText = document.getElementById('tab-search-text');
+      if (tabText && !tabText.classList.contains('active')) {
+        tabText.click();
+      }
+
+      if (searchInput) {
+        searchInput.value = stateName;
+        doSearch();
+        // Scroll into view
+        const resultsEl = document.getElementById('results-list');
+        if (resultsEl) {
+          resultsEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }
+    };
+
+    card.addEventListener('click', handleSelect);
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        handleSelect(e);
+      }
+    });
+  });
+}
 
 // ─── Location detection ───────────────────────────────────────────────────────
 locationBtn.addEventListener('click', detectLocation);
@@ -1753,8 +1847,13 @@ if ('serviceWorker' in navigator) {
   updateOnlineStatus();
   initTooltips(document);
   renderInitialState();
+  initStatesCarousel();
   updateModeBadge();
+  initVoiceRecorder();
+  initVoiceSearch((q) => {
+    if (searchInput) searchInput.value = q;
+    doSearch();
+  });
   await refreshPendingBanner();
   await checkBackendHealth();
-  initVoiceRecorder();
 })();

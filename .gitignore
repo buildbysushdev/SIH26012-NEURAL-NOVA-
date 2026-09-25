@@ -21,6 +21,7 @@ htmlcov/
 # Environments & secrets
 .env
 .env.*
+!.env.example
 *.key
 *.secret
 

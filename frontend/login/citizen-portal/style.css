@@ -2088,3 +2088,305 @@ textarea:focus-visible {
   color: #0f172a;
 }
 
+/* ─── Search Mode Switcher & Voice Search Card ─── */
+.search-mode-switcher {
+  display: flex;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 3px;
+  gap: 4px;
+  margin-bottom: 12px;
+  max-width: 320px;
+}
+.search-mode-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.search-mode-btn:hover {
+  color: #0f172a;
+}
+.search-mode-btn.active {
+  background: #ffffff;
+  color: #003366;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e2e8f0;
+}
+.voice-search-card {
+  background: #ffffff;
+  border: 1.5px solid #b8d0e8;
+  border-radius: 8px;
+  padding: 22px 20px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 51, 102, 0.06);
+}
+.voice-search-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.voice-search-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: #003366;
+  font-weight: 700;
+}
+.voice-search-pulse-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 12px 0 16px;
+}
+.voice-search-mic-btn {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: #003366;
+  color: #ffffff;
+  border: 3px solid #b8d0e8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, background 0.15s ease;
+  position: relative;
+  z-index: 2;
+}
+.voice-search-mic-btn:hover {
+  background: #002147;
+  transform: scale(1.05);
+}
+.voice-search-mic-btn.listening {
+  background: #dc2626;
+  border-color: #fca5a5;
+  animation: pulse-mic 1.2s infinite;
+}
+@keyframes pulse-mic {
+  0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5); }
+  70% { box-shadow: 0 0 0 22px rgba(220, 38, 38, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+.voice-search-status {
+  font-size: 0.8125rem;
+  color: #475569;
+  max-width: 400px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+.voice-search-transcript {
+  margin-top: 14px;
+  padding: 8px 16px;
+  background: #f0f5fa;
+  border: 1.5px solid #003366;
+  border-radius: 6px;
+  font-weight: 700;
+  color: #003366;
+  font-size: 0.9375rem;
+  display: inline-block;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Indian States Horizontal Carousel (Matching User Specification)
+   ══════════════════════════════════════════════════════════════════════════════ */
+.states-carousel-section {
+  margin: 16px 0 14px 0;
+  padding: 0 4px;
+}
+
+.states-carousel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.states-carousel-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.states-carousel-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #003366;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.states-carousel-badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #047857;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+
+.states-carousel-hint {
+  font-size: 0.71875rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.states-carousel-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.states-carousel-track {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  padding: 6px 4px 10px 4px;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+}
+
+.states-carousel-track::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+/* State Card (Faithful to User Screenshot) */
+.state-card {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  user-select: none;
+  min-width: 172px;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.state-card:hover {
+  transform: translateY(-2px);
+  border-color: #818cf8;
+  box-shadow: 0 6px 14px rgba(99, 102, 241, 0.12);
+}
+
+.state-card:active {
+  transform: translateY(0);
+}
+
+.state-card.active {
+  border-color: #6366f1;
+  background: #f5f3ff;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+}
+
+/* Circular Icon Badge (Soft Purple Background + Indigo Landmark Icon) */
+.state-card-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #f3f0ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6366f1;
+  flex-shrink: 0;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.state-card:hover .state-card-icon-wrap {
+  transform: scale(1.06);
+  background: #ede9fe;
+  color: #4f46e5;
+}
+
+.state-card-info {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.state-card-name {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.25;
+}
+
+.state-card-count {
+  font-size: 0.71875rem;
+  font-weight: 500;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+/* Carousel Nav Buttons (‹ and ›) */
+.carousel-nav-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  padding: 0;
+  z-index: 2;
+}
+
+.carousel-nav-btn:hover {
+  background: #f8fafc;
+  color: #003366;
+  border-color: #003366;
+  transform: scale(1.05);
+}
+
+.carousel-nav-btn:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 480px) {
+  .state-card {
+    min-width: 154px;
+    padding: 8px 12px;
+    gap: 10px;
+  }
+  .state-card-icon-wrap {
+    width: 38px;
+    height: 38px;
+  }
+  .carousel-nav-btn {
+    display: none; /* Hide arrows on touch devices to maximize horizontal swipe space */
+  }
+}
+
+
+

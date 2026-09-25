@@ -72,46 +72,274 @@
   <!-- ─── SCREEN 1: Project Lookup ─── -->
   <main id="screen-lookup" class="screen active" role="main">
     <div class="search-section">
-      <div class="search-label-row">
-        <label for="search-input" class="search-instruction-label">Search by city, district, or constituency</label>
-        <div class="info-btn-wrap">
-          <button
-            type="button"
-            class="btn-info"
-            aria-label="Search help"
-            data-tooltip="Search for MPLAD projects in your area. These are development works (roads, schools, water supply) funded by your local MP."
-          >i</button>
-          <div class="info-popover" role="tooltip"></div>
-        </div>
-      </div>
-
-      <div class="search-input-wrap">
-        <input
-          id="search-input"
-          class="search-input"
-          type="search"
-          placeholder="e.g. Pune, Shirur, Mumbai North…"
-          aria-label="Search MPLAD projects"
-          autocomplete="off"
-          autocorrect="off"
-          spellcheck="false"
-        />
-        <button id="search-btn" class="btn-primary-search" type="button">Search</button>
-      </div>
-
-      <!-- Location detection button & chip -->
-      <div class="location-row">
-        <button id="location-btn" class="btn-location-text" type="button">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
-          Use My Location
+      <!-- Search Input Mode Switcher (Text vs Voice) -->
+      <div class="search-mode-switcher" role="tablist" aria-label="Search Method">
+        <button type="button" id="tab-search-text" class="search-mode-btn active" role="tab" aria-selected="true">
+          ⌨️ Text Search
         </button>
-        <div id="location-chip" class="location-chip" style="display:none">
-          <span id="location-text"></span>
+        <button type="button" id="tab-search-voice" class="search-mode-btn" role="tab" aria-selected="false">
+          🎙️ Voice Search
+        </button>
+      </div>
+
+      <!-- ─── SUB-UI 1: Text Search Panel ─── -->
+      <div id="section-search-text" class="search-panel">
+        <div class="search-label-row">
+          <label for="search-input" class="search-instruction-label">Search by city, district, or constituency</label>
+          <div class="info-btn-wrap">
+            <button
+              type="button"
+              class="btn-info"
+              aria-label="Search help"
+              data-tooltip="Search for MPLAD projects in your area. These are development works (roads, schools, water supply) funded by your local MP."
+            >i</button>
+            <div class="info-popover" role="tooltip"></div>
+          </div>
         </div>
+
+        <div class="search-input-wrap">
+          <input
+            id="search-input"
+            class="search-input"
+            type="search"
+            placeholder="e.g. Uttar Pradesh, Bengaluru, Pune, Delhi…"
+            aria-label="Search MPLAD projects"
+            autocomplete="off"
+            autocorrect="off"
+            spellcheck="false"
+          />
+          <button id="search-btn" class="btn-primary-search" type="button">Search</button>
+        </div>
+
+        <!-- Location detection button & chip -->
+        <div class="location-row">
+          <button id="location-btn" class="btn-location-text" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+            Use My Location
+          </button>
+          <div id="location-chip" class="location-chip" style="display:none">
+            <span id="location-text"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── SUB-UI 2: Voice Search Panel (Dedicated Separate UI) ─── -->
+      <div id="section-search-voice" class="search-panel voice-search-card" style="display:none">
+        <div class="voice-search-header">
+          <div class="voice-search-title">
+            <span style="font-size:1.25rem;">🎙️</span>
+            <span>Spoken Location Search</span>
+          </div>
+          <select id="voice-search-lang" class="voice-lang-select" aria-label="Voice Search Language">
+            <option value="en-IN" selected>English (India)</option>
+            <option value="hi-IN">हिंदी (Hindi)</option>
+            <option value="mr-IN">मराठी (Marathi)</option>
+            <option value="kn-IN">ಕನ್ನಡ (Kannada)</option>
+          </select>
+        </div>
+
+        <div class="voice-search-pulse-wrap">
+          <button type="button" id="btn-voice-search-mic" class="voice-search-mic-btn" title="Tap to speak" aria-label="Start voice search">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+              <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+            </svg>
+          </button>
+        </div>
+
+        <p id="voice-search-status" class="voice-search-status">Tap microphone and speak city, district or state (e.g. "Uttar Pradesh", "Bengaluru", "Delhi", "Pune")</p>
+        <div id="voice-search-transcript" class="voice-search-transcript" style="display:none"></div>
       </div>
 
       <!-- Server status notice -->
       <div id="server-status" class="server-status" style="display:none"></div>
+    </div>
+
+    <!-- ─── Indian States Horizontal Carousel (Explore Works by State) ─── -->
+    <div class="states-carousel-section" aria-label="Browse MPLAD Works by State">
+      <div class="states-carousel-header">
+        <div class="states-carousel-title-group">
+          <span class="states-carousel-title">Explore Works by State / UT</span>
+          <span class="states-carousel-badge">77,312+ Total Works</span>
+        </div>
+        <span class="states-carousel-hint">Swipe or click to inspect</span>
+      </div>
+      <div class="states-carousel-wrapper">
+        <button type="button" id="carousel-btn-prev" class="carousel-nav-btn prev" aria-label="Scroll left" title="Scroll left">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div id="states-carousel-track" class="states-carousel-track" role="region" aria-label="States list">
+          
+          <!-- Kerala -->
+          <div class="state-card" data-state="Kerala" role="button" tabindex="0" title="Click to view MPLAD works in Kerala">
+            <div class="state-card-icon-wrap" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16M6 22V16h12v6M8 16V11h8v5M10 11V7h4v4M11 7V3h2v4M12 2v1"/></svg>
+            </div>
+            <div class="state-card-info">
+              <span class="state-card-name">Kerala</span>
+              <span class="state-card-count">3,080+ Works</span>
+            </div>
+          </div>
+
+          <!-- Maharashtra -->
+          <div class="state-card" data-state="Maharashtra" role="button" tabindex="0" title="Click to view MPLAD works in Maharashtra">
+            <div class="state-card-icon-wrap" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M4 21V8l2-2h3v15M15 21V6h3l2 2v13M9 6h6v5a3 3 0 0 1-6 0zM9 11v10h6V11"/></svg>
+            </div>
+            <div class="state-card-info">
+              <span class="state-card-name">Maharashtra</span>
+              <span class="state-card-count">2,370+ Works</span>
+            </div>
+          </div>
+
+          <!-- Odisha -->
+          <div class="state-card" data-state="Odisha" role="button" tabindex="0" title="Click to view MPLAD works in Odisha">
+            <div class="state-card-icon-wrap" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16M5 22l2-7h10l2 7M7 15l2-5h6l2 5M9 10l1.5-4h3L15 10M11 6V2h2v4M12 2l1-1 1 1"/></svg>
+            </div>
+            <div class="state-card-info">
+              <span class="state-card-name">Odisha</span>
+              <span class="state-card-count">3,360+ Works</span>
+            </div>
+          </div>
+
+          <!-- Rajasthan -->
+          <div class="state-card" data-state="Rajasthan" role="button" tabindex="0" title="Click to view MPLAD works in Rajasthan">
+            <div class="state-card-icon-wrap" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M4 21V10l4-4 4-3 4 3 4 4v11M8 11h2v3H8zM14 11h2v3h-2zM11 7h2v3h-2zM8 16h2v5H8zM14 16h2v5h-2z"/></svg>
+            </div>
+            <div class="state-card-info">
+              <span class="state-card-name">Rajasthan</span>
+              <span class="state-card-count">2,440+ Works</span>
+            </div>
+          </div>
+
+          <!-- Assam -->
+          <div class="state-card" data-state="Assam" role="button" tabindex="0" title="Click to view MPLAD works in Assam">
+            <div class="state-card-icon-wrap" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="2"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg>
+            </div>
+            <div class="state-card-info">
+              <span class="state-card-name">Assam</span>
+              <span class="state-card-count">1,650+ Works</span>
+            </div>
+          </div>
+
+          <!-- Bihar -->
+          <div class="state-card" data-state="Bihar" role="button" tabindex="0" title="Click to view MPLAD works in Bihar">
+            <div class="state-card-icon-wrap" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V11l7-6 7 6v10M9 21v-6h6v6M12 2v3M8 11h2v3H8zM14 11h2v3h-2z"/></svg>
+            </div>
+            <div class="state-card-info">
+              <span class="state-card-name">Bihar</span>
+              <span class="state-card-count">4,740+ Works</span>
+            </div>
+          </div>
+
+          <!-- Uttar Pradesh -->
+          <div class="state-card" data-state="Uttar Pradesh" role="button" tabindex="0" title="Click to view MPLAD works in Uttar Pradesh">
+            <div class="state-card-icon-wrap" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16M6 21V9l6-5 6 5v12M10 21v-7h4v7M10 9h4"/></svg>
+            </div>
+            <div class="state-card-info">
+              <span class="state-card-name">Uttar Pradesh</span>
+              <span class="state-card-count">15,270+ Works</span>
+            </div>
+          </div>
+
+          <!-- Karnataka -->
+          <div class="state-card" data-state="Karnataka" role="button" tabindex="0" title="Click to view MPLAD works in Karnataka">
+            <div class="state-card-icon-wrap" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21h20M4 21V12h16v9M10 21v-5h4v5M6 8l6-5 6 5v4H6z"/></svg>
+            </div>
+            <div class="state-card-info">
+              <span class="state-card-name">Karnataka</span>
+              <span class="state-card-count">3,100+ Works</span>
+            </div>
+          </div>
+
+          <!-- Delhi -->
+          <div class="state-card" data-state="Delhi" role="button" tabindex="0" title="Click to view MPLAD works in Delhi">
+            <div class="state-card-icon-wrap" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4h14v17M3 21h18M8 21v-8a4 4 0 0 1 8 0v8M5 8h14"/></svg>
+            </div>
+            <div class="state-card-info">
+              <span class="state-card-name">Delhi</span>
+              <span class="state-card-count">440+ Works</span>
+            </div>
+          </div>
+
+          <!-- Gujarat -->
+          <div class="state-card" data-state="Gujarat" role="button" tabindex="0" title="Click to view MPLAD works in Gujarat">
+            <div class="state-card-icon-wrap" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 13a3 3 0 0 1 6 0v8H9z"/></svg>
+            </div>
+            <div class="state-card-info">
+              <span class="state-card-name">Gujarat</span>
+              <span class="state-card-count">5,750+ Works</span>
+            </div>
+          </div>
+
+          <!-- Tamil Nadu -->
+          <div class="state-card" data-state="Tamil Nadu" role="button" tabindex="0" title="Click to view MPLAD works in Tamil Nadu">
+            <div class="state-card-icon-wrap" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16M6 22l1-6h10l1 6M8 16l1-5h6l1 5M10 11l1-4h2l1 4M11 7V3h2v4"/></svg>
+            </div>
+            <div class="state-card-info">
+              <span class="state-card-name">Tamil Nadu</span>
+              <span class="state-card-count">4,410+ Works</span>
+            </div>
+          </div>
+
+          <!-- Madhya Pradesh -->
+          <div class="state-card" data-state="Madhya Pradesh" role="button" tabindex="0" title="Click to view MPLAD works in Madhya Pradesh">
+            <div class="state-card-icon-wrap" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 17h14M6 17a6 6 0 0 1 12 0M12 11V5M9 5h6M10 3h4"/></svg>
+            </div>
+            <div class="state-card-info">
+              <span class="state-card-name">Madhya Pradesh</span>
+              <span class="state-card-count">5,330+ Works</span>
+            </div>
+          </div>
+
+          <!-- West Bengal -->
+          <div class="state-card" data-state="West Bengal" role="button" tabindex="0" title="Click to view MPLAD works in West Bengal">
+            <div class="state-card-icon-wrap" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21h20M4 21V14h16v7M8 14V9a4 4 0 0 1 8 0v5M12 5V2"/></svg>
+            </div>
+            <div class="state-card-info">
+              <span class="state-card-name">West Bengal</span>
+              <span class="state-card-count">3,980+ Works</span>
+            </div>
+          </div>
+
+          <!-- Telangana -->
+          <div class="state-card" data-state="Telangana" role="button" tabindex="0" title="Click to view MPLAD works in Telangana">
+            <div class="state-card-icon-wrap" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M4 21V5l2-2 2 2v16M16 21V5l2-2 2 2v16M8 11h8M8 21v-6a4 4 0 0 1 8 0v6"/></svg>
+            </div>
+            <div class="state-card-info">
+              <span class="state-card-name">Telangana</span>
+              <span class="state-card-count">3,650+ Works</span>
+            </div>
+          </div>
+
+          <!-- Punjab -->
+          <div class="state-card" data-state="Punjab" role="button" tabindex="0" title="Click to view MPLAD works in Punjab">
+            <div class="state-card-icon-wrap" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V13h14v8M8 13V9a4 4 0 0 1 8 0v4M12 5V2M10 2h4"/></svg>
+            </div>
+            <div class="state-card-info">
+              <span class="state-card-name">Punjab</span>
+              <span class="state-card-count">3,500+ Works</span>
+            </div>
+          </div>
+
+        </div>
+        <button type="button" id="carousel-btn-next" class="carousel-nav-btn next" aria-label="Scroll right" title="Scroll right">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
     </div>
 
     <!-- View Toggle bar (List | Map) -->
@@ -837,6 +1065,9 @@
 </nav>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script type="module" src="./app.js"></script>
+<script src="./demo_data.js"></script>
+<script src="./db.js"></script>
+<script src="./voice_recorder.js"></script>
+<script src="./app.js"></script>
 </body>
 </html>

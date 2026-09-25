@@ -20,7 +20,7 @@ from pathlib import Path
 # Load .env file at application startup
 try:
     from dotenv import load_dotenv
-    load_dotenv(Path(__file__).parent / ".env")
+    load_dotenv(Path(__file__).parent / ".env", override=True)
 except ImportError:
     pass
 
@@ -168,8 +168,12 @@ app = FastAPI(
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS")
 if allowed_origins_env:
     allow_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+    if "null" not in allow_origins:
+        allow_origins.append("null")
 else:
     allow_origins = [
+        "*",
+        "null",
         "http://localhost:3000",
         "http://localhost:5173",
         "http://localhost:8080",   # citizen portal dev server
@@ -177,7 +181,7 @@ else:
         "http://127.0.0.1:3000",
     ]
 
-allow_creds = "*" not in allow_origins
+allow_creds = False if "*" in allow_origins else True
 
 app.add_middleware(
     CORSMiddleware,
@@ -195,6 +199,27 @@ app.include_router(feedback_loop.router)
 app.include_router(audit_brief.router)
 app.include_router(officer_checklist.router)
 app.include_router(voice_transcriber.router)
+
+# Mount static web frontends: Citizen Portal, Officer Dashboard, Login Gateway, and Uploads
+from fastapi.staticfiles import StaticFiles
+_portal_dir   = os.path.join(_SCRIPT_DIR, "frontend", "citizen-portal")
+_officer_dir  = os.path.join(_SCRIPT_DIR, "frontend", "officer-dashboard")
+_login_dir    = os.path.join(_SCRIPT_DIR, "frontend", "login")
+_frontend_dir = os.path.join(_SCRIPT_DIR, "frontend")
+_uploads_dir  = os.path.join(_SCRIPT_DIR, "uploads")
+
+if os.path.exists(_portal_dir):
+    app.mount("/portal", StaticFiles(directory=_portal_dir, html=True), name="portal")
+    app.mount("/citizen-portal", StaticFiles(directory=_portal_dir, html=True), name="citizen_portal")
+if os.path.exists(_officer_dir):
+    app.mount("/officer-dashboard", StaticFiles(directory=_officer_dir, html=True), name="officer_dashboard")
+    app.mount("/officer", StaticFiles(directory=_officer_dir, html=True), name="officer")
+if os.path.exists(_login_dir):
+    app.mount("/login", StaticFiles(directory=_login_dir, html=True), name="login")
+if os.path.exists(_frontend_dir):
+    app.mount("/frontend", StaticFiles(directory=_frontend_dir, html=True), name="frontend")
+if os.path.exists(_uploads_dir):
+    app.mount("/uploads", StaticFiles(directory=_uploads_dir), name="uploads")
 
 
 # ─────────────────────────────────────────────
@@ -376,6 +401,40 @@ def search_projects(
     cols = [c for c in cols if c in result.columns]
     records = result[cols].where(pd.notnull(result[cols]), None).to_dict(orient="records")
     return {"results": [_sanitize(r) for r in records], "total": int(mask.sum())}
+
+
+# --- Interactive Citizen Assistance Chatbot (Sahayak) ---
+@app.post("/api/citizen-chatbot")
+@app.get("/api/citizen-chatbot")
+async def citizen_chatbot_endpoint(
+    payload: Optional[dict] = None,
+    q: Optional[str] = Query(None, description="Query text for GET request")
+):
+    """
+    MPLADS Sahayak Citizen AI Assistant.
+    Powered by Gemini Flash with domain-focused vigilance guardrails.
+    Returns official MoSPI toll-free helpline and email for any out-of-context questions.
+    """
+    import explain_gemini
+    query = ""
+    history = []
+    if payload and isinstance(payload, dict):
+        query = payload.get("query") or payload.get("message") or ""
+        history = payload.get("history") or []
+    elif q:
+        query = q
+
+    query = query.strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="Query cannot be empty.")
+
+    return explain_gemini.answer_citizen_query(query, history=history)
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
+
 
 
 

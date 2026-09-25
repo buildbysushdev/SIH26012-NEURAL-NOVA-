@@ -8,6 +8,7 @@ the auditing officer's ID, assigned district jurisdiction, and security role.
 """
 
 import os
+import hmac
 import hashlib
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any
@@ -94,10 +95,10 @@ def _validate_credentials(officer_id: str, password: str) -> Optional[Dict]:
     cred = _DEFAULT_CREDENTIALS.get(officer_id.strip())
     if cred is None:
         # Run a dummy comparison to avoid timing-based officer_id enumeration
-        hashlib.compare_digest(_sha256("dummy"), _sha256("notmatch"))
+        hmac.compare_digest(_sha256("dummy"), _sha256("notmatch"))
         return None
     given_hash = _sha256(password)
-    if not hashlib.compare_digest(given_hash, cred["password_hash"]):
+    if not hmac.compare_digest(given_hash, cred["password_hash"]):
         return None
     return cred
 

@@ -23,8 +23,8 @@ router = APIRouter(tags=["Voice Transcription"])
 
 # Supported model rotation (fastest & most cost-efficient flash models)
 _FLASH_MODELS = [
+    "gemini-3.6-flash",
     "gemini-2.5-flash",
-    "gemini-2.0-flash",
     "gemini-1.5-flash",
 ]
 
@@ -44,7 +44,7 @@ async def transcribe_audio_endpoint(
     """
     try:
         from dotenv import load_dotenv
-        load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+        load_dotenv(os.path.join(os.path.dirname(__file__), ".env"), override=True)
     except ImportError:
         pass
 
