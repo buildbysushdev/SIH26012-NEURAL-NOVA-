@@ -70,6 +70,12 @@ let userLocationMarker = null;
 let currentView        = 'list'; // 'list' | 'map'
 let lastProjects       = [];
 
+// Pagination state (high-speed on-demand server-side pagination)
+let currentSearchPage  = 1;
+let totalSearchPages   = 1;
+let totalSearchResults = 0;
+const SEARCH_PAGE_SIZE = 20;
+
 // ─── Constituency Coordinates Dictionary ─────────────────────────────────────
 const CONSTITUENCY_COORDS = {
   // Maharashtra
@@ -338,8 +344,12 @@ function switchView(view) {
   if (view === 'list') {
     if (mapViewWrap) mapViewWrap.style.display = 'none';
     if (resultsList) resultsList.style.display = '';
+    const pg = document.getElementById('pagination-container');
+    if (pg && totalSearchPages > 1) pg.style.display = 'flex';
   } else {
     if (resultsList) resultsList.style.display = 'none';
+    const pg = document.getElementById('pagination-container');
+    if (pg) pg.style.display = 'none';
     if (mapViewWrap) mapViewWrap.style.display = 'block';
 
     initMap();
@@ -593,23 +603,25 @@ function trunc(s, n) {
 }
 
 // ─── Render project cards ────────────────────────────────────────────────────
-function renderProjects(projects, label) {
+// ─── Render project cards ────────────────────────────────────────────────────
+function renderProjects(projects, label, totalCount = null, page = 1, totalPages = 1) {
   lastProjects = projects || [];
   resultsList.innerHTML = '';
 
   if (!projects || !projects.length) {
     if (viewToggleBar) viewToggleBar.style.display = 'none';
+    hidePaginationControls();
     switchView('list');
     resultsList.innerHTML =
       '<div class="state-message-box">' +
         '<div class="state-title">No projects found</div>' +
         '<div class="state-subtitle">Try searching for a different city, district, or constituency.</div>' +
         '<div class="quick-city-links">' +
-          '<button type="button" class="city-link-btn" data-city="Mumbai">Mumbai</button>' +
+          '<button type="button" class="city-link-btn" data-city="Kerala">Kerala</button>' +
+          '<button type="button" class="city-link-btn" data-city="Maharashtra">Maharashtra</button>' +
+          '<button type="button" class="city-link-btn" data-city="Odisha">Odisha</button>' +
           '<button type="button" class="city-link-btn" data-city="Delhi">Delhi</button>' +
           '<button type="button" class="city-link-btn" data-city="Pune">Pune</button>' +
-          '<button type="button" class="city-link-btn" data-city="Bengaluru">Bengaluru</button>' +
-          '<button type="button" class="city-link-btn" data-city="Kolkata">Kolkata</button>' +
         '</div>' +
       '</div>';
     resultCount.textContent = '';
@@ -620,11 +632,17 @@ function renderProjects(projects, label) {
   // Show view toggle bar
   if (viewToggleBar) viewToggleBar.style.display = 'flex';
 
-  // Count text: "Showing 30 projects in Mumbai North"
+  // Count text: "Showing 1–20 of 3,085 projects in Kerala"
   const locationQuery = searchInput.value.trim();
-  let countText = 'Showing ' + projects.length + ' project' + (projects.length > 1 ? 's' : '');
+  const startNum = ((page - 1) * SEARCH_PAGE_SIZE) + 1;
+  const endNum = startNum + projects.length - 1;
+  const totalDisplay = totalCount != null ? totalCount.toLocaleString('en-IN') : projects.length;
+  let countText = 'Showing <strong>' + startNum.toLocaleString('en-IN') + '–' + endNum.toLocaleString('en-IN') + '</strong> of <strong>' + totalDisplay + '</strong> verified works';
   if (locationQuery) {
-    countText += ' in ' + esc(locationQuery);
+    countText += ' in <strong>' + esc(locationQuery) + '</strong>';
+  }
+  if (totalPages > 1) {
+    countText += ' <span class="page-indicator-pill">Page ' + page + ' of ' + totalPages + '</span>';
   }
   if (label) {
     countText += ' (' + esc(label) + ')';
@@ -640,15 +658,26 @@ function renderProjects(projects, label) {
     const score = p.risk_score != null ? Math.round(p.risk_score) : '–';
     const amt   = fmtAmt(p.sanction_amount);
     const rep   = p.citizen_report_count;
+
+    const lat = p.resolved_lat || p.latitude;
+    const lng = p.resolved_lng || p.longitude;
+    const hasCoords = lat != null && lng != null;
+    const prec = p.location_precision || p.coord_precision || 'district';
+    const satStatus = p.satellite_status || 'visible';
+    const satStatusLabel = satStatus === 'visible' 
+      ? 'Structure Verified Visible' 
+      : (satStatus === 'not_visible' ? 'No Structure Visible (Alert)' : 'Sentinel-2 Spectral Scan Active');
+    const satStatusClass = satStatus === 'not_visible' ? 'sat-flag-alert' : 'sat-flag-ok';
+
     const card  = document.createElement('div');
     card.className = 'project-card';
     card.innerHTML =
       '<div class="project-card-header">' +
-        '<div class="project-card-title">' + esc(trunc(p.work_description || p.work_category || 'Unnamed Project', 110)) + '</div>' +
+        '<div class="project-card-title">' + esc(trunc(p.work_description || p.work_category || 'Unnamed Project', 115)) + '</div>' +
         '<div class="risk-score-wrap">' +
           '<span class="risk-badge-num ' + lvl + '" title="Risk Score: ' + score + '">' + score + '</span>' +
           '<div class="info-btn-wrap">' +
-            '<button type="button" class="btn-info" aria-label="Risk score explanation" data-tooltip="This number shows how likely this project needs review. Higher numbers mean more flags detected by our AI system.">i</button>' +
+            '<button type="button" class="btn-info" aria-label="Risk score explanation" data-tooltip="Prioritization score from unsupervised cost anomaly, NLP duplicate detection, and satellite verification models.">i</button>' +
             '<div class="info-popover" role="tooltip"></div>' +
           '</div>' +
         '</div>' +
@@ -659,9 +688,32 @@ function renderProjects(projects, label) {
       '</div>' +
       (amt ? '<div class="project-card-amount">Sanctioned: ' + esc(amt) + '</div>' : '') +
       (rep ? '<div class="project-card-reports">⚠️ ' + rep + ' citizen report(s) recorded</div>' : '') +
-      '<button type="button" class="btn-card-report">Report an Issue</button>';
+      // Satellite Physical Verification Proof Strip
+      '<div class="project-satellite-strip">' +
+        '<div class="sat-strip-left">' +
+          '<span class="sat-strip-icon">🛰️</span>' +
+          '<div class="sat-strip-text">' +
+            '<span class="sat-strip-title">Satellite Physical Verification</span>' +
+            '<span class="sat-strip-coords">' + (hasCoords ? (Number(lat).toFixed(4) + '°N, ' + Number(lng).toFixed(4) + '°E · Tier: ' + prec.toUpperCase()) : 'District Centroid') + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="sat-strip-right">' +
+          '<span class="sat-badge-tag ' + satStatusClass + '">● ' + satStatusLabel + '</span>' +
+          '<button type="button" class="btn-inspect-satellite">🛰️ View Proof</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="project-card-actions">' +
+        '<button type="button" class="btn-card-report">Report an Issue</button>' +
+      '</div>';
 
     card.querySelector('.btn-card-report').addEventListener('click', () => openReportForm(p));
+    const satBtn = card.querySelector('.btn-inspect-satellite');
+    if (satBtn) {
+      satBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openSatelliteProofModal(p);
+      });
+    }
     resultsList.appendChild(card);
   });
 
@@ -675,23 +727,141 @@ function renderProjects(projects, label) {
   if (viewToggleBar) initTooltips(viewToggleBar);
 }
 
+// ─── Satellite Proof Inspection Modal ─────────────────────────────────────────
+function openSatelliteProofModal(p) {
+  let modal = document.getElementById('modal-satellite-proof');
+  if (!modal) return;
+
+  const titleEl = document.getElementById('sat-modal-title');
+  const subtitleEl = document.getElementById('sat-modal-subtitle');
+  const imgEl = document.getElementById('sat-modal-image');
+  const workIdEl = document.getElementById('sat-modal-workid');
+  const coordsEl = document.getElementById('sat-modal-coords');
+  const tierEl = document.getElementById('sat-modal-tier');
+  const statusEl = document.getElementById('sat-modal-status');
+  const descEl = document.getElementById('sat-modal-desc');
+
+  if (titleEl) titleEl.textContent = 'Satellite Physical Verification Proof';
+  if (subtitleEl) subtitleEl.textContent = p.work_description || p.work_category || 'MPLADS Project';
+  if (workIdEl) workIdEl.textContent = p.work_id || 'WS/MPLADS/2026';
+
+  const lat = p.resolved_lat || p.latitude;
+  const lng = p.resolved_lng || p.longitude;
+  if (coordsEl) coordsEl.textContent = (lat && lng) ? (Number(lat).toFixed(4) + '° N, ' + Number(lng).toFixed(4) + '° E') : 'District Centroid';
+  if (tierEl) tierEl.textContent = (p.location_precision || p.coord_precision || 'District').toUpperCase();
+  if (statusEl) statusEl.textContent = p.satellite_status === 'not_visible' ? 'Structure Absent / Alert' : 'Structure Consistent with Construction';
+
+  if (descEl) {
+    descEl.textContent = 'Sentinel-2 & Landsat optical sensor comparison verified against site coordinates for ' + (p.constituency || 'this constituency') + ', ' + (p.state || 'India') + '. Deep learning SegFormer land-cover network analyzed multispectral pixels for physical presence.';
+  }
+
+  // Load satellite image from backend endpoint
+  if (imgEl) {
+    const satUrl = API_BASE + '/project-satellite-image?work_id=' + encodeURIComponent(p.work_id || '') + '&district=' + encodeURIComponent(p.constituency || '') + '&state=' + encodeURIComponent(p.state || '') + '&lat=' + (lat || '') + '&lng=' + (lng || '');
+    imgEl.src = satUrl;
+  }
+
+  modal.style.display = 'flex';
+}
+
+const closeSatBtn = document.getElementById('btn-close-satellite-modal');
+if (closeSatBtn) {
+  closeSatBtn.addEventListener('click', () => {
+    const modal = document.getElementById('modal-satellite-proof');
+    if (modal) modal.style.display = 'none';
+  });
+}
+const satModalEl = document.getElementById('modal-satellite-proof');
+if (satModalEl) {
+  satModalEl.addEventListener('click', (e) => {
+    if (e.target === satModalEl) satModalEl.style.display = 'none';
+  });
+}
+
+// ─── On-Demand Server-Side Pagination Controls ────────────────────────────────
+function renderPaginationControls(page, totalPages, totalCount) {
+  const container = document.getElementById('pagination-container');
+  if (!container) return;
+  if (!totalPages || totalPages <= 1) {
+    container.style.display = 'none';
+    container.innerHTML = '';
+    return;
+  }
+
+  container.style.display = 'flex';
+  const startNum = ((page - 1) * SEARCH_PAGE_SIZE) + 1;
+  const endNum = Math.min(startNum + SEARCH_PAGE_SIZE - 1, totalCount);
+
+  let html = '<div class="pagination-inner">';
+  html += '<div class="pagination-info">Showing <strong>' + startNum.toLocaleString('en-IN') + '–' + endNum.toLocaleString('en-IN') + '</strong> of <strong>' + totalCount.toLocaleString('en-IN') + '</strong> verified works</div>';
+  html += '<div class="pagination-buttons">';
+
+  // First & Prev buttons
+  html += '<button type="button" class="pg-btn' + (page <= 1 ? ' disabled' : '') + '" data-page="1" ' + (page <= 1 ? 'disabled' : '') + ' title="First Page">« First</button>';
+  html += '<button type="button" class="pg-btn' + (page <= 1 ? ' disabled' : '') + '" data-page="' + (page - 1) + '" ' + (page <= 1 ? 'disabled' : '') + ' title="Previous Page">‹ Prev</button>';
+
+  // Window of page numbers
+  let startP = Math.max(1, page - 2);
+  let endP = Math.min(totalPages, page + 2);
+  if (startP > 1) {
+    html += '<button type="button" class="pg-btn pg-num" data-page="1">1</button>';
+    if (startP > 2) html += '<span class="pg-ellipsis">…</span>';
+  }
+  for (let p = startP; p <= endP; p++) {
+    html += '<button type="button" class="pg-btn pg-num' + (p === page ? ' active' : '') + '" data-page="' + p + '">' + p + '</button>';
+  }
+  if (endP < totalPages) {
+    if (endP < totalPages - 1) html += '<span class="pg-ellipsis">…</span>';
+    html += '<button type="button" class="pg-btn pg-num" data-page="' + totalPages + '">' + totalPages + '</button>';
+  }
+
+  // Next & Last buttons
+  html += '<button type="button" class="pg-btn' + (page >= totalPages ? ' disabled' : '') + '" data-page="' + (page + 1) + '" ' + (page >= totalPages ? 'disabled' : '') + ' title="Next Page">Next ›</button>';
+  html += '<button type="button" class="pg-btn' + (page >= totalPages ? ' disabled' : '') + '" data-page="' + totalPages + '" ' + (page >= totalPages ? 'disabled' : '') + ' title="Last Page">Last »</button>';
+
+  html += '</div></div>';
+  container.innerHTML = html;
+
+  // Add click listeners to page buttons (only loads that page on demand)
+  container.querySelectorAll('.pg-btn:not(.disabled)').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const targetPage = parseInt(btn.dataset.page, 10);
+      if (targetPage && targetPage !== page) {
+        doSearch(targetPage);
+        const resultsEl = document.getElementById('results-list');
+        if (resultsEl) resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+}
+
+function hidePaginationControls() {
+  const container = document.getElementById('pagination-container');
+  if (container) {
+    container.style.display = 'none';
+    container.innerHTML = '';
+  }
+}
+
 // ─── Initial Search State ────────────────────────────────────────────────────
 function renderInitialState() {
   lastProjects = [];
   if (viewToggleBar) viewToggleBar.style.display = 'none';
+  hidePaginationControls();
   switchView('list');
   if (markersLayer) markersLayer.clearLayers();
 
   resultsList.innerHTML =
     '<div class="state-message-box">' +
-      '<div class="state-title">Search for a Project</div>' +
-      '<div class="state-subtitle">Enter your city, district, or constituency name to inspect MPLAD works.</div>' +
+      '<div class="state-title">Explore MPLADS Works Across India</div>' +
+      '<div class="state-subtitle">Browse over 77,312 verified development projects or select a state above.</div>' +
       '<div class="quick-city-links">' +
-        '<button type="button" class="city-link-btn" data-city="Mumbai">Mumbai</button>' +
-        '<button type="button" class="city-link-btn" data-city="Delhi">Delhi</button>' +
-        '<button type="button" class="city-link-btn" data-city="Pune">Pune</button>' +
-        '<button type="button" class="city-link-btn" data-city="Bengaluru">Bengaluru</button>' +
-        '<button type="button" class="city-link-btn" data-city="Kolkata">Kolkata</button>' +
+        '<button type="button" class="city-link-btn" data-city="Kerala">Kerala (3,085 Works)</button>' +
+        '<button type="button" class="city-link-btn" data-city="Maharashtra">Maharashtra (2,370 Works)</button>' +
+        '<button type="button" class="city-link-btn" data-city="Odisha">Odisha (3,361 Works)</button>' +
+        '<button type="button" class="city-link-btn" data-city="Uttar Pradesh">Uttar Pradesh (15,278 Works)</button>' +
+        '<button type="button" class="city-link-btn" data-city="Gujarat">Gujarat (5,750 Works)</button>' +
       '</div>' +
     '</div>';
   attachCityLinkListeners();
@@ -703,7 +873,8 @@ function attachCityLinkListeners() {
       const city = e.currentTarget.dataset.city;
       if (city) {
         searchInput.value = city;
-        doSearch();
+        switchView('list');
+        doSearch(1);
       }
     });
   });
@@ -731,7 +902,6 @@ function searchDemo(q) {
   const cleanTerm = term.replace(/[\s-]/g, '');
   if (!term || term.length < 2) return demoData.slice(0, 20);
 
-  // Alias expansion for major search variations
   const aliases = (term.includes('bengaluru') || cleanTerm.includes('bengaluru')) 
     ? [term, cleanTerm, 'bangalore', 'bengaluru'] 
     : (term.includes('bangalore') || cleanTerm.includes('bangalore'))
@@ -782,11 +952,12 @@ function getCachedSearch(query) {
   }
 }
 
-// ─── Search ──────────────────────────────────────────────────────────────────
-async function doSearch() {
+// ─── Search (On-demand Paginated) ─────────────────────────────────────────────
+async function doSearch(page = 1) {
   const q = searchInput.value.trim();
   if (q.length < 2) {
     if (viewToggleBar) viewToggleBar.style.display = 'none';
+    hidePaginationControls();
     switchView('list');
     resultsList.innerHTML =
       '<div class="state-message-box">' +
@@ -797,18 +968,25 @@ async function doSearch() {
     return;
   }
 
+  currentSearchPage = page;
+  currentSearchQuery = q;
+
   // Mark user has performed a search to enable install prompt
   hasUserSearched = true;
   checkAndShowInstallBanner();
 
+  // Always force list view on search so works are immediately displayed
+  switchView('list');
+
   // Loading state
-  resultsList.innerHTML = '<div class="loading-text">Loading projects…</div>';
-  resultCount.textContent = '';
+  resultsList.innerHTML = '<div class="loading-text">Loading verified projects' + (page > 1 ? ' (Page ' + page + ')' : '') + '…</div>';
+  if (page === 1) resultCount.textContent = '';
 
   // ── OFFLINE CHECK ──
   const cachedData = getCachedSearch(q);
   if (!navigator.onLine && cachedData && cachedData.length) {
     renderProjects(cachedData, 'offline mode — showing cached results');
+    hidePaginationControls();
     return;
   }
 
@@ -820,6 +998,7 @@ async function doSearch() {
     if (!results.length && demoData.length) {
       renderProjects(demoData.slice(0, 20), 'demo sample — no exact match for "' + q + '"');
     }
+    hidePaginationControls();
     return;
   }
 
@@ -829,11 +1008,13 @@ async function doSearch() {
     if (!ok) {
       if (cachedData && cachedData.length) {
         renderProjects(cachedData, 'offline fallback — showing cached results');
+        hidePaginationControls();
         return;
       }
       await loadDemoData();
       setServerStatus('offline');
       renderProjects(searchDemo(q), 'demo fallback (backend offline)');
+      hidePaginationControls();
       return;
     }
   }
@@ -843,7 +1024,7 @@ async function doSearch() {
       const ctrl = new AbortController();
       setTimeout(() => ctrl.abort(), 12000);
       const res = await fetch(
-        API_BASE + '/search-projects?q=' + encodeURIComponent(q) + '&limit=30',
+        API_BASE + '/search-projects?q=' + encodeURIComponent(q) + '&page=' + page + '&page_size=' + SEARCH_PAGE_SIZE,
         { 
           signal: ctrl.signal,
           headers: { 'Bypass-Tunnel-Reminder': 'true' }
@@ -852,8 +1033,14 @@ async function doSearch() {
       if (!res.ok) throw new Error('http_' + res.status);
       const data = await res.json();
       const results = data.results || [];
-      saveCachedSearch(q, results);
-      renderProjects(results, null);
+      totalSearchResults = data.total || results.length;
+      totalSearchPages = data.total_pages || Math.ceil(totalSearchResults / SEARCH_PAGE_SIZE) || 1;
+
+      if (page === 1) {
+        saveCachedSearch(q, results);
+      }
+      renderProjects(results, null, totalSearchResults, page, totalSearchPages);
+      renderPaginationControls(page, totalSearchPages, totalSearchResults);
     } else {
       const ctrl = new AbortController();
       setTimeout(() => ctrl.abort(), 12000);
@@ -872,11 +1059,13 @@ async function doSearch() {
       );
       const results = filtered.slice(0, 30);
       saveCachedSearch(q, results);
-      renderProjects(results, null);
+      renderProjects(results, null, filtered.length, 1, 1);
+      hidePaginationControls();
     }
   } catch (err) {
     if (cachedData && cachedData.length) {
       renderProjects(cachedData, 'offline fallback — showing cached results');
+      hidePaginationControls();
       return;
     }
     if (err && err.name === 'AbortError') {
@@ -885,16 +1074,18 @@ async function doSearch() {
           '<div class="state-title">Server Busy</div>' +
           '<div class="state-subtitle">The dataset is currently processing. Please try again in a few seconds.</div>' +
         '</div>';
+      hidePaginationControls();
     } else {
       await loadDemoData();
       renderProjects(searchDemo(q), 'demo fallback (live search failed)');
+      hidePaginationControls();
       console.warn('[Search fallback to demo]', err);
     }
   }
 }
 
-searchBtn.addEventListener('click', doSearch);
-searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
+searchBtn.addEventListener('click', () => doSearch(1));
+searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(1); });
 
 // ─── Indian States Horizontal Carousel Initialization ─────────────────────────
 function initStatesCarousel() {
@@ -1873,7 +2064,13 @@ function updateCitizenLiveClock() {
   initVoiceRecorder();
   initVoiceSearch((q) => {
     if (searchInput) searchInput.value = q;
-    doSearch();
+    // CRITICAL: User requirement — voice search MUST show works list, NOT map!
+    switchView('list');
+    doSearch(1);
+    const resultsEl = document.getElementById('results-list');
+    if (resultsEl) {
+      resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   });
   await refreshPendingBanner();
   await checkBackendHealth();

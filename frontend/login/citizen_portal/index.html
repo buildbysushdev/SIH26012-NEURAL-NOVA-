@@ -402,6 +402,9 @@
         </div>
       </div>
     </div>
+
+    <!-- On-demand Pagination Controls (Loads page 2, 3... only when clicked) -->
+    <div id="pagination-container" class="pagination-container" style="display:none;" aria-label="Projects pagination"></div>
   </main>
 
   <!-- ─── SCREEN 2: Report Form ─── -->
@@ -1068,6 +1071,54 @@
 <!-- ─── Toast Notifications ─── -->
 <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
+<!-- ─── SATELLITE VERIFICATION PROOF MODAL ─── -->
+<div id="modal-satellite-proof" class="modal-backdrop" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="sat-modal-title">
+  <div class="modal-box satellite-modal-box">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <span class="sat-header-icon" aria-hidden="true">🛰️</span>
+        <div>
+          <h3 id="sat-modal-title" class="modal-title">Satellite Physical Verification Proof</h3>
+          <p id="sat-modal-subtitle" class="modal-subtitle">Sentinel-2 &amp; Landsat AI Multispectral Inspection</p>
+        </div>
+      </div>
+      <button type="button" class="modal-close-btn" id="btn-close-satellite-modal" aria-label="Close modal">✕</button>
+    </div>
+    <div class="satellite-modal-body">
+      <div class="sat-img-frame">
+        <img id="sat-modal-image" src="" alt="Satellite Verification Imagery" class="sat-proof-img" />
+        <div class="sat-img-overlay">
+          <span class="sat-live-pill">● SENTINEL-2 SPECTRAL TILE</span>
+        </div>
+      </div>
+      <div class="sat-meta-grid">
+        <div class="sat-meta-item">
+          <span class="sat-meta-label">Work ID</span>
+          <span class="sat-meta-val" id="sat-modal-workid">–</span>
+        </div>
+        <div class="sat-meta-item">
+          <span class="sat-meta-label">Coordinates</span>
+          <span class="sat-meta-val" id="sat-modal-coords">–</span>
+        </div>
+        <div class="sat-meta-item">
+          <span class="sat-meta-label">Precision Tier</span>
+          <span class="sat-meta-val" id="sat-modal-tier">–</span>
+        </div>
+        <div class="sat-meta-item">
+          <span class="sat-meta-label">SegFormer Status</span>
+          <span class="sat-meta-val" id="sat-modal-status">–</span>
+        </div>
+      </div>
+      <div class="sat-info-banner">
+        <span class="sat-info-icon">ℹ️</span>
+        <p class="sat-explanation" id="sat-modal-desc">
+          Official satellite verification conducted via Copernicus Sentinel-2 / Landsat optical sensors. Cross-referenced with local MPLADS site coordinates by Team Neural Nova's SegFormer land-cover deep learning detector.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ─── Bottom Navigation Bar ─── -->
 <nav class="bottom-nav" aria-label="Portal navigation">
   <button type="button" class="bottom-nav-tab active" data-nav="lookup">
@@ -1088,7 +1139,7 @@
 <script src="./demo_data.js"></script>
 <script src="./db.js"></script>
 <script src="./voice_recorder.js"></script>
-<script src="./app.js"></script>
+<script src="./app.js?v=2.1"></script>
 <script>
   (function initClock() {
     function tick() {

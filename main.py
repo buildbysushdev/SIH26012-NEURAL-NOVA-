@@ -24,12 +24,14 @@ try:
 except ImportError:
     pass
 
+import math
 import pandas as pd
 import numpy as np
 from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query, status, Depends
+from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 
 # --- Module imports ---
@@ -351,14 +353,15 @@ def explain_project_endpoint(work_id: str = Query(..., description="MPLADS work_
 def search_projects(
     q: Optional[str] = Query(default=None, description="Search term: constituency, district, or keyword"),
     query: Optional[str] = Query(default=None, description="Alias for q"),
-    limit: int = Query(default=20, ge=1, le=50),
+    page: int = Query(default=1, ge=1, description="Page number for pagination (1-indexed)"),
+    page_size: int = Query(default=20, ge=1, le=100, description="Items per page"),
+    limit: Optional[int] = Query(default=None, ge=1, le=100, description="Deprecated alias for page_size"),
 ):
     """
-    Lightweight text search across all 77K MPLADS works.
-    Matches against constituency and work_description columns (case-insensitive).
-    Used by the citizen reporting portal so citizens can find any project,
-    not only the pre-flagged cost-outlier subset.
-    Returns a safe subset of columns — no internal scoring details.
+    Lightweight, paginated text search across all 77K MPLADS works.
+    Matches against constituency, work_description, state, district, ida (case-insensitive).
+    Used by citizen and officer portals for high-speed on-demand browsing.
+    Returns safe subset of columns including satellite indicators.
     """
     if _df is None:
         raise HTTPException(status_code=503, detail="Dataset not loaded yet.")
@@ -388,7 +391,13 @@ def search_projects(
     if "ida" in _df.columns:
         mask = mask | _df["ida"].astype(str).str.lower().str.contains(term, na=False, regex=False)
 
-    result = _df[mask].head(limit)
+    total = int(mask.sum())
+    effective_size = limit if limit is not None else page_size
+    total_pages = max(1, math.ceil(total / effective_size))
+    start_idx = (page - 1) * effective_size
+    end_idx = start_idx + effective_size
+
+    result = _df[mask].iloc[start_idx:end_idx]
 
     cols = [
         "work_id", "state", "constituency", "district", "mp_name",
@@ -400,10 +409,62 @@ def search_projects(
         "locality_name",                    # extracted village/panchayat name (or None)
         "location_precision",               # 'precise'|'locality'|'district'|'unavailable'
         "coord_precision",                  # backward-compatible alias for location_precision
+        # Satellite indicators
+        "satellite_status", "satellite_risk_score",
     ]
     cols = [c for c in cols if c in result.columns]
     records = result[cols].where(pd.notnull(result[cols]), None).to_dict(orient="records")
-    return {"results": [_sanitize(r) for r in records], "total": int(mask.sum())}
+    return {
+        "results": [_sanitize(r) for r in records],
+        "total": total,
+        "page": page,
+        "page_size": effective_size,
+        "total_pages": total_pages,
+    }
+
+
+@app.get("/project-satellite-image", tags=["Projects"])
+def get_project_satellite_image(
+    work_id: Optional[str] = Query(default=None, description="Work ID of project"),
+    lat: Optional[float] = Query(default=None, description="Latitude"),
+    lng: Optional[float] = Query(default=None, description="Longitude"),
+    district: Optional[str] = Query(default=None, description="District / Constituency"),
+    state: Optional[str] = Query(default=None, description="State"),
+):
+    """
+    Returns visual Sentinel-2 / Landsat multispectral satellite inspection tile
+    with coordinate crosshairs, resolution scale, and structure detection stamp.
+    """
+    from satellite_check import generate_satellite_thumbnail
+
+    target_lat = lat
+    target_lng = lng
+    dist_name = district or "District"
+    st_name = state or "India"
+    sat_status = "visible"
+
+    if _df is not None and work_id:
+        match = _df[_df["work_id"] == work_id]
+        if not match.empty:
+            row = match.iloc[0]
+            dist_name = str(row.get("constituency") or row.get("district") or dist_name)
+            st_name = str(row.get("state") or st_name)
+            sat_status = str(row.get("satellite_status") or "visible")
+            if target_lat is None and pd.notnull(row.get("resolved_lat")):
+                target_lat = float(row["resolved_lat"])
+            if target_lng is None and pd.notnull(row.get("resolved_lng")):
+                target_lng = float(row["resolved_lng"])
+
+    coords = (target_lat, target_lng) if (target_lat is not None and target_lng is not None) else None
+    buf = generate_satellite_thumbnail(
+        district=dist_name,
+        state=st_name,
+        status=sat_status,
+        coordinates=coords,
+        width=540,
+        height=220
+    )
+    return Response(content=buf.getvalue(), media_type="image/png")
 
 
 # --- Interactive Citizen Assistance Chatbot (Sahayak) ---

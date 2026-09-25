@@ -8,7 +8,7 @@
  *  - Report Submissions (/citizen-report): Handled via IndexedDB queue and background sync
  */
 
-const CACHE_VERSION = 'mplad-v8';
+const CACHE_VERSION = 'mplad-v9';
 const API_CACHE     = 'mplad-api-v1';
 const DB_NAME       = 'mplad-citizen-portal';
 const STORE         = 'pending-reports';

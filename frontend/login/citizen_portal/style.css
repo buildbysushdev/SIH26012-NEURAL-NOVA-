@@ -2388,5 +2388,258 @@ textarea:focus-visible {
   }
 }
 
+/* ─── High-Speed On-Demand Server Pagination Controls ─── */
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 24px 0 32px 0;
+  width: 100%;
+}
+
+.pagination-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  background: #ffffff;
+  padding: 14px 20px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  max-width: 100%;
+}
+
+.pagination-info {
+  font-size: 0.875rem;
+  color: #475569;
+}
+.pagination-info strong {
+  color: #0f172a;
+}
+
+.pagination-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.pg-btn {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #1e293b;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.pg-btn:hover:not(.disabled) {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+.pg-btn.disabled,
+.pg-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.pg-btn.active {
+  background: #003366;
+  border-color: #003366;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 51, 102, 0.25);
+}
+.pg-ellipsis {
+  color: #94a3b8;
+  padding: 0 4px;
+  font-weight: 700;
+}
+
+.page-indicator-pill {
+  display: inline-block;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-left: 6px;
+}
+
+/* ─── Satellite Intelligence Strip on Project Cards ─── */
+.project-satellite-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 12px 0 8px 0;
+  flex-wrap: wrap;
+}
+.sat-strip-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sat-strip-icon {
+  font-size: 1.35rem;
+}
+.sat-strip-text {
+  display: flex;
+  flex-direction: column;
+}
+.sat-strip-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+.sat-strip-coords {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-family: ui-monospace, monospace;
+}
+.sat-strip-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.sat-badge-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  letter-spacing: 0.02em;
+}
+.sat-badge-tag.sat-flag-ok {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+.sat-badge-tag.sat-flag-alert {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+.btn-inspect-satellite {
+  background: #ffffff;
+  border: 1px solid #003366;
+  color: #003366;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.btn-inspect-satellite:hover {
+  background: #003366;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 51, 102, 0.2);
+}
+
+/* ─── Satellite Proof Modal ─── */
+.satellite-modal-box {
+  max-width: 640px !important;
+  width: 92%;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  border: 1px solid #cbd5e1;
+}
+.sat-header-icon {
+  font-size: 1.6rem;
+}
+.sat-img-frame {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  background: #0f172a;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #334155;
+}
+.sat-proof-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.sat-img-overlay {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+}
+.sat-live-pill {
+  background: rgba(15, 23, 42, 0.85);
+  color: #38bdf8;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+.sat-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin: 16px 0;
+}
+.sat-meta-item {
+  background: #f8fafc;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sat-meta-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  color: #64748b;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.sat-meta-val {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+.sat-info-banner {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.sat-info-icon {
+  font-size: 1.1rem;
+}
+.sat-explanation {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #166534;
+  margin: 0;
+}
+
 
 
