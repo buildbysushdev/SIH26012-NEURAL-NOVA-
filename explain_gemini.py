@@ -138,10 +138,10 @@ def _get_client():
 
 # Preferred model names in priority order — tested working on Google AI Studio
 _MODEL_PREFERENCE = [
-    "gemini-flash-lite-latest",
-    "gemini-3.6-flash",
-    "gemini-3.5-flash-lite",
-    "gemini-flash-latest",
+    "gemini-2.0-flash-lite",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash-latest",
+    "gemini-1.5-flash",
 ]
 
 

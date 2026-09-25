@@ -15,6 +15,9 @@ Exact combined risk score formula (proven with 495 live data points, max error 0
 """
 import os
 import logging
+import asyncio
+import json
+import uuid
 from pathlib import Path
 
 # Load .env file at application startup
@@ -123,6 +126,7 @@ async def lifespan(app: FastAPI):
     df = citizen_reports.apply_citizen_risk_boost(df)
 
     print("Applying officer feedback adjustments...")
+    df["risk_score_before_feedback"] = df["risk_score"]
     df = feedback_loop.apply_feedback_adjustments(df)
 
     # --- Location enrichment: locality extraction + geocode cache lookup ---
@@ -265,6 +269,117 @@ def health():
     return {"status": "ok", "total_projects": total}
 
 
+@app.get("/overview", tags=["Status"])
+def overview():
+    """Dataset-derived operational summary used by all dashboard roles."""
+    if _df is None:
+        raise HTTPException(status_code=503, detail="Dataset not loaded yet.")
+    risk = pd.to_numeric(_df.get("risk_score", 0), errors="coerce").fillna(0)
+    sanctioned = pd.to_numeric(_df.get("sanction_amount", 0), errors="coerce").fillna(0)
+    disbursed_col = "total_fund_disbursed" if "total_fund_disbursed" in _df.columns else "amount_disbursed_completed"
+    disbursed = pd.to_numeric(_df.get(disbursed_col, 0), errors="coerce").fillna(0)
+    work_status = _df.get("work_status", pd.Series("", index=_df.index)).astype(str).str.lower()
+    report_count = int(pd.to_numeric(_df.get("citizen_report_count", 0), errors="coerce").fillna(0).sum())
+    return {
+        "total_works": int(len(_df)),
+        "total_states": int(_df["state"].nunique()),
+        "high_risk_projects": int((risk >= 60).sum()),
+        "critical_risk_projects": int((risk >= 80).sum()),
+        "average_risk_score": round(float(risk.mean()), 1),
+        "citizen_reports": report_count,
+        "total_sanctioned": round(float(sanctioned.sum()), 2),
+        "total_disbursed": round(float(disbursed.sum()), 2),
+        "fund_utilization": round(float(disbursed.sum() / sanctioned.sum() * 100), 1) if sanctioned.sum() else 0.0,
+        "completed_projects": int(work_status.str.contains("complete", na=False).sum()),
+        "delayed_projects": int(work_status.str.contains("delay", na=False).sum()),
+        "risk_distribution": {
+            "low": int((risk < 35).sum()),
+            "medium": int(((risk >= 35) & (risk < 60)).sum()),
+            "high": int(((risk >= 60) & (risk < 80)).sum()),
+            "critical": int((risk >= 80).sum()),
+        },
+    }
+
+
+
+@app.get("/state-risk", tags=["Projects"])
+def state_risk_summary():
+    """Real state-level project and risk aggregates for the national map."""
+    if _df is None:
+        raise HTTPException(status_code=503, detail="Dataset not loaded yet.")
+    rows = []
+    for state_name, group in _df.groupby("state", dropna=True):
+        risk = pd.to_numeric(group.get("risk_score", 0), errors="coerce").fillna(0)
+        sanctioned = pd.to_numeric(group.get("sanction_amount", 0), errors="coerce").fillna(0)
+        disbursed_col = "total_fund_disbursed" if "total_fund_disbursed" in group.columns else "amount_disbursed_completed"
+        disbursed = pd.to_numeric(group.get(disbursed_col, 0), errors="coerce").fillna(0)
+        high = int(((risk >= 60) & (risk < 80)).sum())
+        critical = int((risk >= 80).sum())
+        avg = float(risk.mean())
+        rows.append({
+            "state": str(state_name), "total_projects": int(len(group)),
+            "high_risk": high, "critical": critical, "alerts": high + critical,
+            "fund_utilization": round(float(disbursed.sum() / sanctioned.sum() * 100), 1) if sanctioned.sum() else 0.0,
+            "risk_level": "Critical" if avg >= 80 else "High" if avg >= 60 else "Medium" if avg >= 35 else "Low",
+        })
+    return rows
+
+def _require_national_admin(officer: dict = Depends(auth_jwt.get_current_officer)) -> dict:
+    if str(officer.get("role", "")).lower() not in {"national_admin", "superadmin"}:
+        raise HTTPException(status_code=403, detail="National administrator access required.")
+    return officer
+
+
+@app.get("/api/officers", tags=["Administration"])
+def officer_directory(admin: dict = Depends(_require_national_admin)):
+    """Return the real server-configured officer directory without credentials."""
+    feedback = feedback_loop.get_all_feedback()
+    rows = []
+    for profile in auth_jwt.list_officer_profiles():
+        scoped = auth_jwt.apply_jurisdiction_scoping(_df, {
+            "role": profile["role"], "district": profile["district"],
+            "state": profile["state"], "constituency": profile["constituency"],
+        }) if _df is not None else []
+        handled = int((feedback.get("officer_id", pd.Series(dtype=str)).astype(str) == profile["officer_id"]).sum()) if not feedback.empty else 0
+        rows.append({**profile, "projects_assigned": len(scoped), "alerts_handled": handled})
+    return rows
+
+
+@app.patch("/api/officers/{officer_id}", tags=["Administration"])
+def update_officer_status(
+    officer_id: str,
+    account_status: str = Query(..., pattern="^(Active|Inactive)$"),
+    admin: dict = Depends(_require_national_admin),
+):
+    if officer_id not in {item["officer_id"] for item in auth_jwt.list_officer_profiles()}:
+        raise HTTPException(status_code=404, detail="Officer account not found.")
+    if officer_id == str(admin.get("sub")) and account_status == "Inactive":
+        raise HTTPException(status_code=400, detail="You cannot deactivate your own active session.")
+    auth_jwt.set_officer_active(officer_id, account_status == "Active")
+    return next(item for item in auth_jwt.list_officer_profiles() if item["officer_id"] == officer_id)
+
+
+@app.get("/api/audit-logs", tags=["Administration"])
+def audit_logs(limit: int = Query(100, ge=1, le=500), admin: dict = Depends(_require_national_admin)):
+    """Return persisted compliance and feedback actions; no generated events."""
+    events = []
+    audit_path = os.path.join(_SCRIPT_DIR, "compliance_alerts_audit.csv")
+    try:
+        for _, row in pd.read_csv(audit_path).iterrows():
+            events.append({"id": str(row.get("alert_id", "")), "actor": str(row.get("officer_id", "")),
+                "actor_role": "Officer", "action": str(row.get("action", "")).replace("_", " ").title(),
+                "target": str(row.get("project_id", "")), "timestamp": str(row.get("timestamp", "")), "ip_address": ""})
+    except Exception:
+        pass
+    feedback = feedback_loop.get_all_feedback()
+    if not feedback.empty:
+        for _, row in feedback.iterrows():
+            events.append({"id": str(row.get("feedback_id", "")), "actor": str(row.get("officer_id", "")),
+                "actor_role": "Officer", "action": "Citizen Report Reviewed",
+                "target": str(row.get("work_id", "")), "timestamp": str(row.get("timestamp", "")), "ip_address": ""})
+    events.sort(key=lambda item: item["timestamp"], reverse=True)
+    return events[:limit]
+
 
 @app.get("/flagged-projects", tags=["Projects"])
 def flagged_projects(
@@ -335,11 +450,9 @@ def project_detail(work_id: str = Query(..., description="MPLADS work_id (may co
     row = _df[mask].iloc[0]
     project = _sanitize(row.where(pd.notnull(row), None).to_dict())
 
-    # Generate explanation (Gemini or template fallback)
-    try:
-        project["explanation"] = explain_flagged_project(project)
-    except Exception:
-        project["explanation"] = None
+    # Keep the core detail route deterministic and fast. AI prose is available
+    # through POST /explain and must never block opening a project record.
+    project["explanation"] = None
 
     return {"project": project}
 
@@ -349,7 +462,7 @@ def project_detail(work_id: str = Query(..., description="MPLADS work_id (may co
 
 
 @app.post("/explain", tags=["Projects"])
-def explain_project_endpoint(work_id: str = Query(..., description="MPLADS work_id (may contain slashes)")):
+async def explain_project_endpoint(work_id: str = Query(..., description="MPLADS work_id (may contain slashes)")):
     """
     Returns plain-language AI explanation for a flagged project.
     Uses Gemini API if configured, otherwise robust template fallback.
@@ -366,7 +479,9 @@ def explain_project_endpoint(work_id: str = Query(..., description="MPLADS work_
     project = _sanitize(row.where(pd.notnull(row), None).to_dict())
 
     try:
-        explanation = explain_flagged_project(project)
+        explanation = await asyncio.wait_for(
+            asyncio.to_thread(explain_flagged_project, project), timeout=6.0
+        )
     except Exception:
         explanation = f"Flagged for audit review based on combined risk score {project.get('risk_score')}."
 
@@ -461,8 +576,8 @@ def get_project_satellite_image(
     precision: Optional[str] = Query(default=None, description="Precision tier ('locality' or 'precise')"),
 ):
     """
-    Returns visual Sentinel-2 / Landsat multispectral satellite inspection tile
-    with coordinate crosshairs, resolution scale, and structure detection stamp.
+    Returns a reference-imagery tile or an explicit precision/availability notice.
+    This endpoint never represents Esri basemap imagery as Sentinel-2 analysis.
     """
     import importlib
     import satellite_check
@@ -511,10 +626,6 @@ def get_project_satellite_image(
                 except Exception:
                     pass
 
-    # If coordinates are explicitly provided and precision was not set, allow locality tier
-    if precision is None and target_lat is not None and target_lng is not None and prec == "district":
-        prec = "locality"
-
     # If coordinates are missing or precision is district-level/unavailable, enforce honest status
     if prec in ["district", "unavailable"] or target_lat is None or target_lng is None:
         sat_status = "location_precision_insufficient"
@@ -530,6 +641,84 @@ def get_project_satellite_image(
     )
     return Response(content=buf.getvalue(), media_type="image/png")
 
+
+
+_OFFICER_REPORTS_CSV = os.path.join(_SCRIPT_DIR, "officer_reports.csv")
+
+
+@app.get("/api/officer-reports", tags=["Administration"])
+def get_officer_reports(officer: dict = Depends(auth_jwt.get_current_officer)):
+    if not os.path.exists(_OFFICER_REPORTS_CSV):
+        return []
+    try:
+        records = pd.read_csv(_OFFICER_REPORTS_CSV).fillna("").to_dict(orient="records")
+        for record in records:
+            record["summary"] = json.loads(record.get("summary_json") or "[]")
+            record["rows"] = json.loads(record.get("rows_json") or "[]")
+            record.pop("summary_json", None); record.pop("rows_json", None)
+        if str(officer.get("role")) not in {"national_admin", "superadmin"}:
+            records = [record for record in records if record.get("officer_id") == officer.get("sub")]
+        return records
+    except Exception:
+        raise HTTPException(status_code=500, detail="Stored reports could not be read.")
+
+
+@app.post("/api/officer-reports", status_code=201, tags=["Administration"])
+def submit_officer_report(payload: dict, officer: dict = Depends(auth_jwt.get_current_officer)):
+    record = {
+        "id": f"REP-{uuid.uuid4().hex[:10].upper()}", "officer_id": str(officer.get("sub")),
+        "officer_name": str(payload.get("officerName") or officer.get("sub")),
+        "officer_email": str(payload.get("officerEmail") or ""), "state": str(payload.get("state") or officer.get("state") or ""),
+        "district": str(payload.get("district") or officer.get("district") or ""), "report_type": str(payload.get("reportType") or "Risk Summary"),
+        "project_name": str(payload.get("projectName") or ""), "generated_date": pd.Timestamp.utcnow().isoformat(),
+        "summary_json": json.dumps(payload.get("summary") or []), "rows_json": json.dumps(payload.get("rows") or []),
+    }
+    pd.DataFrame([record]).to_csv(_OFFICER_REPORTS_CSV, mode="a", header=not os.path.exists(_OFFICER_REPORTS_CSV), index=False)
+    return {**record, "summary": payload.get("summary") or [], "rows": payload.get("rows") or []}
+
+
+@app.post("/api/audit-chatbot", tags=["Administration"])
+async def audit_chatbot_endpoint(payload: dict, officer: dict = Depends(auth_jwt.get_current_officer)):
+    query = str(payload.get("query") or "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="Query cannot be empty.")
+    history = payload.get("history") or []
+    try:
+        response = await asyncio.wait_for(
+            asyncio.to_thread(explain_gemini.answer_citizen_query, query, history), timeout=10.0
+        )
+        if isinstance(response, dict):
+            # answer_citizen_query returns {status, message, helpline}
+            # extract the meaningful text for the officer/admin copilot
+            status = response.get("status", "success")
+            message = response.get("message") or response.get("reply") or response.get("response") or ""
+            if status == "out_of_context":
+                # Re-frame for officer/admin context (not citizen-facing)
+                reply = (
+                    "\u26a0\ufe0f **Advisory Scope Notice**: Your query appears to be outside the MPLADS "
+                    "audit and risk intelligence domain. As an officer/admin copilot, I can assist with:\n"
+                    "- Project risk analysis (cost anomalies, NLP duplicates)\n"
+                    "- DISHA 6-point statutory inspection guidance\n"
+                    "- Fund utilization audit advisory\n"
+                    "- Grievance pattern analysis\n\n"
+                    "Please rephrase your question around MPLADS works, risk scores, or audit procedures."
+                )
+            elif message:
+                reply = message
+            else:
+                reply = str(response)
+        else:
+            reply = str(response)
+        if not reply or not reply.strip():
+            reply = "The AI advisory returned an empty response. Please try rephrasing your question with specific MPLADS context (e.g., 'analyze cost anomalies in road works' or 'explain DISHA checklist')."
+        return {"reply": reply, "model": "gemini-advisory"}
+    except asyncio.TimeoutError:
+        score_context = f" The registry contains {len(_df):,} sanctioned works." if _df is not None else ""
+        return {"reply": f"The AI advisory took too long to respond.{score_context} Please retry or consult the risk score dashboard directly.", "model": "timeout-fallback"}
+    except Exception as exc:
+        logger.warning(f"audit_chatbot_endpoint error: {exc}")
+        score_context = f" The registry contains {len(_df):,} sanctioned works." if _df is not None else ""
+        return {"reply": "The AI advisory service is temporarily unavailable." + score_context + " Use the project risk signals and DISHA checklist for the review.", "model": "deterministic-fallback"}
 
 
 # --- Interactive Citizen Assistance Chatbot (Sahayak) ---
@@ -557,12 +746,21 @@ async def citizen_chatbot_endpoint(
     if not query:
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
 
-    return explain_gemini.answer_citizen_query(query, history=history)
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(explain_gemini.answer_citizen_query, query, history), timeout=6.0
+        )
+    except Exception:
+        return {"reply": "The assistant is temporarily unavailable. Project search and report submission remain available.", "model": "deterministic-fallback"}
 
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
+
+
+
+
 
 
 
