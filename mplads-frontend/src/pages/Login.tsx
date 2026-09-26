@@ -31,21 +31,30 @@ interface DemoPreset {
 const DEMO_PRESETS: DemoPreset[] = [
   {
     role: "officer",
+    id: "OFFICER-MH-01",
+    email: "officer-mh@mplads.gov.in",
+    name: "Dr. A. Patil, DISHA (Maharashtra)",
+    district: "PUNE, MAHARASHTRA",
+    password: "officer@SIH2026",
+    badgeLabel: "Maharashtra (OFFICER-MH-01)",
+  },
+  {
+    role: "officer",
+    id: "STATE-MH-NODAL",
+    email: "state-mh-nodal@mplads.gov.in",
+    name: "Maharashtra State Nodal Officer",
+    district: "MAHARASHTRA (STATEWIDE)",
+    password: "state@SIH2026",
+    badgeLabel: "MH Nodal (STATE-MH-NODAL)",
+  },
+  {
+    role: "officer",
     id: "OFFICER-DELHI-01",
     email: "officer1@mplads.ai",
     name: "R. Kulkarni, DISHA",
     district: "DELHI",
     password: "officer@SIH2026",
     badgeLabel: "Delhi (OFFICER-DELHI-01)",
-  },
-  {
-    role: "officer",
-    id: "OFFICER-MH-01",
-    email: "officer-mh@mplads.gov.in",
-    name: "Pune District Officer",
-    district: "PUNE",
-    password: "officer@SIH2026",
-    badgeLabel: "Maharashtra (OFFICER-MH-01)",
   },
   {
     role: "officer",
@@ -82,9 +91,9 @@ export default function Login() {
   const { showToast } = useToast();
 
   const [role, setRole] = useState<RoleType>("officer");
-  const [badgeId, setBadgeId] = useState("OFFICER-DELHI-01");
+  const [badgeId, setBadgeId] = useState("OFFICER-MH-01");
   const [password, setPassword] = useState("officer@SIH2026");
-  const [selectedDistrict, setSelectedDistrict] = useState("DELHI");
+  const [selectedDistrict, setSelectedDistrict] = useState("PUNE, MAHARASHTRA");
   const [showPassword, setShowPassword] = useState(false);
 
   // Captcha state (default 8FK92 like in screenshot)
@@ -117,9 +126,9 @@ export default function Login() {
     setRole(newRole);
     setErrors({});
     if (newRole === "officer") {
-      setBadgeId("OFFICER-DELHI-01");
+      setBadgeId("OFFICER-MH-01");
       setPassword("officer@SIH2026");
-      setSelectedDistrict("DELHI");
+      setSelectedDistrict("PUNE, MAHARASHTRA");
     } else {
       setBadgeId("ADMIN-NEURAL-NOVA");
       setPassword("admin@SIH2026");

@@ -2230,6 +2230,238 @@ async function loadShowcaseProjects(state = 'ALL') {
   }
 }
 
+// ─── Interactive Citizen Chatbot (Sahayak AI) ─────────────────────────────────
+function initCitizenChatbot() {
+  const btnOpen = document.getElementById('btn-open-chatbot');
+  const btnClose = document.getElementById('btn-close-chatbot');
+  const chatWindow = document.getElementById('citizen-chat-window');
+  const chatForm = document.getElementById('chat-form');
+  const chatInput = document.getElementById('chat-input');
+  const messagesContainer = document.getElementById('chat-messages-container');
+  const promptPills = document.querySelectorAll('.chat-prompt-pill');
+
+  if (!btnOpen || !chatWindow || !chatForm || !chatInput || !messagesContainer) return;
+
+  const chatHistory = [];
+
+  function toggleChat(show) {
+    chatWindow.style.display = show ? 'flex' : 'none';
+    if (show) {
+      chatInput.focus();
+    }
+  }
+
+  // Make citizen chatbot button draggable anywhere on screen edges with persistence
+  let isDraggingBtn = false;
+  let dragMoved = false;
+  let startX, startY, initX, initY;
+
+  // Restore saved positions if present
+  try {
+    const savedBtn = localStorage.getItem('citizen_chatbot_btn_pos');
+    if (savedBtn) {
+      const p = JSON.parse(savedBtn);
+      if (typeof p.x === 'number' && typeof p.y === 'number') {
+        btnOpen.style.position = 'fixed';
+        btnOpen.style.left = `${Math.max(8, Math.min(window.innerWidth - 180, p.x))}px`;
+        btnOpen.style.top = `${Math.max(8, Math.min(window.innerHeight - 60, p.y))}px`;
+        btnOpen.style.right = 'auto';
+        btnOpen.style.bottom = 'auto';
+      }
+    }
+  } catch (_) {}
+
+  btnOpen.addEventListener('pointerdown', (e) => {
+    isDraggingBtn = true;
+    dragMoved = false;
+    startX = e.clientX;
+    startY = e.clientY;
+    const rect = btnOpen.getBoundingClientRect();
+    initX = rect.left;
+    initY = rect.top;
+    btnOpen.setPointerCapture(e.pointerId);
+  });
+
+  btnOpen.addEventListener('pointermove', (e) => {
+    if (!isDraggingBtn) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+      dragMoved = true;
+    }
+    const w = btnOpen.offsetWidth || 160;
+    const h = btnOpen.offsetHeight || 44;
+    const newX = Math.max(8, Math.min(window.innerWidth - w - 8, initX + dx));
+    const newY = Math.max(8, Math.min(window.innerHeight - h - 8, initY + dy));
+    btnOpen.style.position = 'fixed';
+    btnOpen.style.left = `${newX}px`;
+    btnOpen.style.top = `${newY}px`;
+    btnOpen.style.right = 'auto';
+    btnOpen.style.bottom = 'auto';
+  });
+
+  btnOpen.addEventListener('pointerup', (e) => {
+    if (!isDraggingBtn) return;
+    isDraggingBtn = false;
+    btnOpen.releasePointerCapture(e.pointerId);
+    if (dragMoved) {
+      const rect = btnOpen.getBoundingClientRect();
+      let finalX = rect.left;
+      let finalY = rect.top;
+      const w = btnOpen.offsetWidth || 160;
+      const h = btnOpen.offsetHeight || 44;
+      if (finalX < 28) finalX = 8;
+      else if (finalX > window.innerWidth - w - 28) finalX = window.innerWidth - w - 8;
+      if (finalY < 28) finalY = 8;
+      else if (finalY > window.innerHeight - h - 28) finalY = window.innerHeight - h - 8;
+      btnOpen.style.left = `${finalX}px`;
+      btnOpen.style.top = `${finalY}px`;
+      try {
+        localStorage.setItem('citizen_chatbot_btn_pos', JSON.stringify({ x: finalX, y: finalY }));
+      } catch (_) {}
+    }
+  });
+
+  btnOpen.addEventListener('click', (e) => {
+    if (dragMoved) {
+      dragMoved = false;
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    const isVisible = chatWindow.style.display === 'flex';
+    toggleChat(!isVisible);
+  });
+
+  // Make chat header draggable to move chat window anywhere
+  const chatHeader = chatWindow.querySelector('.chat-header');
+  if (chatHeader) {
+    let isDraggingWin = false;
+    let winStartX, winStartY, winInitX, winInitY;
+    chatHeader.style.cursor = 'grab';
+    chatHeader.title = 'Drag to reposition chat window';
+
+    try {
+      const savedWin = localStorage.getItem('citizen_chatbot_win_pos');
+      if (savedWin) {
+        const wp = JSON.parse(savedWin);
+        if (typeof wp.x === 'number' && typeof wp.y === 'number') {
+          chatWindow.style.position = 'fixed';
+          chatWindow.style.left = `${Math.max(8, Math.min(window.innerWidth - 380, wp.x))}px`;
+          chatWindow.style.top = `${Math.max(8, Math.min(window.innerHeight - 200, wp.y))}px`;
+          chatWindow.style.right = 'auto';
+          chatWindow.style.bottom = 'auto';
+        }
+      }
+    } catch (_) {}
+
+    chatHeader.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('button')) return;
+      isDraggingWin = true;
+      winStartX = e.clientX;
+      winStartY = e.clientY;
+      const rect = chatWindow.getBoundingClientRect();
+      winInitX = rect.left;
+      winInitY = rect.top;
+      chatHeader.setPointerCapture(e.pointerId);
+    });
+
+    chatHeader.addEventListener('pointermove', (e) => {
+      if (!isDraggingWin) return;
+      const dx = e.clientX - winStartX;
+      const dy = e.clientY - winStartY;
+      const newX = Math.max(8, Math.min(window.innerWidth - 360, winInitX + dx));
+      const newY = Math.max(8, Math.min(window.innerHeight - 200, winInitY + dy));
+      chatWindow.style.position = 'fixed';
+      chatWindow.style.left = `${newX}px`;
+      chatWindow.style.top = `${newY}px`;
+      chatWindow.style.right = 'auto';
+      chatWindow.style.bottom = 'auto';
+    });
+
+    chatHeader.addEventListener('pointerup', (e) => {
+      isDraggingWin = false;
+      chatHeader.releasePointerCapture(e.pointerId);
+      const rect = chatWindow.getBoundingClientRect();
+      try {
+        localStorage.setItem('citizen_chatbot_win_pos', JSON.stringify({ x: rect.left, y: rect.top }));
+      } catch (_) {}
+    });
+  }
+
+  if (btnClose) {
+    btnClose.addEventListener('click', () => toggleChat(false));
+  }
+
+  promptPills.forEach((pill) => {
+    pill.addEventListener('click', () => {
+      const q = pill.dataset.query;
+      if (q) {
+        sendMessage(q);
+      }
+    });
+  });
+
+  function appendMessage(sender, text) {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = sender === 'user' ? 'chat-msg chat-msg-user' : 'chat-msg chat-msg-bot';
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble';
+    bubble.innerHTML = esc(text).replace(/\n/g, '<br />');
+    msgDiv.appendChild(bubble);
+    messagesContainer.appendChild(msgDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    return bubble;
+  }
+
+  async function sendMessage(text) {
+    const query = text.trim();
+    if (!query) return;
+
+    chatInput.value = '';
+    appendMessage('user', query);
+
+    const typingBubble = appendMessage('bot', 'Thinking...');
+    typingBubble.style.opacity = '0.7';
+
+    try {
+      const res = await fetch(`${API_BASE}/api/citizen-chatbot`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Bypass-Tunnel-Reminder': 'true'
+        },
+        body: JSON.stringify({
+          query: query,
+          history: chatHistory.slice(-6)
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const reply = data.message || data.response || data.reply || 'Thank you for reaching out. Please contact the district vigilance officer for specific grievances.';
+        typingBubble.innerHTML = esc(reply).replace(/\n/g, '<br />');
+        typingBubble.style.opacity = '1';
+        chatHistory.push({ role: 'user', content: query });
+        chatHistory.push({ role: 'assistant', content: reply });
+      } else {
+        typingBubble.innerHTML = 'Sorry, the assistant is currently experiencing high load. You can reach the MoSPI MPLADS Citizen Helpline at 1800-11-2026.';
+        typingBubble.style.opacity = '1';
+      }
+    } catch (err) {
+      console.warn('Chatbot error:', err);
+      typingBubble.innerHTML = 'Unable to reach assistant. Please verify your internet connection or try again shortly.';
+      typingBubble.style.opacity = '1';
+    }
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+
+  chatForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    sendMessage(chatInput.value);
+  });
+}
+
 // ─── Startup ──────────────────────────────────────────────────────────────────
 (async () => {
   updateCitizenLiveClock();
@@ -2253,4 +2485,5 @@ async function loadShowcaseProjects(state = 'ALL') {
   await refreshPendingBanner();
   await checkBackendHealth();
   await initVerifiedDemoShowcase();
+  initCitizenChatbot();
 })();

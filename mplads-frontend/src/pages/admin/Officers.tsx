@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Search as SearchIcon, ShieldCheck, ShieldOff, Building2 } from "lucide-react";
+import { Search as SearchIcon, ShieldCheck, ShieldOff, Building2, UserPlus } from "lucide-react";
 import Card from "../../components/ui/Card";
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
@@ -23,10 +23,14 @@ export default function Officers() {
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
+    badgeId: "",
     name: "",
     email: "",
+    password: "officer@SIH2026",
+    role: "district_officer",
     title: "District Monitoring Officer",
     state: "",
+    district: "",
     jurisdiction: "",
   });
 
@@ -62,29 +66,53 @@ export default function Officers() {
   }
 
   async function handleAddOfficer() {
-    if (!form.name.trim() || !form.email.trim()) {
-      showToast("Please provide full name and official email.", "error");
+    if (!form.name.trim()) {
+      showToast("Please provide the officer's full name.", "error");
       return;
     }
-    // Section 1F: state assignment is STRICTLY REQUIRED
     if (!form.state) {
-      showToast("Selecting an assigned state is strictly required for every officer.", "error");
+      showToast("Selecting an assigned state is strictly required.", "error");
       return;
     }
 
+    const statePrefix = form.state.slice(0, 2).toUpperCase();
+    const distClean = form.district && form.district !== "ALL" ? form.district : "MONITOR";
+    const distPrefix = distClean.replace(/[^A-Za-z0-9]/g, "").slice(0, 6).toUpperCase();
+    const finalBadgeId = form.badgeId.trim().toUpperCase() || `OFFICER-${statePrefix}-${distPrefix}-${Math.floor(10 + Math.random() * 90)}`;
+    const finalEmail = form.email.trim() || `${finalBadgeId.toLowerCase()}@mplads.gov.in`;
+
     setSaving(true);
-    const newOfficer = await addOfficer({
-      name: form.name.trim(),
-      email: form.email.trim(),
-      title: form.title,
-      jurisdiction: form.jurisdiction.trim() || `${form.state} (Statewide)`,
-      state: form.state,
-    });
-    setSaving(false);
-    setAddOpen(false);
-    setForm({ name: "", email: "", title: "District Monitoring Officer", state: "", jurisdiction: "" });
-    setOfficers((prev) => (prev ? [newOfficer, ...prev] : [newOfficer]));
-    showToast(`Officer account created for ${newOfficer.name} (Assigned State: ${newOfficer.state}).`, "success");
+    try {
+      const newOfficer = await addOfficer({
+        officerId: finalBadgeId,
+        name: form.name.trim(),
+        email: finalEmail,
+        password: form.password.trim() || "officer@SIH2026",
+        title: form.title,
+        role: form.role,
+        district: form.district || "ALL",
+        jurisdiction: form.district && form.district !== "ALL" ? `${form.district}, ${form.state}` : `${form.state} (Statewide)`,
+        state: form.state,
+      });
+      setOfficers((prev) => (prev ? [newOfficer, ...prev] : [newOfficer]));
+      showToast(`Officer created successfully! Login ID: ${newOfficer.id}`, "success");
+      setAddOpen(false);
+      setForm({
+        badgeId: "",
+        name: "",
+        email: "",
+        password: "officer@SIH2026",
+        role: "district_officer",
+        title: "District Monitoring Officer",
+        state: "",
+        district: "",
+        jurisdiction: "",
+      });
+    } catch (err: any) {
+      showToast(err.message || "Failed to create officer account.", "error");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -102,6 +130,13 @@ export default function Officers() {
             Manage authorized monitoring officers and their state-specific jurisdictional boundaries
           </p>
         </div>
+        <Button
+          onClick={() => setAddOpen(true)}
+          className="flex items-center gap-2 bg-[#0b2545] hover:bg-[#133966] text-white font-semibold text-xs px-3.5 py-2 rounded shadow-sm transition-all"
+        >
+          <UserPlus size={15} />
+          <span>+ Register Officer Account</span>
+        </Button>
       </div>
 
       {/* Filter Strip */}
@@ -201,73 +236,137 @@ export default function Officers() {
         )}
       </Card>
 
-      {/* Add Officer Modal (Enforces State Requirement) */}
-      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Register Monitoring Officer">
+      {/* Add Officer Modal (Dynamic State & District Selection) */}
+      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Register Monitoring Officer Account">
         <div className="space-y-4 text-xs">
           <p className="text-gray-500 dark:text-gray-400 -mt-2">
-            Every officer account requires an official state assignment which scopes all their dashboard views and access rights.
+            Provision a new authorized monitoring officer. State and District assignments strictly enforce statutory data scoping upon officer login.
           </p>
 
-          <Input
-            label="Full Name *"
-            value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            placeholder="e.g. S. Radhakrishnan"
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Full Officer Name *"
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="e.g. S. Radhakrishnan"
+            />
+            <Input
+              label="Officer ID / Badge Code"
+              value={form.badgeId}
+              onChange={(e) => setForm((f) => ({ ...f, badgeId: e.target.value }))}
+              placeholder="Auto-generated if blank (e.g. OFFICER-MH-PUNE-01)"
+            />
+          </div>
 
-          <Input
-            label="Official MoSPI / State Email *"
-            value={form.email}
-            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-            placeholder="officer@nic.in"
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Official MoSPI / State Email"
+              value={form.email}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              placeholder="e.g. officer@mplads.gov.in"
+            />
+            <Input
+              label="Login Password *"
+              value={form.password}
+              onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+              placeholder="Default: officer@SIH2026"
+            />
+          </div>
 
           <Select
             label="Role / Designation *"
-            options={["District Monitoring Officer", "State Nodal Officer"].map((t) => ({ value: t, label: t }))}
+            options={[
+              { value: "District Monitoring Officer", label: "District Monitoring Officer (District Scoped)" },
+              { value: "State Nodal Officer", label: "State Nodal Officer (Statewide Scoped)" },
+            ]}
             value={form.title}
-            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+            onChange={(e) =>
+              setForm((f) => ({
+                ...f,
+                title: e.target.value,
+                role: e.target.value.includes("State") ? "state_nodal" : "district_officer",
+              }))
+            }
           />
 
-          {/* REQUIRED STATE FIELD */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-              Assigned State * <span className="text-red-500 font-bold">(Mandatory)</span>
-            </label>
-            <select
-              value={form.state}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  state: e.target.value,
-                  jurisdiction: f.jurisdiction || (e.target.value ? `${e.target.value} (Statewide)` : ""),
-                }))
-              }
-              className="w-full rounded border border-gray-300 dark:border-navy-700 bg-white dark:bg-navy-900 px-3 py-2 text-xs font-medium text-gray-900 dark:text-gray-100 outline-none focus:border-[#0b2545] dark:focus:border-amber-400"
-            >
-              <option value="">-- Select Assigned State (Required) --</option>
-              {Object.keys(DISTRICTS_BY_STATE)
-                .sort()
-                .map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-            </select>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* REQUIRED STATE SELECTION */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                Assigned State * <span className="text-red-500 font-bold">(Mandatory)</span>
+              </label>
+              <select
+                value={form.state}
+                onChange={(e) => {
+                  const newState = e.target.value;
+                  const districts = DISTRICTS_BY_STATE[newState] || [];
+                  const firstDist = districts[0] || "ALL";
+                  setForm((f) => ({
+                    ...f,
+                    state: newState,
+                    district: f.role === "state_nodal" ? "ALL" : firstDist,
+                    jurisdiction: f.role === "state_nodal" ? `${newState} (Statewide)` : `${firstDist}, ${newState}`,
+                    badgeId: f.badgeId || (newState ? `OFFICER-${newState.slice(0, 2).toUpperCase()}-${firstDist.replace(/[^A-Za-z0-9]/g, "").slice(0, 6).toUpperCase()}-01` : ""),
+                  }));
+                }}
+                className="w-full rounded border border-gray-300 dark:border-navy-700 bg-white dark:bg-navy-900 px-3 py-2 text-xs font-medium text-gray-900 dark:text-gray-100 outline-none focus:border-[#0b2545] dark:focus:border-amber-400"
+              >
+                <option value="">-- Select Assigned State (Required) --</option>
+                {Object.keys(DISTRICTS_BY_STATE)
+                  .sort()
+                  .map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            {/* DYNAMIC DISTRICT SELECTION */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                Assigned District * {form.role === "state_nodal" && <span className="text-gray-400 font-normal">(Statewide)</span>}
+              </label>
+              <select
+                disabled={!form.state || form.role === "state_nodal"}
+                value={form.district}
+                onChange={(e) => {
+                  const newDist = e.target.value;
+                  setForm((f) => ({
+                    ...f,
+                    district: newDist,
+                    jurisdiction: newDist === "ALL" ? `${f.state} (Statewide)` : `${newDist}, ${f.state}`,
+                    badgeId: `OFFICER-${(f.state || "IN").slice(0, 2).toUpperCase()}-${newDist.replace(/[^A-Za-z0-9]/g, "").slice(0, 6).toUpperCase()}-01`,
+                  }));
+                }}
+                className="w-full rounded border border-gray-300 dark:border-navy-700 bg-white dark:bg-navy-900 px-3 py-2 text-xs font-medium text-gray-900 dark:text-gray-100 outline-none focus:border-[#0b2545] dark:focus:border-amber-400 disabled:opacity-60"
+              >
+                {form.role === "state_nodal" ? (
+                  <option value="ALL">ALL Districts (Statewide Jurisdiction)</option>
+                ) : (
+                  <>
+                    <option value="">-- Select Assigned District --</option>
+                    {(DISTRICTS_BY_STATE[form.state] || []).map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                    <option value="ALL">ALL / Other (Statewide)</option>
+                  </>
+                )}
+              </select>
+            </div>
           </div>
 
-          <Input
-            label="Jurisdiction / District Details"
-            value={form.jurisdiction}
-            onChange={(e) => setForm((f) => ({ ...f, jurisdiction: e.target.value }))}
-            placeholder="e.g. Pune, Maharashtra or Statewide"
-          />
+          <div className="p-2.5 rounded bg-blue-50 dark:bg-navy-800/60 border border-blue-100 dark:border-navy-700 text-blue-900 dark:text-blue-200">
+            <span className="font-semibold">Security Note:</span> The officer will only see MPLADS projects, financial benchmarks, and anomaly alerts corresponding to their assigned <strong>{form.district && form.district !== "ALL" ? `${form.district}, ${form.state}` : (form.state ? `${form.state} (Statewide)` : "jurisdiction")}</strong>.
+          </div>
 
           <div className="flex justify-end gap-2 pt-3 border-t border-gray-100 dark:border-navy-800">
             <Button variant="outline" onClick={() => setAddOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddOfficer} loading={saving}>
+            <Button onClick={handleAddOfficer} loading={saving} className="bg-[#0b2545] hover:bg-[#133966] text-white">
               Create Officer Account
             </Button>
           </div>

@@ -58,6 +58,8 @@ export interface Project {
   duplicateSimilarityScore?: number;
   satelliteStatus?: string;
   satelliteRiskScore?: number;
+  satellitePassDate?: string;
+  showcaseOrder?: number;
   citizenReportCount?: number;
   feedbackStatus?: "confirmed_issue" | "false_positive" | "reviewed" | null;
   aiExplanation?: string;

@@ -10,6 +10,7 @@ export interface AuthUser {
   title: string;
   jurisdiction?: string;
   assignedState?: string;
+  assignedDistrict?: string;
   avatar?: string;
 }
 
@@ -79,15 +80,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const id = String(profile.officer_id);
       const state = String(profile.state || "");
       const district = String(profile.district || "");
-      const assignedState = state && state !== "ALL" ? state : district && district !== "ALL" ? district : "";
+      const assignedState = state && state !== "ALL" ? state : district && district !== "ALL" ? district : "Maharashtra";
+      const assignedDistrict = district && district !== "ALL" ? district : undefined;
       const authUser: AuthUser = {
         id,
-        name: DISPLAY_NAMES[id] || id,
-        email: `${id.toLowerCase()}@mplads.gov.in`,
+        name: profile.name || DISPLAY_NAMES[id] || id,
+        email: profile.email || `${id.toLowerCase()}@mplads.gov.in`,
         role: isAdmin ? "super_admin" : "officer",
-        title: isAdmin ? "National Vigilance Administrator" : "MPLADS Monitoring Officer",
+        title: isAdmin ? "National Vigilance Administrator" : (profile.role === "state_nodal" ? "State Nodal Officer" : "MPLADS Monitoring Officer"),
         jurisdiction: district === "ALL" ? (state === "ALL" ? "All India" : state) : `${district}, ${state}`,
-        assignedState: assignedState ? assignedState.toLowerCase().replace(/\b\w/g, (m: string) => m.toUpperCase()) : undefined,
+        assignedState: assignedState ? assignedState.toLowerCase().replace(/\b\w/g, (m: string) => m.toUpperCase()) : "Maharashtra",
+        assignedDistrict: assignedDistrict ? assignedDistrict.toLowerCase().replace(/\b\w/g, (m: string) => m.toUpperCase()) : undefined,
       };
       localStorage.setItem(TOKEN_KEY, data.access_token);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(authUser));

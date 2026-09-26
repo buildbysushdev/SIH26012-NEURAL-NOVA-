@@ -24,6 +24,155 @@ export default function AuditAssistantChatbot({
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  const STORAGE_KEY_BTN = "mplads_copilot_btn_pos";
+  const STORAGE_KEY_WIN = "mplads_copilot_win_pos";
+
+  // Free-hanging position state for button
+  const [btnPos, setBtnPos] = useState<{ x: number; y: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ startX: number; startY: number; initX: number; initY: number; moved: boolean } | null>(null);
+  const isDragging = useRef(false);
+
+  // Free-hanging position state for open chat window
+  const [winPos, setWinPos] = useState<{ x: number; y: number } | null>(null);
+  const winDragRef = useRef<{ startX: number; startY: number; initX: number; initY: number } | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      let restoredBtn: { x: number; y: number } | null = null;
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY_BTN);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (typeof parsed.x === "number" && typeof parsed.y === "number") {
+            restoredBtn = {
+              x: Math.max(8, Math.min(window.innerWidth - 220, parsed.x)),
+              y: Math.max(8, Math.min(window.innerHeight - 60, parsed.y)),
+            };
+          }
+        }
+      } catch (_) {}
+
+      if (restoredBtn) {
+        setBtnPos(restoredBtn);
+      } else {
+        setBtnPos({
+          x: Math.max(16, window.innerWidth - 240),
+          y: Math.max(16, window.innerHeight - 80),
+        });
+      }
+
+      try {
+        const savedWin = localStorage.getItem(STORAGE_KEY_WIN);
+        if (savedWin) {
+          const parsed = JSON.parse(savedWin);
+          if (typeof parsed.x === "number" && typeof parsed.y === "number") {
+            setWinPos({
+              x: Math.max(8, Math.min(window.innerWidth - 380, parsed.x)),
+              y: Math.max(8, Math.min(window.innerHeight - 200, parsed.y)),
+            });
+          }
+        }
+      } catch (_) {}
+    }
+  }, []);
+
+  const handleBtnPointerDown = (e: React.PointerEvent) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    const curX = rect ? rect.left : (btnPos?.x ?? (window.innerWidth - 240));
+    const curY = rect ? rect.top : (btnPos?.y ?? (window.innerHeight - 80));
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initX: curX,
+      initY: curY,
+      moved: false,
+    };
+    isDragging.current = true;
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+
+  const handleBtnPointerMove = (e: React.PointerEvent) => {
+    if (!isDragging.current || !dragRef.current) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+      dragRef.current.moved = true;
+    }
+    const w = containerRef.current?.offsetWidth || 220;
+    const h = containerRef.current?.offsetHeight || 48;
+    const rawX = dragRef.current.initX + dx;
+    const rawY = dragRef.current.initY + dy;
+    const newX = Math.max(8, Math.min(window.innerWidth - w - 8, rawX));
+    const newY = Math.max(8, Math.min(window.innerHeight - h - 8, rawY));
+    setBtnPos({ x: newX, y: newY });
+  };
+
+  const handleBtnPointerUp = (e: React.PointerEvent) => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+
+    if (dragRef.current?.moved && btnPos) {
+      const w = containerRef.current?.offsetWidth || 220;
+      const h = containerRef.current?.offsetHeight || 48;
+      let finalX = btnPos.x;
+      let finalY = btnPos.y;
+
+      // Smart edge snapping if dragged near screen boundary (within 28px)
+      if (finalX < 28) finalX = 8;
+      else if (finalX > window.innerWidth - w - 28) finalX = window.innerWidth - w - 8;
+      if (finalY < 28) finalY = 8;
+      else if (finalY > window.innerHeight - h - 28) finalY = window.innerHeight - h - 8;
+
+      setBtnPos({ x: finalX, y: finalY });
+      try {
+        localStorage.setItem(STORAGE_KEY_BTN, JSON.stringify({ x: finalX, y: finalY }));
+      } catch (_) {}
+    }
+  };
+
+  const handleBtnClick = () => {
+    if (dragRef.current?.moved) {
+      dragRef.current.moved = false;
+      return;
+    }
+    setIsOpen((prev) => !prev);
+  };
+
+  const handleWinPointerDown = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest("button")) return;
+    const curX = winPos?.x ?? Math.max(12, window.innerWidth - 460);
+    const curY = winPos?.y ?? Math.max(12, window.innerHeight - 620);
+    winDragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initX: curX,
+      initY: curY,
+    };
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+
+  const handleWinPointerMove = (e: React.PointerEvent) => {
+    if (!winDragRef.current) return;
+    const dx = e.clientX - winDragRef.current.startX;
+    const dy = e.clientY - winDragRef.current.startY;
+    const newX = Math.max(8, Math.min(window.innerWidth - 380, winDragRef.current.initX + dx));
+    const newY = Math.max(8, Math.min(window.innerHeight - 200, winDragRef.current.initY + dy));
+    setWinPos({ x: newX, y: newY });
+  };
+
+  const handleWinPointerUp = (e: React.PointerEvent) => {
+    winDragRef.current = null;
+    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    if (winPos) {
+      try {
+        localStorage.setItem(STORAGE_KEY_WIN, JSON.stringify(winPos));
+      } catch (_) {}
+    }
+  };
+
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
       id: "welcome-1",
@@ -205,22 +354,35 @@ I can help you:
 
   return (
     <>
-      {/* ==================== Floating Trigger Button ==================== */}
-      <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2">
+      {/* ==================== Free-Hanging Draggable Trigger Button ==================== */}
+      <div
+        ref={containerRef}
+        style={
+          btnPos
+            ? { left: `${btnPos.x}px`, top: `${btnPos.y}px` }
+            : { right: "24px", bottom: "24px" }
+        }
+        className="fixed z-[70] flex items-center gap-2 select-none touch-none shadow-2xl transition-shadow"
+      >
         {!isOpen && (
-          <div className="hidden sm:flex items-center gap-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-md border border-gray-200 dark:border-gray-700 px-3 py-1.5 rounded-full text-xs font-medium animate-pulse">
+          <div className="hidden sm:flex items-center gap-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-md border border-gray-200 dark:border-gray-700 px-3 py-1.5 rounded-full text-xs font-medium animate-pulse pointer-events-none">
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
             <span>AI advisory service</span>
           </div>
         )}
-        <button
-          onClick={() => setIsOpen((prev) => !prev)}
+        <div
+          onPointerDown={handleBtnPointerDown}
+          onPointerMove={handleBtnPointerMove}
+          onPointerUp={handleBtnPointerUp}
+          onClick={handleBtnClick}
           aria-label="Toggle AI Audit Assistant"
-          className="relative group flex items-center gap-2.5 bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-3 sm:px-4 sm:py-3 rounded-full shadow-2xl hover:shadow-indigo-500/25 hover:scale-105 active:scale-95 transition-all duration-200 border border-indigo-400/30"
+          className="relative group flex items-center gap-2 bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-2.5 sm:px-3.5 sm:py-2.5 rounded-full shadow-2xl hover:shadow-indigo-500/25 hover:scale-105 active:scale-95 transition-all duration-150 border border-indigo-400/40 cursor-grab active:cursor-grabbing"
+          title="Drag anywhere along layout edges or screen to reposition"
         >
+          <span className="text-gray-400 group-hover:text-amber-300 text-xs px-0.5 font-bold" title="Drag Handle">⠿</span>
           <div className="relative">
             <svg
-              className="w-6 h-6 text-amber-400"
+              className="w-5 h-5 text-amber-400"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -234,23 +396,41 @@ I can help you:
               <circle cx="15" cy="13" r="1" fill="currentColor" />
               <path d="M9 17h6" />
             </svg>
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 border-2 border-indigo-900 rounded-full animate-ping"></span>
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 border-2 border-indigo-900 rounded-full"></span>
+            <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 border border-indigo-900 rounded-full animate-ping"></span>
+            <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 border border-indigo-900 rounded-full"></span>
           </div>
           <span className="hidden sm:inline font-semibold text-xs tracking-wide">
             {variant === "super_admin" ? "MoSPI AI Copilot" : "Audit AI Copilot"}
           </span>
-        </button>
+        </div>
       </div>
 
-      {/* ==================== Chat Window Modal / Drawer ==================== */}
+      {/* ==================== Free-Hanging Draggable Chat Window ==================== */}
       {isOpen && (
-        <div className="fixed bottom-20 right-4 sm:right-6 z-50 w-[94vw] sm:w-[440px] h-[580px] max-h-[82vh] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-200">
+        <div
+          style={
+            winPos
+              ? { left: `${winPos.x}px`, top: `${winPos.y}px` }
+              : btnPos
+              ? {
+                  left: `${Math.max(10, Math.min(window.innerWidth - 450, btnPos.x > window.innerWidth / 2 ? btnPos.x - 220 : btnPos.x))}px`,
+                  top: `${Math.max(10, Math.min(window.innerHeight - 600, btnPos.y > window.innerHeight / 2 ? btnPos.y - 590 : btnPos.y + 60))}px`,
+                }
+              : { right: "20px", bottom: "80px" }
+          }
+          className="fixed z-[70] w-[94vw] sm:w-[440px] h-[580px] max-h-[84vh] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-200"
+        >
           {/* Tricolor Accent Header Bar */}
           <div className="h-1.5 w-full bg-gradient-to-r from-orange-500 via-white to-green-600"></div>
 
-          {/* Header */}
-          <div className="px-4 py-3 bg-[#0f172a] text-white flex items-center justify-between border-b border-gray-800">
+          {/* Draggable Header */}
+          <div
+            onPointerDown={handleWinPointerDown}
+            onPointerMove={handleWinPointerMove}
+            onPointerUp={handleWinPointerUp}
+            className="px-4 py-3 bg-[#0f172a] text-white flex items-center justify-between border-b border-gray-800 cursor-grab active:cursor-grabbing select-none"
+            title="Drag header to move chat window"
+          >
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-indigo-600/30 border border-indigo-400/40 flex items-center justify-center text-amber-400">
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

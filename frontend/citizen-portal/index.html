@@ -1141,6 +1141,54 @@
   </div>
 </div>
 
+<!-- ─── FLOATING CITIZEN AI CHATBOT (SAHAYAK) ─── -->
+<div id="citizen-chatbot-widget" class="citizen-chatbot-widget">
+  <!-- Trigger Button -->
+  <button type="button" id="btn-open-chatbot" class="btn-open-chatbot" aria-label="Open Citizen Assistance AI Chatbot" title="Ask doubts about MPLADS &amp; Verification">
+    <span class="chatbot-icon">🤖</span>
+    <span class="chatbot-label">Ask Sahayak AI</span>
+    <span class="chatbot-pulse"></span>
+  </button>
+
+  <!-- Chat Dialog Window -->
+  <div id="citizen-chat-window" class="citizen-chat-window" style="display:none;" role="dialog" aria-modal="false" aria-labelledby="chat-window-title">
+    <div class="chat-header">
+      <div class="chat-header-info">
+        <span class="chat-header-avatar">🤖</span>
+        <div>
+          <h4 id="chat-window-title" class="chat-title">MPLADS Sahayak AI</h4>
+          <span class="chat-status">● Live Verification Assistant (Groq LPU AI)</span>
+        </div>
+      </div>
+      <button type="button" id="btn-close-chatbot" class="chat-close-btn" aria-label="Close Chat">✕</button>
+    </div>
+
+    <!-- Suggested Quick Prompts -->
+    <div class="chat-suggestions">
+      <button type="button" class="chat-prompt-pill" data-query="How does photo verification work?">📸 Photo check?</button>
+      <button type="button" class="chat-prompt-pill" data-query="What does satellite verification mean?">🛰️ Satellite proof?</button>
+      <button type="button" class="chat-prompt-pill" data-query="Is my report anonymous?">🔒 Is it anonymous?</button>
+      <button type="button" class="chat-prompt-pill" data-query="What is the MPLAD Scheme?">🏛️ What is MPLADS?</button>
+    </div>
+
+    <!-- Message History Feed -->
+    <div id="chat-messages-container" class="chat-messages-container">
+      <div class="chat-msg chat-msg-bot">
+        <div class="chat-bubble">
+          Namaste! 🙏 I am <strong>MPLADS Sahayak</strong>, your official citizen decision-support assistant. Ask me anything about project verification, reporting issues, or how funds work!
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Input Bar -->
+    <form id="chat-form" class="chat-form">
+      <input type="text" id="chat-input" class="chat-input" placeholder="Type your doubt or question here..." maxlength="300" autocomplete="off" />
+      <button type="submit" id="chat-send-btn" class="chat-send-btn" aria-label="Send Message">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+      </button>
+    </form>
+  </div>
+</div>
 <!-- ─── Bottom Navigation Bar ─── -->
 <nav class="bottom-nav" aria-label="Portal navigation">
   <button type="button" class="bottom-nav-tab active" data-nav="lookup">

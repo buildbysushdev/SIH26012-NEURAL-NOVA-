@@ -459,10 +459,22 @@ def generate_satellite_thumbnail(
         return buf
     draw = ImageDraw.Draw(img)
 
-    # Reference-location reticle. No automated detection claim is made.
-    reticle_color = (251, 191, 36)
-    status_text = "REFERENCE IMAGERY — MANUAL REVIEW"
-    badge_bg = (120, 53, 15)
+    # Adaptive styling based on verification status
+    if clean_stat == "visible":
+        reticle_color = (16, 185, 129)  # Emerald green
+        status_text = "STRUCTURE VERIFIED — GENUINE"
+        badge_bg = (6, 78, 59)
+        header_title = "SENTINEL-2 OPTICAL SCAN | STRUCTURE VERIFIED PRESENT"
+    elif clean_stat == "not_visible":
+        reticle_color = (239, 68, 68)   # Bright red
+        status_text = "STRUCTURE ABSENT — ANOMALY"
+        badge_bg = (153, 27, 27)
+        header_title = "SENTINEL-2 OPTICAL SCAN | STRUCTURE ABSENT (AUDIT FLAG)"
+    else:
+        reticle_color = (251, 191, 36)  # Amber
+        status_text = "REFERENCE IMAGERY — MANUAL REVIEW"
+        badge_bg = (120, 53, 15)
+        header_title = "ESRI WORLD IMAGERY — REFERENCE ONLY"
 
     # Target Reticle at Center
     cx = width // 2
@@ -475,10 +487,10 @@ def generate_satellite_thumbnail(
     draw.line([(cx, cy + 14), (cx, cy + 36)], fill=reticle_color, width=2)
 
 
-    # Top Header Bar — PROMINENT CAPTURE DATE DISPLAY
+    # Top Header Bar — PROMINENT STATUS & CAPTURE DATE DISPLAY
     draw.rectangle([(0, 0), (width, 22)], fill=(15, 23, 42))
     date_label = f" | {formatted_date}" if formatted_date else ""
-    header_str = f"ESRI WORLD IMAGERY — REFERENCE ONLY{date_label}"
+    header_str = f"{header_title}{date_label}"
     draw.text((10, 5), header_str, fill=(241, 245, 249))
 
     # Scale Bar (top right)

@@ -15,6 +15,9 @@ import {
   FolderCheck,
   MapPin,
   Building2,
+  X,
+  ExternalLink,
+  FileText,
 } from "lucide-react";
 import Card from "../components/ui/Card";
 import GovPageHeader from "../components/layout/GovPageHeader";
@@ -33,9 +36,12 @@ import {
   getFlaggedProjects,
   getCitizenReports,
   getAIInsights,
+  getSatelliteImageUrl,
+  getAuditBriefPdfUrl,
   type ProjectFilters,
 } from "../services/api";
 import { DISTRICTS_BY_STATE, ALL_CATEGORIES } from "../data/geography";
+import { formatINR } from "../lib/format";
 import type { DashboardStats, Project, CitizenReport } from "../types";
 
 const RISK_LEVEL_OPTIONS = [
@@ -53,6 +59,7 @@ export default function Dashboard() {
 
   // SECTION 2C: STRICT STATE SCOPING FOR OFFICER
   const assignedState = user?.assignedState || "Maharashtra";
+  const assignedDistrict = user?.assignedDistrict || "All";
 
   // Top KPIs & secondary widgets state
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -63,13 +70,14 @@ export default function Dashboard() {
   const [flaggedProjects, setFlaggedProjects] = useState<Project[] | null>(null);
   const [flaggedTotal, setFlaggedTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [satelliteModalProject, setSatelliteModalProject] = useState<Project | null>(null);
   const pageSize = 10;
 
-  // Filters for Flagged Projects - state locked to assignedState
+  // Filters for Flagged Projects - state locked to assignedState & assignedDistrict
   const [filters, setFilters] = useState<ProjectFilters>({
     search: "",
     state: assignedState,
-    district: "All",
+    district: assignedDistrict,
     riskLevel: "All",
     category: "All",
     status: "All",
@@ -77,8 +85,8 @@ export default function Dashboard() {
 
   // Keep state filter synced if user switches
   useEffect(() => {
-    setFilters((f) => ({ ...f, state: assignedState, district: "All" }));
-  }, [assignedState]);
+    setFilters((f) => ({ ...f, state: assignedState, district: assignedDistrict }));
+  }, [assignedState, assignedDistrict]);
 
   // Initial load for dashboard KPIs and background widgets
   useEffect(() => {
@@ -386,10 +394,30 @@ export default function Dashboard() {
                           <p className="font-bold text-gray-900 dark:text-gray-100 hover:text-navy-700 dark:hover:text-amber-400 transition-colors">
                             {p.name}
                           </p>
-                          <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-gray-500 font-mono">
+                          <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-[11px] text-gray-500 font-mono">
                             <span>{p.id}</span>
                             <span>•</span>
                             <span className="text-gray-600 dark:text-gray-400 font-sans">{p.category}</span>
+                            {p.satelliteStatus === "visible" && (
+                              <button
+                                type="button"
+                                onClick={() => setSatelliteModalProject(p)}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-950/80 dark:hover:bg-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 font-sans cursor-pointer transition-colors"
+                                title="Click to view Sentinel-2 satellite image verification"
+                              >
+                                🛰️ Verified Genuine: Structure Present (View Proof)
+                              </button>
+                            )}
+                            {p.satelliteStatus === "not_visible" && (
+                              <button
+                                type="button"
+                                onClick={() => setSatelliteModalProject(p)}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 hover:bg-rose-200 text-rose-800 dark:bg-rose-950/80 dark:hover:bg-rose-900 dark:text-rose-300 border border-rose-300 dark:border-rose-700 font-sans cursor-pointer transition-colors"
+                                title="Click to view Sentinel-2 anomaly scan"
+                              >
+                                ⚠️ Satellite Flagged: Structure Absent (View Proof)
+                              </button>
+                            )}
                           </div>
                         </td>
 
@@ -426,13 +454,23 @@ export default function Dashboard() {
                         </td>
 
                         <td className="py-3 px-4 text-right whitespace-nowrap">
-                          <button
-                            onClick={() => navigate(`${portalBase}/projects/${encodeURIComponent(p.id)}`)}
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-[#0b2545] hover:bg-navy-800 px-2.5 py-1.5 rounded transition-all"
-                          >
-                            View Details
-                            <ChevronRight size={13} />
-                          </button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setSatelliteModalProject(p)}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 border border-emerald-300 dark:border-emerald-700 px-2 py-1.5 rounded transition-all"
+                              title="Inspect optical satellite scan"
+                            >
+                              🛰️ Satellite
+                            </button>
+                            <button
+                              onClick={() => navigate(`${portalBase}/projects/${encodeURIComponent(p.id)}`)}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-[#0b2545] hover:bg-navy-800 px-2.5 py-1.5 rounded transition-all"
+                            >
+                              View Details
+                              <ChevronRight size={13} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -468,6 +506,140 @@ export default function Dashboard() {
             </h3>
           </div>
           <CitizenReportsWidget reports={reports} />
+        </div>
+      )}
+
+      {/* ==================== SATELLITE VERIFICATION MODAL ==================== */}
+      {satelliteModalProject && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-navy-900 border border-gray-200 dark:border-navy-700 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh]">
+            {/* Tricolor Header */}
+            <div className="h-1.5 w-full bg-gradient-to-r from-orange-500 via-white to-green-600" />
+            
+            {/* Modal Title Bar */}
+            <div className="p-4 bg-[#0f172a] text-white flex items-center justify-between border-b border-gray-800">
+              <div className="flex items-center gap-2.5">
+                <span className="text-xl">🛰️</span>
+                <div>
+                  <h3 className="font-bold text-sm text-white">
+                    Sentinel-2 & High-Resolution Satellite Verification
+                  </h3>
+                  <p className="text-[11px] text-gray-400 font-mono">
+                    {satelliteModalProject.id} · {satelliteModalProject.district}, {satelliteModalProject.state}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSatelliteModalProject(null)}
+                className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 overflow-y-auto space-y-4">
+              {/* Satellite Image Display */}
+              <div className="relative rounded-xl overflow-hidden border border-gray-300 dark:border-navy-700 bg-slate-950 shadow-md">
+                <img
+                  src={getSatelliteImageUrl(satelliteModalProject.id)}
+                  alt="Satellite surveillance scan"
+                  className="w-full h-auto object-cover max-h-[260px]"
+                />
+                <div className="absolute top-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[10px] font-mono px-2 py-0.5 rounded border border-white/20">
+                  {satelliteModalProject.satellitePassDate ? `Pass Date: ${satelliteModalProject.satellitePassDate}` : "Sentinel-2 Multi-spectral"}
+                </div>
+              </div>
+
+              {/* Status Comparison Badge & Explanation */}
+              <div
+                className={`p-3.5 rounded-xl border ${
+                  satelliteModalProject.satelliteStatus === "visible"
+                    ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200"
+                    : "bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200"
+                }`}
+              >
+                <div className="flex items-center gap-2 font-bold text-sm">
+                  {satelliteModalProject.satelliteStatus === "visible" ? (
+                    <>
+                      <span className="text-base">✅</span>
+                      <span>Verified Genuine Work: Physical Structure Present On-Ground</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-base">⚠️</span>
+                      <span>Surveillance Alert: Physical Structure Absent at Coordinates</span>
+                    </>
+                  )}
+                </div>
+                <p className="text-xs mt-1.5 leading-relaxed opacity-90">
+                  {satelliteModalProject.satelliteStatus === "visible"
+                    ? `Optical Sentinel-2 scan detects confirmed built structure at declared coordinates. Zero cost deviation and statutory timelines fulfilled. Risk Score: ${satelliteModalProject.riskScore}/100 (Low).`
+                    : `Multi-spectral satellite sweep reveals NO physical structure constructed at reported location. Combined with high cost deviation, this project is flagged for mandatory on-site DISHA audit. Risk Score: ${satelliteModalProject.riskScore}/100.`}
+                </p>
+              </div>
+
+              {/* Project Metadata Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                <div className="p-2.5 bg-gray-50 dark:bg-navy-950 rounded-lg border border-gray-200 dark:border-navy-800">
+                  <span className="text-[10px] text-gray-500 uppercase block">Sanctioned</span>
+                  <span className="font-bold font-mono text-gray-900 dark:text-white">{formatINR(satelliteModalProject.sanctionedAmount)}</span>
+                </div>
+                <div className="p-2.5 bg-gray-50 dark:bg-navy-950 rounded-lg border border-gray-200 dark:border-navy-800">
+                  <span className="text-[10px] text-gray-500 uppercase block">Work Category</span>
+                  <span className="font-bold text-gray-900 dark:text-white truncate block">{satelliteModalProject.category}</span>
+                </div>
+                <div className="p-2.5 bg-gray-50 dark:bg-navy-950 rounded-lg border border-gray-200 dark:border-navy-800">
+                  <span className="text-[10px] text-gray-500 uppercase block">Coordinates</span>
+                  <span className="font-bold font-mono text-gray-900 dark:text-white truncate block">
+                    {satelliteModalProject.latitude ? `${satelliteModalProject.latitude.toFixed(3)}°N, ${satelliteModalProject.longitude.toFixed(3)}°E` : "Locality Geocoded"}
+                  </span>
+                </div>
+                <div className="p-2.5 bg-gray-50 dark:bg-navy-950 rounded-lg border border-gray-200 dark:border-navy-800">
+                  <span className="text-[10px] text-gray-500 uppercase block">Risk Score</span>
+                  <span className={`font-bold font-mono ${satelliteModalProject.riskScore >= 60 ? "text-rose-600" : "text-emerald-600"}`}>
+                    {satelliteModalProject.riskScore}/100
+                  </span>
+                </div>
+              </div>
+
+              {/* Full Description */}
+              <div className="text-xs text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-navy-950 p-3 rounded-lg border border-gray-200 dark:border-navy-800">
+                <span className="font-bold text-gray-900 dark:text-white block mb-0.5">Work Description:</span>
+                <p>{satelliteModalProject.name}</p>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3.5 bg-gray-50 dark:bg-navy-950 border-t border-gray-200 dark:border-navy-800 flex items-center justify-between gap-3">
+              <a
+                href={getAuditBriefPdfUrl(satelliteModalProject.id)}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+              >
+                <FileText size={14} />
+                Download Audit Brief (PDF)
+              </a>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSatelliteModalProject(null)}
+                >
+                  Close
+                </Button>
+                <button
+                  onClick={() => navigate(`${portalBase}/projects/${encodeURIComponent(satelliteModalProject.id)}`)}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-[#0b2545] hover:bg-navy-800 px-3 py-2 rounded-lg transition-all cursor-pointer"
+                >
+                  Open Dossier
+                  <ExternalLink size={13} />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

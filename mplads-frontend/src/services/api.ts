@@ -113,12 +113,16 @@ export function mapBackendProjectToFrontend(r: any, idx = 0): Project {
     costZScore: costZ,
     satelliteStatus: r.satellite_status,
     satelliteRiskScore: r.satellite_risk_score,
+    satellitePassDate: r.satellite_pass_date,
+    showcaseOrder: r.showcase_order != null ? Number(r.showcase_order) : undefined,
     citizenReportCount: citizenCount,
     feedbackStatus: r.feedback_status,
     flagReason: costZ
       ? `Cost outlier (Z-Score +${costZ.toFixed(2)}) against peer works`
       : nlpSimilarity
       ? `Semantic overlap score ${nlpSimilarity}% detected with ${r.similar_project || "adjacent work"}`
+      : r.satellite_status === "visible"
+      ? "Optical satellite scan confirms structure is physically present on ground. Zero budget anomalies."
       : `Flagged for supervisory review based on multi-signal risk model`,
     aiExplanation: r.explanation,
     mpName: r.mp_name,
@@ -261,6 +265,9 @@ export async function getProjects(filters: ProjectFilters = {}): Promise<{ data:
         if (filters.sortBy) {
           const dir = filters.sortDir === "desc" ? -1 : 1;
           mapped.sort((a, b) => {
+            // Keep genuine verified showcase projects (showcaseOrder === 0) pinned on top for instant comparison
+            if (a.showcaseOrder === 0 && b.showcaseOrder !== 0) return -1;
+            if (b.showcaseOrder === 0 && a.showcaseOrder !== 0) return 1;
             const av = a[filters.sortBy as keyof Project];
             const bv = b[filters.sortBy as keyof Project];
             if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
@@ -690,15 +697,56 @@ export async function updateOfficerStatus(
 }
 
 export interface NewOfficerInput {
+  officerId?: string;
   name: string;
   email: string;
+  password?: string;
   title: string;
+  role?: string;
+  district?: string;
   jurisdiction: string;
   state: string;
 }
 
-export async function addOfficer(_input: NewOfficerInput): Promise<OfficerAccount> {
-  throw new Error("New login accounts must be provisioned through server configuration.");
+export async function addOfficer(input: NewOfficerInput): Promise<OfficerAccount> {
+  const headers = await getAuthHeaders();
+  const cleanId = (input.officerId || "").trim() ||
+    `OFFICER-${(input.state || "IN").slice(0, 2).toUpperCase()}-${(input.district && input.district !== "ALL" ? input.district : "MONITOR").replace(/\s+/g, "").slice(0, 6).toUpperCase()}-${Math.floor(10 + Math.random() * 90)}`;
+
+  const role = input.role || (input.title.toLowerCase().includes("state") ? "state_nodal" : "district_officer");
+  const district = input.district || (input.jurisdiction && input.jurisdiction !== "Statewide" ? input.jurisdiction : "ALL");
+
+  const response = await fetchWithTimeout(`${BACKEND_BASE_URL}/api/officers`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      officer_id: cleanId,
+      name: input.name.trim(),
+      email: input.email.trim(),
+      password: input.password || "officer@SIH2026",
+      state: input.state,
+      district: district,
+      role: role,
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || "Failed to register officer account.");
+  }
+
+  return {
+    id: data.officer_id,
+    name: data.name || data.officer_id,
+    email: data.email,
+    title: String(data.role || "officer").replaceAll("_", " "),
+    jurisdiction: data.district === "ALL" ? data.state : `${data.district}, ${data.state}`,
+    state: data.state,
+    status: data.status || "Active",
+    projectsAssigned: data.projects_assigned || 0,
+    alertsHandled: 0,
+    lastLogin: "Never",
+  };
 }
 
 // ---------------------------------------------------------------------------

@@ -52,3 +52,5 @@ dist/
 */dist/
 .vite/
 
+# Runtime data
+custom_officers.json

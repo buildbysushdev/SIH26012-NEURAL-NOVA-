@@ -8,6 +8,8 @@ the auditing officer's ID, assigned district jurisdiction, and security role.
 """
 
 import os
+import json
+import logging
 import hmac
 import hashlib
 from datetime import datetime, timezone, timedelta
@@ -17,6 +19,8 @@ import jwt
 import pandas as pd
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Officer Authentication"])
 
@@ -144,6 +148,78 @@ _DEFAULT_CREDENTIALS: Dict[str, Dict] = {
 
 
 _DISABLED_FILE = os.path.join(os.path.dirname(__file__), "disabled_officers.txt")
+_CUSTOM_OFFICERS_FILE = os.path.join(os.path.dirname(__file__), "custom_officers.json")
+
+
+def _load_custom_officers() -> Dict[str, Dict]:
+    if not os.path.exists(_CUSTOM_OFFICERS_FILE):
+        return {}
+    try:
+        with open(_CUSTOM_OFFICERS_FILE, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+            return data if isinstance(data, dict) else {}
+    except Exception as exc:
+        logger.warning(f"Could not load custom officers: {exc}")
+        return {}
+
+
+def _save_custom_officers(officers: Dict[str, Dict]) -> None:
+    try:
+        with open(_CUSTOM_OFFICERS_FILE, "w", encoding="utf-8") as handle:
+            json.dump(officers, handle, indent=2)
+    except Exception as exc:
+        logger.error(f"Failed to persist custom officers: {exc}")
+
+
+def get_all_officers() -> Dict[str, Dict]:
+    all_officers = dict(_DEFAULT_CREDENTIALS)
+    all_officers.update(_load_custom_officers())
+    return all_officers
+
+
+def register_officer(
+    officer_id: str,
+    name: str,
+    email: str,
+    password: str,
+    state: str,
+    district: str = "ALL",
+    constituency: str = "ALL",
+    role: str = "district_officer"
+) -> Dict[str, Any]:
+    officer_id_clean = officer_id.strip().upper()
+    state_clean = state.strip().upper() if state else "ALL"
+    district_clean = district.strip().upper() if district else "ALL"
+    constituency_clean = constituency.strip().upper() if constituency else "ALL"
+    role_clean = role.strip().lower()
+
+    if not officer_id_clean:
+        raise ValueError("Officer ID is required.")
+    if not state_clean or state_clean == "ALL":
+        raise ValueError("Selecting an assigned State is mandatory.")
+
+    custom = _load_custom_officers()
+    record = {
+        "name": name.strip(),
+        "email": email.strip() or f"{officer_id_clean.lower()}@mplads.gov.in",
+        "password_hash": _sha256(password or "officer@SIH2026"),
+        "district": district_clean,
+        "state": state_clean,
+        "constituency": constituency_clean,
+        "role": role_clean,
+    }
+    custom[officer_id_clean] = record
+    _save_custom_officers(custom)
+    return {
+        "officer_id": officer_id_clean,
+        "name": record["name"],
+        "email": record["email"],
+        "district": district_clean,
+        "state": state_clean,
+        "constituency": constituency_clean,
+        "role": role_clean,
+        "status": "Active",
+    }
 
 
 def get_disabled_officers() -> set[str]:
@@ -166,11 +242,19 @@ def set_officer_active(officer_id: str, active: bool) -> None:
 
 def list_officer_profiles() -> list[Dict[str, Any]]:
     disabled = get_disabled_officers()
+    all_officers = get_all_officers()
     return [
-        {"officer_id": officer_id, "district": value.get("district"), "state": value.get("state"),
-         "constituency": value.get("constituency"), "role": value.get("role"),
-         "status": "Inactive" if officer_id in disabled else "Active"}
-        for officer_id, value in _DEFAULT_CREDENTIALS.items()
+        {
+            "officer_id": officer_id,
+            "name": value.get("name") or officer_id,
+            "email": value.get("email") or f"{officer_id.lower()}@mplads.gov.in",
+            "district": value.get("district"),
+            "state": value.get("state"),
+            "constituency": value.get("constituency"),
+            "role": value.get("role"),
+            "status": "Inactive" if officer_id in disabled else "Active"
+        }
+        for officer_id, value in all_officers.items()
     ]
 
 
@@ -180,10 +264,16 @@ def _validate_credentials(officer_id: str, password: str) -> Optional[Dict]:
     Returns the credential record (district, state, constituency, role) if valid, None if invalid.
     Constant-time comparison to prevent timing attacks.
     """
-    clean_id = officer_id.strip()
+    clean_id = officer_id.strip().upper()
     if clean_id in get_disabled_officers():
         return None
-    cred = _DEFAULT_CREDENTIALS.get(clean_id)
+    all_officers = get_all_officers()
+    cred = all_officers.get(clean_id)
+    if cred is None:
+        for k, v in all_officers.items():
+            if k.upper() == clean_id:
+                cred = v
+                break
     if cred is None:
         hmac.compare_digest(_sha256("dummy"), _sha256("notmatch"))
         return None
