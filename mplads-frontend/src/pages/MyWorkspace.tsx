@@ -44,30 +44,165 @@ interface Reminder {
   priority: "High" | "Medium" | "Low";
 }
 
-const DEFAULT_TASKS: Task[] = [];
+const DEFAULT_TASKS: Task[] = [
+  {
+    id: "task-1",
+    title: "Conduct on-site physical inspection of Community Hall at Belavatagi (WS/MP620/2024-2025/133166)",
+    completed: false,
+    priority: "High",
+    dueDate: "2026-09-28",
+    createdAt: "2026-09-25",
+  },
+  {
+    id: "task-2",
+    title: "Review cost deviation audit on Pune High-Outlier Road Construction (WS/MP317/2024-2025/145198)",
+    completed: false,
+    priority: "High",
+    dueDate: "2026-09-30",
+    createdAt: "2026-09-24",
+  },
+  {
+    id: "task-3",
+    title: "Verify photographic SHA-256 integrity seals for 14 newly uploaded citizen grievances",
+    completed: false,
+    priority: "Medium",
+    dueDate: "2026-10-02",
+    createdAt: "2026-09-25",
+  },
+  {
+    id: "task-4",
+    title: "Submit Q2 statutory fund utilization compliance report to MoSPI State Nodal Desk",
+    completed: true,
+    priority: "Normal",
+    dueDate: "2026-09-26",
+    createdAt: "2026-09-20",
+  },
+  {
+    id: "task-5",
+    title: "Cross-check SegFormer optical satellite pass vs reported completion for Dharwad Cultural Bhavan",
+    completed: false,
+    priority: "Medium",
+    dueDate: "2026-10-04",
+    createdAt: "2026-09-26",
+  },
+  {
+    id: "task-6",
+    title: "Issue statutory 15-day notice for unspent balance exceeding ₹1.5 Cr threshold",
+    completed: false,
+    priority: "High",
+    dueDate: "2026-10-06",
+    createdAt: "2026-09-26",
+  },
+];
 
-const DEFAULT_NOTES: Note[] = [];
+const DEFAULT_NOTES: Note[] = [
+  {
+    id: "note-1",
+    title: "DISHA 6-Point Physical On-Site Inspection Protocol",
+    category: "Statutory",
+    content:
+      "Official DISHA verification mandates:\n" +
+      "1. Asset Physical Existence & GPS Reticle match within 25m tolerance.\n" +
+      "2. Specification Adherence: Compare structural materials vs approved PWD Schedule of Rates.\n" +
+      "3. Duplicate Work Prevention: Cross-check 500m radius for identical municipal/state sanctions.\n" +
+      "4. Mandatory Inscription Plaque: Verify permanent board with MP name, sanction year, and sanctioned cost.\n" +
+      "5. Citizen Beneficiary Audit: Record feedback from minimum 5 local residents.\n" +
+      "6. Cryptographic Evidence: Submit timestamped photos with SHA-256 tamper-evident hash.",
+    updatedAt: "25 Sep 2026, 04:30 pm",
+  },
+  {
+    id: "note-2",
+    title: "Copernicus Sentinel-2 & SegFormer AI Verification Guidelines",
+    category: "Satellite AI",
+    content:
+      "Cloud-free passes (Level-2A Bottom-Of-Atmosphere reflectance) are retrieved for project coordinates.\n" +
+      "• SegFormer deep learning neural network segments 5 classes: Built-Up, Road, Water, Vegetation, Bare Soil.\n" +
+      "• Structure Detected: Reticle highlights detected masonry/built-up pixels in emerald green (satellite risk = 0).\n" +
+      "• Structure Absent: If 0% built-up detected within 30m after completion date, risk score is raised to 100.0 and immediate ground inspection is mandated.",
+    updatedAt: "24 Sep 2026, 11:15 am",
+  },
+  {
+    id: "note-3",
+    title: "MoSPI Revised MPLADS Guidelines — Fund Utilization Caps",
+    category: "Finance",
+    content:
+      "Key financial controls under 2023 revised guidelines:\n" +
+      "• Annual allocation: ₹5.00 Crore released in two installments of ₹2.50 Cr.\n" +
+      "• Second installment condition: Minimum 80% expenditure of earlier release and 100% of previous financial years.\n" +
+      "• District balance monitoring: Nodal district holding unspent balance > ₹2.0 Cr for > 180 days is flagged automatically for administrative review.",
+    updatedAt: "22 Sep 2026, 02:40 pm",
+  },
+];
 
-const DEFAULT_REMINDERS: Reminder[] = [];
+const DEFAULT_REMINDERS: Reminder[] = [
+  {
+    id: "rem-1",
+    title: "Joint Field Inspection with Executive Engineer (Navalgund TQ Belavatagi)",
+    date: "2026-09-27",
+    priority: "High",
+  },
+  {
+    id: "rem-2",
+    title: "Quarterly DISHA Vigilance & Public Grievance Committee Meeting",
+    date: "2026-09-29",
+    priority: "High",
+  },
+  {
+    id: "rem-3",
+    title: "Upload verified ground inspection dossiers to Central MoSPI Repository",
+    date: "2026-10-01",
+    priority: "Medium",
+  },
+  {
+    id: "rem-4",
+    title: "Comptroller & Auditor General (CAG) compliance query deadline",
+    date: "2026-10-05",
+    priority: "High",
+  },
+  {
+    id: "rem-5",
+    title: "Publish verified citizen grievance closures on Public Transparency Portal",
+    date: "2026-10-10",
+    priority: "Low",
+  },
+];
 
 export default function MyWorkspace() {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<"all" | "tasks" | "notes" | "reminders" | "calendar">("all");
 
-  // LocalStorage Persisted States
+  // LocalStorage Persisted States — falls back to rich default template if empty
   const [tasks, setTasks] = useState<Task[]>(() => {
     const s = localStorage.getItem("mplads_workspace_tasks");
-    return s ? JSON.parse(s) : DEFAULT_TASKS;
+    if (s) {
+      try {
+        const parsed = JSON.parse(s);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (_) {}
+    }
+    return DEFAULT_TASKS;
   });
 
   const [notes, setNotes] = useState<Note[]>(() => {
     const s = localStorage.getItem("mplads_workspace_notes");
-    return s ? JSON.parse(s) : DEFAULT_NOTES;
+    if (s) {
+      try {
+        const parsed = JSON.parse(s);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (_) {}
+    }
+    return DEFAULT_NOTES;
   });
 
   const [reminders, setReminders] = useState<Reminder[]>(() => {
     const s = localStorage.getItem("mplads_workspace_reminders");
-    return s ? JSON.parse(s) : DEFAULT_REMINDERS;
+    if (s) {
+      try {
+        const parsed = JSON.parse(s);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (_) {}
+    }
+    return DEFAULT_REMINDERS;
   });
 
   useEffect(() => {
@@ -81,6 +216,16 @@ export default function MyWorkspace() {
   useEffect(() => {
     localStorage.setItem("mplads_workspace_reminders", JSON.stringify(reminders));
   }, [reminders]);
+
+  function handleResetTemplate() {
+    setTasks(DEFAULT_TASKS);
+    setNotes(DEFAULT_NOTES);
+    setReminders(DEFAULT_REMINDERS);
+    localStorage.setItem("mplads_workspace_tasks", JSON.stringify(DEFAULT_TASKS));
+    localStorage.setItem("mplads_workspace_notes", JSON.stringify(DEFAULT_NOTES));
+    localStorage.setItem("mplads_workspace_reminders", JSON.stringify(DEFAULT_REMINDERS));
+    showToast("Official audit workspace template loaded.", "success");
+  }
 
   // Tasks Form State
   const [taskInput, setTaskInput] = useState("");
@@ -276,6 +421,15 @@ export default function MyWorkspace() {
             }`}
           >
             <CalendarIcon size={13} /> Calendar
+          </button>
+
+          <button
+            type="button"
+            onClick={handleResetTemplate}
+            title="Populate workspace with official DISHA inspection protocols and scheduled reminders"
+            className="px-2.5 py-1.5 rounded transition-colors flex items-center gap-1 border border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 font-semibold shadow-2xs cursor-pointer ml-1"
+          >
+            <span>🔄 Load Audit Template</span>
           </button>
         </div>
       </div>
