@@ -371,6 +371,11 @@ def officer_directory(admin: dict = Depends(_require_national_admin)):
             "state": profile["state"], "constituency": profile["constituency"],
         }) if _df is not None else []
         handled = int((feedback.get("officer_id", pd.Series(dtype=str)).astype(str) == profile["officer_id"]).sum()) if not feedback.empty else 0
+        rows.append({
+            **profile,
+            "projects_assigned": len(scoped),
+            "alerts_handled": handled,
+        })
     return rows
 
 

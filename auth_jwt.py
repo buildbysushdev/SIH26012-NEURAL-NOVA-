@@ -69,6 +69,8 @@ def _sha256(s: str) -> str:
 _DEFAULT_CREDENTIALS: Dict[str, Dict] = {
     # 1. MoSPI / National Admin (Nationwide All-Jurisdiction Scope)
     "ADMIN-NEURAL-NOVA": {
+        "name": "P. Sharma, IAS (Joint Secretary, MoSPI)",
+        "email": "admin@mplads.gov.in",
         "password_hash": _sha256(os.getenv("ADMIN_PASSWORD", "admin@SIH2026")),
         "district": "ALL",
         "state": "ALL",
@@ -76,6 +78,8 @@ _DEFAULT_CREDENTIALS: Dict[str, Dict] = {
         "role": "national_admin",
     },
     "AUDITOR-VIGILANCE-01": {
+        "name": "K. Ramanathan (Chief Vigilance Officer)",
+        "email": "auditor.ramanathan@mplads.gov.in",
         "password_hash": _sha256(os.getenv("OFFICER_PASSWORD", "officer@SIH2026")),
         "district": "ALL",
         "state": "ALL",
@@ -83,45 +87,106 @@ _DEFAULT_CREDENTIALS: Dict[str, Dict] = {
         "role": "national_admin",
     },
 
-    # 2. State Nodal Authority (State-Scoped Access)
+    # 2. Maharashtra State & District Roster (Demonstration Priority)
     "STATE-MH-NODAL": {
+        "name": "Shri Anil Deshmukh (Secretary, Planning Dept)",
+        "email": "state-mh-nodal@mplads.gov.in",
         "password_hash": _sha256(os.getenv("STATE_PASSWORD", "state@SIH2026")),
         "district": "ALL",
         "state": "MAHARASHTRA",
         "constituency": "ALL",
         "role": "state_nodal",
     },
-    "STATE-KA-NODAL": {
-        "password_hash": _sha256(os.getenv("STATE_PASSWORD", "state@SIH2026")),
-        "district": "ALL",
-        "state": "KARNATAKA",
-        "constituency": "ALL",
-        "role": "state_nodal",
-    },
-    "STATE-JH-NODAL": {
-        "password_hash": _sha256(os.getenv("STATE_PASSWORD", "state@SIH2026")),
-        "district": "ALL",
-        "state": "JHARKHAND",
-        "constituency": "ALL",
-        "role": "state_nodal",
-    },
-
-    # 3. District Authority / District Officer (District-Scoped Access)
-    "OFFICER-DELHI-01": {
-        "password_hash": _sha256(os.getenv("OFFICER_PASSWORD", "officer@SIH2026")),
-        "district": "DELHI",
-        "state": "DELHI",
-        "constituency": "DELHI",
-        "role": "district_officer",
-    },
     "OFFICER-MH-01": {
+        "name": "Dr. Rajesh Patil, IAS (District Collector & Nodal Officer)",
+        "email": "collector-pune@mplads.gov.in",
         "password_hash": _sha256(os.getenv("OFFICER_PASSWORD", "officer@SIH2026")),
         "district": "PUNE",
         "state": "MAHARASHTRA",
         "constituency": "PUNE",
         "role": "district_officer",
     },
+    "OFFICER-MH-MUMBAI": {
+        "name": "Smita Kulkarni (District Planning Officer)",
+        "email": "dpo-mumbai@mplads.gov.in",
+        "password_hash": _sha256(os.getenv("OFFICER_PASSWORD", "officer@SIH2026")),
+        "district": "MUMBAI SUBURBAN",
+        "state": "MAHARASHTRA",
+        "constituency": "MUMBAI SUBURBAN",
+        "role": "district_officer",
+    },
+    "OFFICER-MH-NAGPUR": {
+        "name": "Vikas Thakre (Superintending Engineer, PWD)",
+        "email": "se-nagpur@mplads.gov.in",
+        "password_hash": _sha256(os.getenv("OFFICER_PASSWORD", "officer@SIH2026")),
+        "district": "NAGPUR",
+        "state": "MAHARASHTRA",
+        "constituency": "NAGPUR",
+        "role": "district_officer",
+    },
+    "OFFICER-MH-THANE": {
+        "name": "Ramesh Pawar (Executive Engineer, DISHA Cell)",
+        "email": "ee-thane@mplads.gov.in",
+        "password_hash": _sha256(os.getenv("OFFICER_PASSWORD", "officer@SIH2026")),
+        "district": "THANE",
+        "state": "MAHARASHTRA",
+        "constituency": "THANE",
+        "role": "district_officer",
+    },
+
+    # 3. Delhi National Capital Region
+    "OFFICER-DELHI-01": {
+        "name": "Sanjay Kumar, IAS (Divisional Commissioner)",
+        "email": "officer1@mplads.ai",
+        "password_hash": _sha256(os.getenv("OFFICER_PASSWORD", "officer@SIH2026")),
+        "district": "DELHI",
+        "state": "DELHI",
+        "constituency": "DELHI",
+        "role": "district_officer",
+    },
+
+    # 4. Karnataka State & District Roster
+    "STATE-KA-NODAL": {
+        "name": "Dr. Shalini Rajneesh, IAS (Addl Chief Secretary)",
+        "email": "state-ka-nodal@mplads.gov.in",
+        "password_hash": _sha256(os.getenv("STATE_PASSWORD", "state@SIH2026")),
+        "district": "ALL",
+        "state": "KARNATAKA",
+        "constituency": "ALL",
+        "role": "state_nodal",
+    },
+    "OFFICER-KA-01": {
+        "name": "Manjunath Prasad, IAS (Deputy Commissioner)",
+        "email": "dc-dharwad@mplads.gov.in",
+        "password_hash": _sha256(os.getenv("OFFICER_PASSWORD", "officer@SIH2026")),
+        "district": "DHARWAD",
+        "state": "KARNATAKA",
+        "constituency": "DHARWAD",
+        "role": "district_officer",
+    },
+    "OFFICER-KA-BLR": {
+        "name": "Anbu Kumar, IAS (Special Commissioner, BBMP)",
+        "email": "comm-blr@mplads.gov.in",
+        "password_hash": _sha256(os.getenv("OFFICER_PASSWORD", "officer@SIH2026")),
+        "district": "BANGALORE URBAN",
+        "state": "KARNATAKA",
+        "constituency": "BANGALORE URBAN",
+        "role": "district_officer",
+    },
+
+    # 5. Jharkhand State & District Roster
+    "STATE-JH-NODAL": {
+        "name": "Sunil Kumar, IAS (Principal Secretary, Rural Dev)",
+        "email": "state-jh-nodal@mplads.gov.in",
+        "password_hash": _sha256(os.getenv("STATE_PASSWORD", "state@SIH2026")),
+        "district": "ALL",
+        "state": "JHARKHAND",
+        "constituency": "ALL",
+        "role": "state_nodal",
+    },
     "OFFICER-JH-01": {
+        "name": "Naman Priyesh Lakra, IAS (Deputy Commissioner)",
+        "email": "dc-giridih@mplads.gov.in",
         "password_hash": _sha256(os.getenv("OFFICER_PASSWORD", "officer@SIH2026")),
         "district": "GIRIDIH",
         "state": "JHARKHAND",
@@ -129,8 +194,30 @@ _DEFAULT_CREDENTIALS: Dict[str, Dict] = {
         "role": "district_officer",
     },
 
-    # 4. MP / Constituency Dashboard (Constituency-Scoped Access)
+    # 6. Uttar Pradesh & Tamil Nadu Rosters
+    "OFFICER-UP-LKO": {
+        "name": "Abhishek Anand, IAS (District Magistrate)",
+        "email": "dm-lucknow@mplads.gov.in",
+        "password_hash": _sha256(os.getenv("OFFICER_PASSWORD", "officer@SIH2026")),
+        "district": "LUCKNOW",
+        "state": "UTTAR PRADESH",
+        "constituency": "LUCKNOW",
+        "role": "district_officer",
+    },
+    "OFFICER-TN-CHN": {
+        "name": "Dr. J. Radhakrishnan, IAS (District Collector)",
+        "email": "collector-chennai@mplads.gov.in",
+        "password_hash": _sha256(os.getenv("OFFICER_PASSWORD", "officer@SIH2026")),
+        "district": "CHENNAI",
+        "state": "TAMIL NADU",
+        "constituency": "CHENNAI",
+        "role": "district_officer",
+    },
+
+    # 7. MP / Parliamentary Constituency Dashboards
     "MP-DHARWAD-01": {
+        "name": "Parliamentary Nodal Desk (Dharwad LS)",
+        "email": "mp-dharwad@sansad.nic.in",
         "password_hash": _sha256(os.getenv("MP_PASSWORD", "mp@SIH2026")),
         "district": "DHARWAD",
         "state": "KARNATAKA",
@@ -138,6 +225,8 @@ _DEFAULT_CREDENTIALS: Dict[str, Dict] = {
         "role": "mp_dashboard",
     },
     "MP-GIRIDIH-01": {
+        "name": "Parliamentary Nodal Desk (Giridih LS)",
+        "email": "mp-giridih@sansad.nic.in",
         "password_hash": _sha256(os.getenv("MP_PASSWORD", "mp@SIH2026")),
         "district": "GIRIDIH",
         "state": "JHARKHAND",

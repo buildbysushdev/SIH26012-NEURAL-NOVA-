@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Lock,
   ShieldCheck,
@@ -32,8 +32,8 @@ const DEMO_PRESETS: DemoPreset[] = [
   {
     role: "officer",
     id: "OFFICER-MH-01",
-    email: "officer-mh@mplads.gov.in",
-    name: "Dr. A. Patil, DISHA (Maharashtra)",
+    email: "collector-pune@mplads.gov.in",
+    name: "Dr. Rajesh Patil, IAS (District Collector & Nodal Officer)",
     district: "PUNE, MAHARASHTRA",
     password: "officer@SIH2026",
     badgeLabel: "Maharashtra (OFFICER-MH-01)",
@@ -42,37 +42,37 @@ const DEMO_PRESETS: DemoPreset[] = [
     role: "officer",
     id: "STATE-MH-NODAL",
     email: "state-mh-nodal@mplads.gov.in",
-    name: "Maharashtra State Nodal Officer",
+    name: "Shri Anil Deshmukh (Secretary, Planning Dept)",
     district: "MAHARASHTRA (STATEWIDE)",
     password: "state@SIH2026",
     badgeLabel: "MH Nodal (STATE-MH-NODAL)",
   },
   {
+    role: "admin",
+    id: "ADMIN-NEURAL-NOVA",
+    email: "admin@mplads.gov.in",
+    name: "P. Sharma, IAS (Joint Secretary, MoSPI)",
+    district: "PAN-INDIA",
+    password: "admin@SIH2026",
+    badgeLabel: "Super Admin (ADMIN-NEURAL-NOVA)",
+  },
+  {
     role: "officer",
     id: "OFFICER-DELHI-01",
     email: "officer1@mplads.ai",
-    name: "R. Kulkarni, DISHA",
+    name: "Sanjay Kumar, IAS (Divisional Commissioner)",
     district: "DELHI",
     password: "officer@SIH2026",
     badgeLabel: "Delhi (OFFICER-DELHI-01)",
   },
   {
     role: "officer",
-    id: "OFFICER-JH-01",
-    email: "officer-jh@mplads.gov.in",
-    name: "Giridih District Officer",
-    district: "GIRIDIH",
+    id: "OFFICER-KA-01",
+    email: "dc-dharwad@mplads.gov.in",
+    name: "Manjunath Prasad, IAS (Deputy Commissioner)",
+    district: "DHARWAD, KARNATAKA",
     password: "officer@SIH2026",
-    badgeLabel: "Jharkhand (OFFICER-JH-01)",
-  },
-  {
-    role: "admin",
-    id: "ADMIN-NEURAL-NOVA",
-    email: "admin@mplads.ai",
-    name: "P. Sharma, IAS",
-    district: "PAN-INDIA",
-    password: "admin@SIH2026",
-    badgeLabel: "Super Admin (ADMIN-NEURAL-NOVA)",
+    badgeLabel: "Karnataka (OFFICER-KA-01)",
   },
 ];
 
@@ -96,9 +96,9 @@ export default function Login() {
   const [selectedDistrict, setSelectedDistrict] = useState("PUNE, MAHARASHTRA");
   const [showPassword, setShowPassword] = useState(false);
 
-  // Captcha state (default 8FK92 like in screenshot)
+  // Captcha state — prefilled by default with 8FK92 so users can log in with 1 click
   const [captchaCode, setCaptchaCode] = useState("8FK92");
-  const [captchaInput, setCaptchaInput] = useState("");
+  const [captchaInput, setCaptchaInput] = useState("8FK92");
 
   const [errors, setErrors] = useState<{
     badgeId?: string;
@@ -134,6 +134,7 @@ export default function Login() {
       setPassword("admin@SIH2026");
       setSelectedDistrict("PAN-INDIA");
     }
+    setCaptchaInput(captchaCode);
   }
 
   function handlePresetSelect(preset: DemoPreset) {
@@ -141,6 +142,7 @@ export default function Login() {
     setBadgeId(preset.id);
     setPassword(preset.password);
     setSelectedDistrict(preset.district);
+    setCaptchaInput(captchaCode);
     setErrors({});
     showToast(`Loaded credentials for ${preset.name}`, "info");
   }
@@ -148,7 +150,7 @@ export default function Login() {
   function handleReloadCaptcha() {
     const newCode = generateCaptchaCode();
     setCaptchaCode(newCode);
-    setCaptchaInput("");
+    setCaptchaInput(newCode);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -543,12 +545,12 @@ export default function Login() {
 
             {/* Citizen Lookup Link */}
             <div className="text-center pt-2">
-              <Link
-                to="/citizen"
+              <a
+                href="/portal/"
                 className="text-xs font-semibold text-[#0056b3] hover:underline inline-flex items-center gap-1"
               >
-                Looking for public project lookup? Continue as Citizen →
-              </Link>
+                Looking for public project lookup? Continue to Citizen Portal (Voice &amp; Search) →
+              </a>
             </div>
           </div>
         </div>

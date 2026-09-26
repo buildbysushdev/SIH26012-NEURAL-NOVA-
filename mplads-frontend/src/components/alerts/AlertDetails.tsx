@@ -29,12 +29,16 @@ export default function AlertDetails({
 
   async function runAction(status: RiskAlert["status"], message: string) {
     setLoading(true);
-    const updated = await updateAlertStatus(alert!.id, status);
-    setLoading(false);
-    setConfirmAction(null);
-    if (updated) {
+    try {
+      await updateAlertStatus(alert!.id, status);
+      const updated: RiskAlert = { ...alert!, status };
       onUpdated(updated);
       showToast(message, "success");
+    } catch (err: any) {
+      showToast(err?.message || "Failed to update alert", "error");
+    } finally {
+      setLoading(false);
+      setConfirmAction(null);
     }
   }
 

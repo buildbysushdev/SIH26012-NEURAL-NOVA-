@@ -5,7 +5,6 @@ import ProtectedRoute from "./router/ProtectedRoute";
 
 import OfficerLayout from "./components/layout/OfficerLayout";
 import AdminLayout from "./components/layout/AdminLayout";
-import CitizenLayout from "./components/layout/CitizenLayout";
 
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -24,10 +23,6 @@ import Officers from "./pages/admin/Officers";
 import AuditLogs from "./pages/admin/AuditLogs";
 import AdminCitizenReports from "./pages/admin/AdminCitizenReports";
 
-import CitizenHome from "./pages/citizen/CitizenHome";
-import CitizenProjectDetail from "./pages/citizen/CitizenProjectDetail";
-import CitizenReport from "./pages/citizen/CitizenReport";
-
 function ProtectedOfficerLayout(props: { title: string; breadcrumb?: string[] }) {
   return (
     <ProtectedRoute allowedRoles={["officer"]}>
@@ -41,6 +36,18 @@ function ProtectedAdminLayout(props: { title: string; breadcrumb?: string[] }) {
     <ProtectedRoute allowedRoles={["super_admin"]}>
       <AdminLayout {...props} />
     </ProtectedRoute>
+  );
+}
+
+function CitizenPortalRedirect() {
+  useEffect(() => {
+    window.location.replace("/portal/");
+  }, []);
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[#002147] text-white p-4">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400 mb-3" />
+      <p className="text-sm font-semibold">Redirecting to Official MPLADS Citizen Portal with Voice & Speech Recognition...</p>
+    </div>
   );
 }
 
@@ -138,13 +145,9 @@ export default function App() {
               <Route path="/admin/settings" element={<Settings />} />
             </Route>
 
-            {/* ============================= Citizen Portal (public, no login) ============================= */}
-            <Route element={<CitizenLayout />}>
-              <Route path="/citizen" element={<CitizenHome />} />
-              <Route path="/citizen/project/:id" element={<CitizenProjectDetail />} />
-              <Route path="/citizen/project/*" element={<CitizenProjectDetail />} />
-              <Route path="/citizen/report" element={<CitizenReport />} />
-            </Route>
+            {/* ============================= Citizen Portal (public, speech-enabled) ============================= */}
+            <Route path="/citizen" element={<CitizenPortalRedirect />} />
+            <Route path="/citizen/*" element={<CitizenPortalRedirect />} />
 
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>

@@ -503,7 +503,7 @@ export async function updateAlertStatus(alertId: string, status: RiskAlert["stat
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.detail || "Alert status could not be updated.");
-  return undefined;
+  return { id: alertId, status } as any;
 }
 
 // ---------------------------------------------------------------------------
@@ -677,11 +677,16 @@ export async function getOfficers(): Promise<OfficerAccount[]> {
   const data = await response.json().catch(() => ([]));
   if (!response.ok) throw new Error("Officer directory is unavailable.");
   return data.map((row: any) => ({
-    id: row.officer_id, name: row.officer_id, email: `${row.officer_id.toLowerCase()}@mplads.gov.in`,
+    id: row.officer_id,
+    name: row.name || row.officer_id,
+    email: row.email || `${row.officer_id.toLowerCase()}@mplads.gov.in`,
     title: String(row.role || "officer").replaceAll("_", " "),
     jurisdiction: row.district === "ALL" ? row.state : `${row.district}, ${row.state}`,
-    state: row.state, status: row.status, projectsAssigned: row.projects_assigned,
-    alertsHandled: row.alerts_handled, lastLogin: "Never",
+    state: row.state,
+    status: row.status,
+    projectsAssigned: row.projects_assigned ?? 0,
+    alertsHandled: row.alerts_handled ?? 0,
+    lastLogin: row.last_login || "Active today",
   }));
 }
 

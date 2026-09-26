@@ -74,16 +74,16 @@ export default function Sidebar({
             </NavLink>
           ))}
         </div>
-        {/* Citizen Portal quick-link — always available to all staff */}
-        <NavLink
-          to="/citizen"
+        {/* Citizen Portal quick-link — always redirects to the full voice/speech-enabled Citizen Portal */}
+        <a
+          href="/portal/"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-2 px-3 sm:px-3.5 py-2.5 text-[11px] sm:text-xs font-semibold uppercase tracking-wider transition-all border-b-2 border-transparent text-emerald-300 hover:text-emerald-100 hover:bg-[#102e54] hover:border-emerald-400 ml-2"
         >
           <ExternalLink size={13} className="shrink-0" />
           <span>Citizen Portal</span>
-        </NavLink>
+        </a>
       </nav>
 
       {/* Mobile Drawer Dropdown Menu (when toggled via mobile menu button) */}
@@ -107,6 +107,16 @@ export default function Sidebar({
               <span>{item.label}</span>
             </NavLink>
           ))}
+          <a
+            href="/portal/"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={onNavigate}
+            className="flex items-center gap-2.5 px-3 py-2 rounded text-xs font-semibold text-emerald-300 hover:bg-[#102e54] hover:text-white"
+          >
+            <ExternalLink size={15} className="shrink-0" />
+            <span>Citizen Portal (Voice / Public)</span>
+          </a>
         </div>
       )}
     </div>
