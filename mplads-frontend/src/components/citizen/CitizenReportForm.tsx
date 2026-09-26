@@ -54,6 +54,7 @@ export default function CitizenReportForm({ prefillProjectId }: { prefillProject
     if (!projectId.trim()) newErrors.projectId = "Project ID is required.";
     if (!issueType) newErrors.issueType = "Please select an issue type.";
     if (!description.trim()) newErrors.description = "Please describe the issue.";
+    if (!photoFile) newErrors.photo = "A real project-site photo is required.";
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
 
@@ -66,9 +67,14 @@ export default function CitizenReportForm({ prefillProjectId }: { prefillProject
       hasPhoto: !!photoFile || !!photoName,
       photoFile,
     };
-    const res = await submitCitizenReport(submission);
-    setSubmitting(false);
-    setSubmitted(res);
+    try {
+      const res = await submitCitizenReport(submission);
+      setSubmitted(res);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "The report could not be saved.", "error");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (submitted) {
@@ -134,7 +140,7 @@ export default function CitizenReportForm({ prefillProjectId }: { prefillProject
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Photo (optional)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">Photo (required)</label>
           <label className="flex items-center gap-2 border border-dashed border-gray-300 rounded-lg px-3 py-3 text-sm text-gray-500 cursor-pointer hover:bg-gray-50">
             <Upload size={16} />
             {photoName ?? "Click to upload a photo"}
@@ -150,6 +156,7 @@ export default function CitizenReportForm({ prefillProjectId }: { prefillProject
             />
             <Camera size={14} className="ml-auto text-gray-300" />
           </label>
+          {errors.photo && <p className="text-xs text-red-600 mt-1">{errors.photo}</p>}
         </div>
 
         <Button type="submit" className="w-full" size="lg" icon={<Send size={15} />} loading={submitting}>

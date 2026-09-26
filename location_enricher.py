@@ -454,7 +454,10 @@ def resolve_project_location(
         loc_key = (locality_name.lower(), c_lower, s_lower)
         if loc_key in _locality_cache:
             lat, lng, status = _locality_cache[loc_key]
-            if lat is not None and lng is not None and status != "failed":
+            # Only accept coordinates produced by a real geocoder. Older
+            # `locality_curated` rows were deterministic offsets from a district
+            # centroid and are deliberately treated as unverified.
+            if lat is not None and lng is not None and status in {"nominatim", "verified", "gps"}:
                 return lat, lng, locality_name, "locality"
 
     # --- Tier: district geocode cache ---

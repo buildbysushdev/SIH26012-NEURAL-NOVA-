@@ -25,6 +25,7 @@ from typing import Dict, Any, List, Optional
 import pandas as pd
 from fastapi import APIRouter, Query, Body, HTTPException, Depends
 from pydantic import BaseModel, Field
+import auth_jwt
 
 router = APIRouter(prefix="/api/compliance", tags=["Compliance & Alerts"])
 
@@ -286,6 +287,8 @@ def get_all_compliance_alerts(
     all_alerts = []
     for _, row in priority_df.iterrows():
         p_alerts = generate_alerts_for_project(row)
+        for alert in p_alerts:
+            alert["risk_score"] = round(_safe_float(row.get("risk_score"), 0.0), 1)
         all_alerts.extend(p_alerts)
 
     # Filter alerts
@@ -341,17 +344,19 @@ def get_compliance_alerts_endpoint(
     status: Optional[str] = Query(None, description="Status filter: OPEN, ACKNOWLEDGED, RESOLVED"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    officer: Dict[str, Any] = Depends(auth_jwt.get_current_officer),
 ):
     """Returns active compliance & early-warning alerts with statutory explanations."""
     if _df is None:
         raise HTTPException(status_code=503, detail="MPLADS dataset not initialized.")
+    scoped_df = auth_jwt.apply_jurisdiction_scoping(_df, officer)
     return get_all_compliance_alerts(
-        _df, severity, alert_type, state, district, status, limit, offset
+        scoped_df, severity, alert_type, state, district, status, limit, offset
     )
 
 
 @router.post("/action")
-def record_compliance_action_endpoint(action_req: AlertActionRequest):
+def record_compliance_action_endpoint(action_req: AlertActionRequest, officer: Dict[str, Any] = Depends(auth_jwt.get_current_officer)):
     """
     Records an official auditor action on a compliance alert:
     - Acknowledgment
@@ -361,6 +366,7 @@ def record_compliance_action_endpoint(action_req: AlertActionRequest):
     Maintains an audit trail for MoSPI monitoring.
     """
     ts = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    acting_officer = str(officer.get("sub") or "AUDITOR-UNKNOWN")
     aid = action_req.alert_id.strip()
     act = action_req.action.strip().lower()
 
@@ -379,7 +385,7 @@ def record_compliance_action_endpoint(action_req: AlertActionRequest):
         override["assigned_to"] = action_req.assigned_to
     if action_req.remarks:
         override["remarks"] = action_req.remarks
-    override["last_officer"] = action_req.officer_id
+    override["last_officer"] = acting_officer
     override["last_update"] = ts
 
     _ALERT_OVERRIDES[aid] = override
@@ -389,7 +395,7 @@ def record_compliance_action_endpoint(action_req: AlertActionRequest):
         row_dict = {
             "alert_id": aid,
             "project_id": action_req.project_id,
-            "officer_id": action_req.officer_id,
+            "officer_id": acting_officer,
             "action": act,
             "status": new_status,
             "assigned_to": action_req.assigned_to or "",
@@ -405,5 +411,5 @@ def record_compliance_action_endpoint(action_req: AlertActionRequest):
         "alert_id": aid,
         "new_status": new_status,
         "timestamp": ts,
-        "message": f"Alert {aid} successfully marked as {new_status} by officer {action_req.officer_id}."
+        "message": f"Alert {aid} successfully marked as {new_status} by officer {acting_officer}."
     }

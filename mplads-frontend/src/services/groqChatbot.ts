@@ -28,13 +28,8 @@ export interface CopilotContext {
   };
 }
 
-export const PRIMARY_MODEL = "openai/gpt-oss-120b";
+export const PRIMARY_MODEL = "backend-advisory";
 export const FALLBACK_MODEL = "openai/gpt-oss-20b";
-
-export function getGroqApiKey(): string {
-  const envKey = (import.meta as any).env?.VITE_GROQ_API_KEY || (import.meta as any).env?.GROQ_API_KEY;
-  return (envKey && typeof envKey === "string") ? envKey.trim() : "";
-}
 
 export function buildSystemPrompt(context: CopilotContext): string {
   const isSuperAdmin = context.role === 'super_admin';
@@ -52,7 +47,7 @@ export function buildSystemPrompt(context: CopilotContext): string {
 
 ---
 ### 📊 GROUNDED MPLADS DATABASE & SYSTEM CONTEXT:
-- **Total Sanctioned Works**: 77,312 works nationwide with ₹3,865.60 Cr outlay.
+- **Data Scope**: Use only the live project totals supplied by the current MPLADS registry and portal context.
 - **Risk Score Architecture**: Multi-signal formula combining:
   * Cost Risk Score: Statistical outlier detection (Z-Score > 2.5 against category/district medians).
   * NLP Duplicate Score: Semantic transformer cosine similarity (>91% duplicate threshold).
@@ -87,64 +82,26 @@ export async function sendGroqCopilotMessage(
   userMessage: string,
   context: CopilotContext
 ): Promise<{ reply: string; latencyMs: number; model: string }> {
-  const apiKey = getGroqApiKey();
-  const systemPrompt = buildSystemPrompt(context);
-
-  const messages = [
-    { role: 'system', content: systemPrompt },
-    ...history.slice(-6).map((m) => ({ role: m.role, content: m.content })),
-    { role: 'user', content: userMessage },
-  ];
-
   const startTime = performance.now();
-
-  // Try primary model (openai/gpt-oss-120b), fallback to openai/gpt-oss-20b if unavailable
-  const modelsToTry = [PRIMARY_MODEL, FALLBACK_MODEL];
-
-  for (const model of modelsToTry) {
-    try {
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          messages,
-          temperature: 0.2,
-          max_tokens: 1024,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`Groq API responded with status ${response.status}: ${errorBody}`);
-      }
-
-      const data = await response.json();
-      const latencyMs = Math.round(performance.now() - startTime);
-      const reply = data.choices?.[0]?.message?.content || "No analysis generated. Please refine your query.";
-
-      return {
-        reply,
-        latencyMs,
-        model,
-      };
-    } catch (err: any) {
-      console.warn(`[Groq Copilot] Call failed with model ${model}:`, err);
-      // Try fallback model
-    }
+  const backend = (import.meta as any).env?.VITE_BACKEND_URL || ((import.meta as any).env?.DEV ? "http://localhost:8000" : window.location.origin);
+  const token = localStorage.getItem("mplads_token") || "";
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(`${backend}/api/audit-chatbot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ query: userMessage, history: history.slice(-6), context }),
+      signal: controller.signal,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "Advisory service unavailable");
+    return { reply: data.reply, latencyMs: Math.round(performance.now() - startTime), model: data.model || "backend-advisory" };
+  } catch {
+    return { reply: generateLocalAdvisoryFallback(userMessage, context), latencyMs: Math.round(performance.now() - startTime), model: "local-rules-engine (fallback)" };
+  } finally {
+    clearTimeout(timer);
   }
-
-  // If both models fail, provide an intelligent local grounded fallback response
-  const latencyMs = Math.round(performance.now() - startTime);
-  const fallbackReply = generateLocalAdvisoryFallback(userMessage, context);
-  return {
-    reply: fallbackReply,
-    latencyMs,
-    model: "local-rules-engine (fallback)",
-  };
 }
 
 function generateLocalAdvisoryFallback(query: string, context: CopilotContext): string {
@@ -152,7 +109,7 @@ function generateLocalAdvisoryFallback(query: string, context: CopilotContext): 
 
   if (q.includes("delay") || q.includes("timeline")) {
     return `### ⏱️ Statutory Analysis on Project Delays
-Based on the MPLADS nationwide dataset of **77,312 sanctioned works**:
+Based on the current MPLADS registry available to this portal:
 - **Critical Threshold**: Projects exceeding **180 days** past their scheduled completion date without an approved revised administrative sanction require a mandatory joint site inspection.
 - **Top Delay Factors**: Delayed tendering, contractor liquidity constraints, and right-of-way disputes in civil road works.
 - **Recommended Action**: Issue a formal Notice of Explanation under DISHA Rule 4.2 to the executing agency and verify physical milestone progress before releasing the next fund installment.`;
@@ -176,7 +133,7 @@ Based on the MPLADS nationwide dataset of **77,312 sanctioned works**:
 **Jurisdiction**: ${context.district || "National"} | **Mode**: Strict Read-Only Advisory
 
 I have analyzed your query regarding **"${query}"**.
-- **Dataset Reference**: 77,312 sanctioned projects (Total Outlay: ₹3,865.60 Cr).
+- **Dataset Reference**: The current live MPLADS registry and the jurisdiction shown above.
 - **Core Recommendation**: Ensure physical inspection is conducted as per the **6-point DISHA statutory checklist** before approving fund utilization certificates.
 - *Notice: I operate in read-only advisory mode and cannot modify database values directly.*`;
 }

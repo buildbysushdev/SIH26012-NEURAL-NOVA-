@@ -12,10 +12,11 @@ from typing import Optional, List, Dict, Any, Literal
 
 import math
 import pandas as pd
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 import supabase_sync
+import auth_jwt
 
 router = APIRouter(tags=["Officer Feedback"])
 
@@ -117,7 +118,7 @@ def apply_feedback_adjustments(
 
 
 @router.post("/feedback", status_code=status.HTTP_201_CREATED)
-def submit_officer_feedback(req: FeedbackRequest):
+def submit_officer_feedback(req: FeedbackRequest, officer: Dict[str, Any] = Depends(auth_jwt.get_current_officer)):
     """
     Submits auditor feedback ('confirmed_issue' or 'false_positive') for a project.
     Stores record persistently in CSV, and dynamically applies score adjustments
@@ -146,7 +147,7 @@ def submit_officer_feedback(req: FeedbackRequest):
         "work_id": work_id,
         "verdict": req.verdict,
         "officer_notes": req.officer_notes.strip() if req.officer_notes else "",
-        "officer_id": req.officer_id.strip() if req.officer_id else "AUDITOR-DEFAULT",
+        "officer_id": str(officer.get("sub") or "AUDITOR-UNKNOWN"),
         "timestamp": timestamp,
     }
 
@@ -154,39 +155,23 @@ def submit_officer_feedback(req: FeedbackRequest):
     fb_df = pd.DataFrame([record])
     fb_df.to_csv(FEEDBACK_CSV, mode="a", header=not FEEDBACK_CSV.exists(), index=False)
 
-    # Dynamic in-memory adjustment
+    # Rebuild feedback effects from the persisted latest-verdict history so a
+    # repeated submission or verdict change produces the same score as restart.
     updated_score = None
     affected_similar_count = 0
-
     if _MAIN_DF_REF is not None:
+        replay = _MAIN_DF_REF.copy()
+        if "risk_score_before_feedback" in replay.columns:
+            replay["risk_score"] = replay["risk_score_before_feedback"]
+        replay["feedback_status"] = None
+        adjusted = apply_feedback_adjustments(replay)
+        _MAIN_DF_REF["risk_score"] = adjusted["risk_score"].values
+        _MAIN_DF_REF["feedback_status"] = adjusted["feedback_status"].values
         mask = _MAIN_DF_REF["work_id"] == work_id
         if mask.any():
-            if req.verdict == "false_positive":
-                _MAIN_DF_REF.loc[mask, "feedback_status"] = "false_positive"
-                if "risk_score" in _MAIN_DF_REF.columns:
-                    old_score = float(_MAIN_DF_REF.loc[mask, "risk_score"].values[0])
-                    new_score = max(0.0, round(old_score - 25.0, 1))
-                    _MAIN_DF_REF.loc[mask, "risk_score"] = new_score
-                    updated_score = new_score
-
-                # Dampen matching similar projects
-                if "similar_project" in _MAIN_DF_REF.columns:
-                    sim_mask = (_MAIN_DF_REF["similar_project"] == work_id) & (_MAIN_DF_REF["work_id"] != work_id)
-                    affected_similar_count = int(sim_mask.sum())
-                    if affected_similar_count > 0:
-                        _MAIN_DF_REF.loc[sim_mask, "feedback_status"] = "dampened_similarity"
-                        if "risk_score" in _MAIN_DF_REF.columns:
-                            _MAIN_DF_REF.loc[sim_mask, "risk_score"] = (
-                                _MAIN_DF_REF.loc[sim_mask, "risk_score"] - 10.0
-                            ).clip(lower=0.0).round(1)
-
-            elif req.verdict == "confirmed_issue":
-                _MAIN_DF_REF.loc[mask, "feedback_status"] = "confirmed_issue"
-                if "risk_score" in _MAIN_DF_REF.columns:
-                    old_score = float(_MAIN_DF_REF.loc[mask, "risk_score"].values[0])
-                    new_score = min(100.0, round(old_score + 5.0, 1))
-                    _MAIN_DF_REF.loc[mask, "risk_score"] = new_score
-                    updated_score = new_score
+            updated_score = float(_MAIN_DF_REF.loc[mask, "risk_score"].iloc[0])
+        if req.verdict == "false_positive" and "similar_project" in _MAIN_DF_REF.columns:
+            affected_similar_count = int(((_MAIN_DF_REF["similar_project"] == work_id) & (_MAIN_DF_REF["work_id"] != work_id)).sum())
 
     # Sync officer feedback & audit log to Supabase
     record["new_risk_score"] = updated_score
@@ -210,7 +195,7 @@ def submit_officer_feedback(req: FeedbackRequest):
 
 
 @router.get("/feedback")
-def get_feedback_logs(work_id: Optional[str] = None):
+def get_feedback_logs(work_id: Optional[str] = None, officer: Dict[str, Any] = Depends(auth_jwt.get_current_officer)):
     """
     Returns historical officer feedback logs, optionally filtered by project work_id.
     """
@@ -232,4 +217,3 @@ def get_feedback_logs(work_id: Optional[str] = None):
                 clean[k] = v
         clean_records.append(clean)
     return clean_records
-

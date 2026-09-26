@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
-import { UserPlus, Search as SearchIcon, ShieldCheck, ShieldOff, Building2 } from "lucide-react";
+import { Search as SearchIcon, ShieldCheck, ShieldOff, Building2 } from "lucide-react";
 import Card from "../../components/ui/Card";
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
 import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
-import { StatusBadge } from "../../components/ui/Badge";
 import { ConfirmDialog, EmptyState, Skeleton } from "../../components/ui/Feedback";
 import { getOfficers, updateOfficerStatus, addOfficer } from "../../services/api";
-import { DISTRICTS_BY_STATE } from "../../data/mockData";
+import { DISTRICTS_BY_STATE } from "../../data/geography";
 import { formatDate } from "../../lib/format";
 import type { OfficerAccount } from "../../types";
 import { useToast } from "../../context/ToastContext";
@@ -103,9 +102,6 @@ export default function Officers() {
             Manage authorized monitoring officers and their state-specific jurisdictional boundaries
           </p>
         </div>
-        <Button icon={<UserPlus size={15} />} onClick={() => setAddOpen(true)}>
-          Add Officer
-        </Button>
       </div>
 
       {/* Filter Strip */}
@@ -184,7 +180,7 @@ export default function Officers() {
                     {o.lastLogin === "Never" ? "Never" : formatDate(o.lastLogin)}
                   </td>
                   <td className="py-3 px-3">
-                    <StatusBadge status={o.status === "Active" ? "Resolved" : "Delayed"} />
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${o.status === "Active" ? "bg-emerald-100 text-emerald-700" : "bg-gray-200 text-gray-600"}`}>{o.status}</span>
                   </td>
                   <td className="py-3 px-4 text-right">
                     <button

@@ -8,7 +8,7 @@ that were verified against the orphan process (PID 39864, started Sep 18 2026).
 
 Exact combined risk score formula (proven with 495 live data points, max error 0.05):
   Step 1: base = 0.5 * cost_risk_score + 0.5 * nlp_similarity_score
-  Step 2: +15.0 flat on FIRST citizen report (applied in citizen_reports module)
+  Step 2: confidence-weighted citizen evidence boost (+2 / +8 / +15)
   Step 3: clamp [0, 100]
   Step 4: officer feedback: false_positive -25, confirmed_issue +5, dampened_similarity -10
            (all clamped to [0,100] after adjustment, applied in feedback_loop module)
@@ -53,6 +53,7 @@ import demo_showcase
 import fund_tracking
 import progress_delay
 import compliance_alerts
+import explain_gemini
 
 from explain_gemini import explain_flagged_project  # noqa: F401 (used by audit_brief)
 
@@ -106,6 +107,10 @@ async def lifespan(app: FastAPI):
     df = data_pipeline.load_and_clean(_CSV_PATH)
     df = data_pipeline.add_cost_zscore(df)
     df = anomaly_detector.detect_cost_anomalies(df)
+    # Real peer benchmark: median sanctioned cost within each state and work category.
+    df["peer_average_cost"] = (
+        df.groupby(["state", "work_category"])["sanction_amount"].transform("median")
+    )
     print(f"Loaded {len(df)} projects, {int(df['is_cost_outlier'].sum())} flagged as cost outliers.")
 
     print("Running NLP duplicate detection on descriptions...")
@@ -114,9 +119,6 @@ async def lifespan(app: FastAPI):
     print("Running satellite verification checks...")
     satellite_check.init_earth_engine()
     # max_rows=0: satellite_status defaults to "no_imagery" for all rows at startup.
-    # The orphan server started before SegFormer training was complete and used heuristic
-    # fallback (fast). Now that is_model_ready()=True, running on 5000 rows would take
-    # hours. Real per-project satellite signals run on-demand in GET /project instead.
     df = satellite_check.add_satellite_signals(df, max_rows=0)
 
     # Compute base risk score before citizen/feedback adjustments
@@ -223,6 +225,22 @@ app.include_router(compliance_alerts.router)
 
 # Mount static web frontends: Citizen Portal, Officer Dashboard, Login Gateway, and Uploads
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+
+class SPAStaticFiles(StaticFiles):
+    """Serve index.html for client-side React routes under /app."""
+
+    async def get_response(self, path: str, scope):
+        try:
+            response = await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code != 404:
+                raise
+            response = await super().get_response("index.html", scope)
+        if response.status_code == 404:
+            return await super().get_response("index.html", scope)
+        return response
 _portal_dir   = os.path.join(_SCRIPT_DIR, "frontend", "citizen-portal")
 _officer_dir  = os.path.join(_SCRIPT_DIR, "frontend", "officer-dashboard")
 _login_dir    = os.path.join(_SCRIPT_DIR, "frontend", "login")
@@ -247,7 +265,7 @@ if os.path.exists(_assets_dir):
 if os.path.exists(_uploads_dir):
     app.mount("/uploads", StaticFiles(directory=_uploads_dir), name="uploads")
 if os.path.exists(_react_dist):
-    app.mount("/app", StaticFiles(directory=_react_dist, html=True), name="react_app")
+    app.mount("/app", SPAStaticFiles(directory=_react_dist, html=True), name="react_app")
 
 
 
@@ -270,22 +288,34 @@ def health():
 
 
 @app.get("/overview", tags=["Status"])
-def overview():
+def overview(
+    state: Optional[str] = Query(default=None, description="Optional state scope"),
+    district: Optional[str] = Query(default=None, description="Optional district or constituency scope"),
+):
     """Dataset-derived operational summary used by all dashboard roles."""
     if _df is None:
         raise HTTPException(status_code=503, detail="Dataset not loaded yet.")
-    risk = pd.to_numeric(_df.get("risk_score", 0), errors="coerce").fillna(0)
-    sanctioned = pd.to_numeric(_df.get("sanction_amount", 0), errors="coerce").fillna(0)
-    disbursed_col = "total_fund_disbursed" if "total_fund_disbursed" in _df.columns else "amount_disbursed_completed"
-    disbursed = pd.to_numeric(_df.get(disbursed_col, 0), errors="coerce").fillna(0)
-    work_status = _df.get("work_status", pd.Series("", index=_df.index)).astype(str).str.lower()
-    report_count = int(pd.to_numeric(_df.get("citizen_report_count", 0), errors="coerce").fillna(0).sum())
+    scope = _df
+    if state:
+        scope = scope[scope["state"].astype(str).str.casefold() == state.strip().casefold()]
+    if district:
+        district_key = district.strip().casefold()
+        district_values = scope.get("district", pd.Series("", index=scope.index)).astype(str).str.casefold()
+        constituency_values = scope.get("constituency", pd.Series("", index=scope.index)).astype(str).str.casefold()
+        scope = scope[(district_values == district_key) | (constituency_values == district_key)]
+    risk = pd.to_numeric(scope.get("risk_score", 0), errors="coerce").fillna(0)
+    sanctioned = pd.to_numeric(scope.get("sanction_amount", 0), errors="coerce").fillna(0)
+    disbursed_col = "total_fund_disbursed" if "total_fund_disbursed" in scope.columns else "amount_disbursed_completed"
+    disbursed = pd.to_numeric(scope.get(disbursed_col, 0), errors="coerce").fillna(0)
+    work_status = scope.get("work_status", pd.Series("", index=scope.index)).astype(str).str.lower()
+    report_count = int(pd.to_numeric(scope.get("citizen_report_count", 0), errors="coerce").fillna(0).sum())
     return {
-        "total_works": int(len(_df)),
-        "total_states": int(_df["state"].nunique()),
+        "scope": district or state or "All India",
+        "total_works": int(len(scope)),
+        "total_states": int(scope["state"].nunique()),
         "high_risk_projects": int((risk >= 60).sum()),
         "critical_risk_projects": int((risk >= 80).sum()),
-        "average_risk_score": round(float(risk.mean()), 1),
+        "average_risk_score": round(float(risk.mean()), 1) if len(scope) else 0.0,
         "citizen_reports": report_count,
         "total_sanctioned": round(float(sanctioned.sum()), 2),
         "total_disbursed": round(float(disbursed.sum()), 2),
@@ -299,7 +329,6 @@ def overview():
             "critical": int((risk >= 80).sum()),
         },
     }
-
 
 
 @app.get("/state-risk", tags=["Projects"])
@@ -421,7 +450,9 @@ def flagged_projects(
     # Return complete column set for officer inspection
     cols = [
         "work_id", "state", "constituency", "district", "mp_name", "work_category",
-        "work_description", "sanction_amount", "cost_zscore",
+        "work_description", "sanction_amount", "sanction_date", "completion_date",
+        "amount_disbursed_completed", "total_fund_disbursed", "work_status", "ida",
+        "latest_payment_status", "peer_average_cost", "risk_score_before_feedback", "cost_zscore",
         "cost_risk_score", "nlp_similarity_score", "satellite_risk_score",
         "satellite_status", "citizen_report_count", "feedback_status",
         "risk_score", "similar_project", "similar_state", "is_cost_outlier",
@@ -480,7 +511,7 @@ async def explain_project_endpoint(work_id: str = Query(..., description="MPLADS
 
     try:
         explanation = await asyncio.wait_for(
-            asyncio.to_thread(explain_flagged_project, project), timeout=6.0
+            asyncio.to_thread(explain_flagged_project, project), timeout=5.0
         )
     except Exception:
         explanation = f"Flagged for audit review based on combined risk score {project.get('risk_score')}."
@@ -544,7 +575,10 @@ def search_projects(
 
     cols = [
         "work_id", "state", "constituency", "district", "mp_name",
-        "work_category", "work_description", "sanction_amount",
+        "work_category", "work_description", "sanction_amount", "sanction_date",
+        "completion_date", "amount_disbursed_completed", "total_fund_disbursed",
+        "work_status", "ida", "latest_payment_status", "peer_average_cost",
+        "cost_risk_score", "nlp_similarity_score", "risk_score_before_feedback",
         "risk_score", "citizen_report_count", "feedback_status",
         # Location enrichment fields
         "latitude", "longitude",            # backward-compatible aliases
@@ -579,9 +613,6 @@ def get_project_satellite_image(
     Returns a reference-imagery tile or an explicit precision/availability notice.
     This endpoint never represents Esri basemap imagery as Sentinel-2 analysis.
     """
-    import importlib
-    import satellite_check
-    importlib.reload(satellite_check)
     from satellite_check import generate_satellite_thumbnail
 
     clean_lat = None
@@ -685,7 +716,7 @@ async def audit_chatbot_endpoint(payload: dict, officer: dict = Depends(auth_jwt
     history = payload.get("history") or []
     try:
         response = await asyncio.wait_for(
-            asyncio.to_thread(explain_gemini.answer_citizen_query, query, history), timeout=10.0
+            asyncio.to_thread(explain_gemini.answer_citizen_query, query, history), timeout=5.0
         )
         if isinstance(response, dict):
             # answer_citizen_query returns {status, message, helpline}
@@ -748,7 +779,7 @@ async def citizen_chatbot_endpoint(
 
     try:
         return await asyncio.wait_for(
-            asyncio.to_thread(explain_gemini.answer_citizen_query, query, history), timeout=6.0
+            asyncio.to_thread(explain_gemini.answer_citizen_query, query, history), timeout=5.0
         )
     except Exception:
         return {"reply": "The assistant is temporarily unavailable. Project search and report submission remain available.", "model": "deterministic-fallback"}
@@ -757,12 +788,3 @@ async def citizen_chatbot_endpoint(
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
-
-
-
-
-
-
-
-
-

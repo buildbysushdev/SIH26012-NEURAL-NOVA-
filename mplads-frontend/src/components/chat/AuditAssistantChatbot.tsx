@@ -31,17 +31,18 @@ export default function AuditAssistantChatbot({
       content: `### 🇮🇳 Namaste ${
         variant === "super_admin" ? "Super Administrator" : "Auditing Officer"
       }
-I am your **MoSPI MPLADS Intelligence Copilot** powered by high-speed Groq LPU inference.
+
+I am your **MoSPI MPLADS Intelligence Copilot** — AI decision-support advisory for MPLADS audit and risk governance.
 
 I can help you:
-- **Analyze database patterns** across the **77,312 sanctioned projects** (₹3,865.60 Cr outlay).
+- **Analyze database patterns** across the projects currently available in the live MPLADS registry.
 - **Diagnose cost anomalies** & NLP duplicate risks.
 - **Provide statutory inspection suggestions** as per DISHA guidelines.
 
 *Notice: I operate in **Strict Read-Only Mode**. I analyze and advise without making any modifications to the database or backend.*`,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      modelUsed: "openai/gpt-oss-120b",
-      latencyMs: 180,
+      modelUsed: "mplads-advisory",
+      latencyMs: 0,
     },
   ]);
 
@@ -67,7 +68,7 @@ I can help you:
   ];
 
   const adminChips = [
-    "Analyze nationwide 77,312 works expenditure trends",
+    "Analyze nationwide works expenditure trends from the live registry",
     "Which sectors show highest cost outlier concentration?",
     "Recommend audit strategy for works >₹1 Crore",
     "How to address unspent balance accumulation?",
@@ -121,7 +122,7 @@ I can help you:
         id: `err-${Date.now()}`,
         role: "assistant",
         content:
-          "⚠️ Communication error while connecting to Groq inference engine. Please check network connectivity or try again.",
+          "⚠️ Communication error with the advisory service. Please check network connectivity or try again.",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
       setMessages((prev) => [...prev, errorMsg]);
@@ -209,7 +210,7 @@ I can help you:
         {!isOpen && (
           <div className="hidden sm:flex items-center gap-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-md border border-gray-200 dark:border-gray-700 px-3 py-1.5 rounded-full text-xs font-medium animate-pulse">
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span>Groq LPU Active</span>
+            <span>AI advisory service</span>
           </div>
         )}
         <button
@@ -262,7 +263,7 @@ I can help you:
                     {variant === "super_admin" ? "MoSPI Central AI Copilot" : "MPLADS District Copilot"}
                   </h3>
                   <span className="text-[10px] font-semibold bg-emerald-950 text-emerald-300 border border-emerald-700/60 px-1.5 py-0.2 rounded">
-                    Groq &lt;300ms
+                    Read-Only Advisory
                   </span>
                 </div>
                 <p className="text-[11px] text-gray-400">

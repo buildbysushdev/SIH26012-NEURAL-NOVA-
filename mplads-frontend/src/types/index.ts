@@ -138,6 +138,8 @@ export interface DashboardStats {
   highRiskFlaggedCount?: number;
   citizenReportsCount?: number;
   avgRiskScore?: number;
+  totalDisbursed?: number;
+  riskDistribution?: { low: number; medium: number; high: number; critical: number };
 }
 
 export type OfficerStatus = "Active" | "Inactive";

@@ -13,10 +13,11 @@ from typing import Optional, Dict, Any
 
 import math
 import pandas as pd
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 import supabase_sync
+import auth_jwt
 
 router = APIRouter(tags=["DISHA Inspection Checklist"])
 
@@ -42,7 +43,7 @@ class ChecklistSubmission(BaseModel):
 
 
 @router.post("/checklist", status_code=status.HTTP_200_OK)
-def save_checklist(req: ChecklistSubmission):
+def save_checklist(req: ChecklistSubmission, officer: Dict[str, Any] = Depends(auth_jwt.get_current_officer)):
     """
     Saves or updates DISHA physical inspection checklist.
     Persists to Supabase cloud table and updates local CSV.
@@ -93,7 +94,7 @@ def save_checklist(req: ChecklistSubmission):
 
 
 @router.get("/checklist")
-def get_checklist(work_id: str = Query(..., description="MPLADS project work_id")):
+def get_checklist(work_id: str = Query(..., description="MPLADS project work_id"), officer: Dict[str, Any] = Depends(auth_jwt.get_current_officer)):
     """
     Retrieves saved DISHA checklist for a project.
     Queries Supabase cloud first; falls back to local CSV cache.

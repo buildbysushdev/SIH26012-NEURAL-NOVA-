@@ -11,7 +11,7 @@ import type { RiskAlert } from "../types";
 import AlertDetails from "../components/alerts/AlertDetails";
 import { useAuth } from "../context/AuthContext";
 import { usePortalBase } from "../lib/usePortalBase";
-import { DISTRICTS_BY_STATE, PROJECTS } from "../data/mockData";
+import { DISTRICTS_BY_STATE } from "../data/geography";
 import clsx from "clsx";
 
 const TABS = ["All", "Critical", "High", "Medium", "Resolved"];
@@ -176,8 +176,7 @@ export default function Alerts() {
                   </tr>
                 ))}
               {alerts?.map((a) => {
-                const proj = PROJECTS.find((p) => p.id === a.projectId);
-                const locationDisplay = proj ? `${proj.district}, ${proj.state}` : a.location;
+                const locationDisplay = a.location;
                 return (
                   <tr
                     key={a.id}

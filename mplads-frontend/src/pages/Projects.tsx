@@ -10,7 +10,7 @@ import Pagination from "../components/ui/Pagination";
 import { RiskBadge, StatusBadge } from "../components/ui/Badge";
 import { EmptyState, Skeleton } from "../components/ui/Feedback";
 import { getProjects, type ProjectFilters } from "../services/api";
-import { DISTRICTS_BY_STATE, ALL_CATEGORIES } from "../data/mockData";
+import { DISTRICTS_BY_STATE, ALL_CATEGORIES } from "../data/geography";
 import { formatINR } from "../lib/format";
 import type { Project } from "../types";
 import { useToast } from "../context/ToastContext";

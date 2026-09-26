@@ -10,6 +10,7 @@ import {
   MessageSquareWarning,
   ScrollText,
   Briefcase,
+  ExternalLink,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -73,6 +74,16 @@ export default function Sidebar({
             </NavLink>
           ))}
         </div>
+        {/* Citizen Portal quick-link — always available to all staff */}
+        <NavLink
+          to="/citizen"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 px-3 sm:px-3.5 py-2.5 text-[11px] sm:text-xs font-semibold uppercase tracking-wider transition-all border-b-2 border-transparent text-emerald-300 hover:text-emerald-100 hover:bg-[#102e54] hover:border-emerald-400 ml-2"
+        >
+          <ExternalLink size={13} className="shrink-0" />
+          <span>Citizen Portal</span>
+        </NavLink>
       </nav>
 
       {/* Mobile Drawer Dropdown Menu (when toggled via mobile menu button) */}

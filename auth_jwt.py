@@ -143,13 +143,47 @@ _DEFAULT_CREDENTIALS: Dict[str, Dict] = {
 }
 
 
+_DISABLED_FILE = os.path.join(os.path.dirname(__file__), "disabled_officers.txt")
+
+
+def get_disabled_officers() -> set[str]:
+    try:
+        with open(_DISABLED_FILE, "r", encoding="utf-8") as handle:
+            return {line.strip() for line in handle if line.strip()}
+    except FileNotFoundError:
+        return set()
+
+
+def set_officer_active(officer_id: str, active: bool) -> None:
+    disabled = get_disabled_officers()
+    if active:
+        disabled.discard(officer_id)
+    else:
+        disabled.add(officer_id)
+    with open(_DISABLED_FILE, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(sorted(disabled)))
+
+
+def list_officer_profiles() -> list[Dict[str, Any]]:
+    disabled = get_disabled_officers()
+    return [
+        {"officer_id": officer_id, "district": value.get("district"), "state": value.get("state"),
+         "constituency": value.get("constituency"), "role": value.get("role"),
+         "status": "Inactive" if officer_id in disabled else "Active"}
+        for officer_id, value in _DEFAULT_CREDENTIALS.items()
+    ]
+
+
 def _validate_credentials(officer_id: str, password: str) -> Optional[Dict]:
     """
     Validates officer_id + password against the credentials store.
     Returns the credential record (district, state, constituency, role) if valid, None if invalid.
     Constant-time comparison to prevent timing attacks.
     """
-    cred = _DEFAULT_CREDENTIALS.get(officer_id.strip())
+    clean_id = officer_id.strip()
+    if clean_id in get_disabled_officers():
+        return None
+    cred = _DEFAULT_CREDENTIALS.get(clean_id)
     if cred is None:
         hmac.compare_digest(_sha256("dummy"), _sha256("notmatch"))
         return None
@@ -272,6 +306,13 @@ def get_current_officer(authorization: Optional[str] = Header(None)) -> Dict[str
             detail="Cryptographic verification failed. Tampered or invalid token.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+def get_optional_current_officer(authorization: Optional[str] = Header(None)) -> Optional[Dict[str, Any]]:
+    """Return a verified identity when supplied; allow anonymous public reads."""
+    if not authorization:
+        return None
+    return get_current_officer(authorization)
 
 
 @router.post("/auth/token", response_model=TokenResponse)

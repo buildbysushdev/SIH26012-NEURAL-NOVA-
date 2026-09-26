@@ -23,7 +23,7 @@ import Select from "../ui/Select";
 import Button from "../ui/Button";
 import { RiskBadge } from "../ui/Badge";
 import { formatINR } from "../../lib/format";
-import { PROJECTS, ALL_CATEGORIES, DISTRICTS_BY_STATE } from "../../data/mockData";
+import { ALL_CATEGORIES, DISTRICTS_BY_STATE } from "../../data/geography";
 import type { Project, StateRiskData } from "../../types";
 
 // Official geographic centers for India states
@@ -204,7 +204,7 @@ function MapFlyController({
 }
 
 export default function IndiaRiskMap({
-  projects = PROJECTS,
+  projects = [],
   height = "h-[540px]",
   initialState = "All",
 }: {

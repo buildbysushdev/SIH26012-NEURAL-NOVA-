@@ -188,8 +188,8 @@ export const WorklistView = {
       // Risk Tier filter
       const score = Number(p.risk_score || 0);
       if (filterRisk === 'HIGH' && score <= 70) return false;
-      if (filterRisk === 'MID' && (score < 40 || score > 70)) return false;
-      if (filterRisk === 'LOW' && score >= 40) return false;
+      if (filterRisk === 'MID' && (score < 35 || score >= 60)) return false;
+      if (filterRisk === 'LOW' && score >= 35) return false;
 
       // Status filter
       const status = p.feedback_status || 'unreviewed';
@@ -231,8 +231,8 @@ export const WorklistView = {
     this.allProjects.forEach(p => {
       const s = Number(p.risk_score || 0);
       totalScore += s;
-      if (s > 70) highCount++;
-      else if (s >= 40) midCount++;
+      if (s >= 60) highCount++;
+      else if (s >= 35) midCount++;
     });
 
     const avg = total > 0 ? (totalScore / total).toFixed(1) : '0.0';
@@ -259,7 +259,7 @@ export const WorklistView = {
 
     tableBody.innerHTML = this.filteredProjects.map(p => {
       const score = Number(p.risk_score || 0).toFixed(1);
-      const riskClass = Number(score) > 70 ? 'high' : Number(score) >= 40 ? 'mid' : 'low';
+      const riskClass = Number(score) >= 60 ? 'high' : Number(score) >= 35 ? 'mid' : 'low';
 
       // Location precision tag
       const prec = (p.location_precision || p.coord_precision || 'district').toLowerCase();

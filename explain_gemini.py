@@ -3,7 +3,7 @@ Gemini API explainability module — MPLADS Risk Intelligence System
 SIH26102 / Team Neural Nova
 
 ARCHITECTURE CONTRACT:
-  - Detection models (Isolation Forest, Sentence-BERT, SegFormer) decide WHAT
+  - Detection signals (Isolation Forest and Sentence-BERT) decide WHAT
     is flagged and produce the numeric risk scores.
   - This module is the EXPLANATION LAYER ONLY. It turns already-computed
     structured scores into short, human-readable text for auditors.
@@ -138,10 +138,8 @@ def _get_client():
 
 # Preferred model names in priority order — tested working on Google AI Studio
 _MODEL_PREFERENCE = [
-    "gemini-2.0-flash-lite",
-    "gemini-2.0-flash",
-    "gemini-1.5-flash-latest",
-    "gemini-1.5-flash",
+    os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite"),
+    "gemini-3.8-flash",
 ]
 
 
@@ -680,4 +678,3 @@ def answer_citizen_query(query: str, history: Optional[list] = None) -> dict:
         "message": ans,
         "helpline": OFFICIAL_HELPLINE
     }
-

@@ -75,7 +75,7 @@ export default function ProjectDetail() {
         setProject((prev) => {
           if (!prev) return prev;
           const updatedScore = result.newRiskScore ?? (feedbackModal === "false_positive" ? Math.max(0, prev.riskScore - 25) : Math.min(100, prev.riskScore + 5));
-          const updatedLevel = updatedScore >= 80 ? "Critical" : updatedScore >= 60 ? "High" : updatedScore >= 40 ? "Medium" : "Low";
+          const updatedLevel = updatedScore >= 80 ? "Critical" : updatedScore >= 60 ? "High" : updatedScore >= 35 ? "Medium" : "Low";
           return {
             ...prev,
             feedbackStatus: feedbackModal,

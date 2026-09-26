@@ -122,7 +122,7 @@ export default function Settings() {
   function handleSave() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     localStorage.setItem("mplads_theme", settings.theme);
-    showToast("Preferences saved and synchronized successfully.", "success");
+    showToast("Preferences saved in this browser.", "success");
   }
 
   const initials = user?.name

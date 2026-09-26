@@ -4,6 +4,7 @@ Handles citizen grievances/reports with photo uploads, stores them persistently
 in CSV + disk storage, and applies a +15 point risk boost to reported projects.
 """
 import os
+import asyncio
 import uuid
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
@@ -11,10 +12,11 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 
 import pandas as pd
-from fastapi import APIRouter, Form, File, UploadFile, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Form, File, UploadFile, HTTPException, Request, status
 
 import hashlib
 import supabase_sync
+import auth_jwt
 from explain_gemini import summarize_citizen_report
 
 router = APIRouter(tags=["Citizen Reports"])
@@ -229,7 +231,7 @@ def get_citizen_report_counts() -> Dict[str, int]:
         return {}
 
 
-def apply_citizen_risk_boost(df: pd.DataFrame, boost: float = 15.0) -> pd.DataFrame:
+def apply_citizen_risk_boost(df: pd.DataFrame) -> pd.DataFrame:
     """
     Applies score boost to any project that has one or more citizen reports.
     """
@@ -239,10 +241,28 @@ def apply_citizen_risk_boost(df: pd.DataFrame, boost: float = 15.0) -> pd.DataFr
     counts = [report_counts.get(wid, 0) for wid in df["work_id"]]
     df["citizen_report_count"] = counts
 
-    # If base risk score exists, boost projects with >= 1 citizen report by +15
+    # Reconstruct the same confidence-based first-report boost used by the live
+    # submission path. This makes scores stable across server restarts.
     if "risk_score" in df.columns:
-        has_report = df["citizen_report_count"] > 0
-        df["risk_score"] = df["risk_score"] + (has_report * boost)
+        boosts: Dict[str, float] = {}
+        try:
+            reports = pd.read_csv(REPORTS_CSV)
+            verifications = pd.read_csv(VERIFICATIONS_CSV)
+            first_reports = reports.drop_duplicates(subset=["work_id"], keep="first")
+            confidence_by_report = (
+                verifications.drop_duplicates(subset=["report_id"], keep="last")
+                .set_index("report_id")["confidence_score"].to_dict()
+            )
+            for _, report in first_reports.iterrows():
+                confidence = confidence_by_report.get(report.get("report_id"))
+                try:
+                    confidence = float(confidence)
+                except (TypeError, ValueError):
+                    confidence = 50.0
+                boosts[str(report.get("work_id"))] = 15.0 if confidence >= 80 else 8.0 if confidence >= 50 else 2.0
+        except Exception:
+            boosts = {work_id: 8.0 for work_id in report_counts}
+        df["risk_score"] = df["risk_score"] + df["work_id"].map(boosts).fillna(0.0)
         df["risk_score"] = df["risk_score"].clip(upper=100.0).round(1)
 
     return df
@@ -388,7 +408,9 @@ async def submit_citizen_report(
     # This is explanation-layer only — never modifies any risk score.
     # Falls back gracefully if Gemini is unavailable.
     try:
-        ai_summary_result = summarize_citizen_report(clean_desc)
+        ai_summary_result = await asyncio.wait_for(
+            asyncio.to_thread(summarize_citizen_report, clean_desc), timeout=5.0
+        )
         ai_summary   = ai_summary_result.get("summary", "")
         ai_category  = ai_summary_result.get("category", "other")
     except Exception as _se:
@@ -524,7 +546,7 @@ async def submit_citizen_report(
 
 
 @router.get("/citizen-reports")
-def get_citizen_reports(work_id: Optional[str] = None):
+def get_citizen_reports(work_id: Optional[str] = None, officer: Optional[Dict[str, Any]] = Depends(auth_jwt.get_optional_current_officer)):
     """
     Returns citizen reports, optionally filtered by project work_id.
     """
@@ -534,6 +556,11 @@ def get_citizen_reports(work_id: Optional[str] = None):
         rdf = pd.read_csv(REPORTS_CSV)
         if work_id:
             rdf = rdf[rdf["work_id"] == work_id.strip()]
+        elif officer is not None and _MAIN_DF_REF is not None:
+            scoped = auth_jwt.apply_jurisdiction_scoping(_MAIN_DF_REF, officer)
+            rdf = rdf[rdf["work_id"].isin(set(scoped["work_id"].astype(str)))]
+        # Contact details are private and are never returned by this public endpoint.
+        rdf = rdf.drop(columns=["phone_number"], errors="ignore")
         records = rdf.to_dict(orient="records")
         return [
             {k: (None if (v is None or (isinstance(v, float) and pd.isna(v)) or str(v) == "nan") else v) for k, v in r.items()}
@@ -613,5 +640,3 @@ def get_citizen_report_verification(report_id: str):
             pass
 
     raise HTTPException(status_code=404, detail=f"Verification record for report '{report_id}' not found.")
-
-

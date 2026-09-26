@@ -455,7 +455,7 @@ function updateMapMarkers(projects) {
       ? ''
       : '<div class="popup-precision">📍 Location approximate</div>';
 
-    // Marker color: Red (>70), Amber (40-70), Green (<40)
+    // Marker color: Red (>=60), Amber (35-59), Green (<35)
     const color = lvl === 'high' ? '#DC2626' : lvl === 'medium' ? '#B45309' : '#047857';
 
     // 8px radius circular marker with 2px white border
@@ -581,7 +581,7 @@ if (apiConfigBtn) {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function riskLevel(s) {
   if (s == null) return 'low';
-  return s >= 70 ? 'high' : s >= 40 ? 'medium' : 'low';
+  return s >= 60 ? 'high' : s >= 35 ? 'medium' : 'low';
 }
 
 function fmtAmt(a) {
@@ -2254,5 +2254,3 @@ async function loadShowcaseProjects(state = 'ALL') {
   await checkBackendHealth();
   await initVerifiedDemoShowcase();
 })();
-
-

@@ -44,72 +44,11 @@ interface Reminder {
   priority: "High" | "Medium" | "Low";
 }
 
-const DEFAULT_TASKS: Task[] = [
-  {
-    id: "tsk-1",
-    title: "Verify duplicate work flag for Rural Community Center",
-    completed: false,
-    priority: "High",
-    dueDate: new Date(Date.now() + 86400000 * 2).toISOString().slice(0, 10),
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "tsk-2",
-    title: "Submit Q3 fund expenditure utilization summary to MoSPI",
-    completed: false,
-    priority: "High",
-    dueDate: new Date(Date.now() + 86400000 * 5).toISOString().slice(0, 10),
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "tsk-3",
-    title: "Conduct physical verification of delayed road surfacing",
-    completed: true,
-    priority: "Medium",
-    dueDate: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
-    createdAt: new Date().toISOString(),
-  },
-];
+const DEFAULT_TASKS: Task[] = [];
 
-const DEFAULT_NOTES: Note[] = [
-  {
-    id: "not-1",
-    title: "MPLADS Inspection Protocol Notes",
-    content:
-      "All community assets with sanctioned amount > ₹25 Lakhs require mandatory geo-tagged satellite image verification prior to releasing the 3rd payment milestone.",
-    category: "Guidelines",
-    updatedAt: new Date().toLocaleDateString("en-IN"),
-  },
-  {
-    id: "not-2",
-    title: "District Coordination Meeting Points",
-    content:
-      "Key discussion items: implementing agency reporting delays, road works quality anomalies, and resolution of citizen complaints within 14 statutory days.",
-    category: "Meetings",
-    updatedAt: new Date(Date.now() - 86400000 * 2).toLocaleDateString("en-IN"),
-  },
-];
+const DEFAULT_NOTES: Note[] = [];
 
-const DEFAULT_REMINDERS: Reminder[] = [
-  {
-    id: "rem-1",
-    title: "State Level Monitoring Committee Review",
-    date: new Date(Date.now() + 86400000 * 3).toISOString().slice(0, 10),
-    priority: "High",
-  },
-  {
-    id: "rem-2",
-    title: "Quarterly Audit Reconciliation Deadline",
-    date: new Date(Date.now() + 86400000 * 7).toISOString().slice(0, 10),
-    priority: "High",
-  },
-  {
-    id: "rem-3",
-    title: "District Engineers Bi-weekly Sync",
-    date: new Date(Date.now() + 86400000 * 10).toISOString().slice(0, 10),
-    priority: "Medium",
-  },
-];
+const DEFAULT_REMINDERS: Reminder[] = [];
 
 export default function MyWorkspace() {
   const { showToast } = useToast();
@@ -282,7 +221,7 @@ export default function MyWorkspace() {
             </h1>
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Personal operational tasks, compliance notes, scheduled statutory reminders, and event calendar.
+            Personal tasks, notes, and reminders stored only in this browser on this device.
           </p>
         </div>
 

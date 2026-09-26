@@ -18,7 +18,7 @@ With more than **77,312 public works** distributed nationwide across diverse ter
 
 ### Core Architectural Principle
 > **Risk Prioritization, Never an Automated Verdict**  
-> Because no ground-truth labeled fraud dataset exists in public administration, all machine learning within this system is **strictly unsupervised** (Isolation Forest, Sentence-BERT embedding distance, SegFormer aerial feature detection). The system acts as an **explainable decision-support dashboard** to prioritize physical audits for human officers—it **never** issues automated accusations or legal determinations.
+> Because no ground-truth labeled fraud dataset exists in public administration, all machine learning within this system is **strictly decision-support oriented** (Isolation Forest and cached Sentence-BERT similarity). The system acts as an **explainable decision-support dashboard** to prioritize physical audits for human officers—it **never** issues automated accusations or legal determinations.
 
 ---
 
@@ -34,14 +34,14 @@ flowchart TD
     subgraph ScoringEngine["2. Multi-Modal Risk Engine (Unsupervised)"]
         GEO --> S1["Signal 1: Cost Anomaly\nIsolation Forest + Category Z-Scores"]
         GEO --> S2["Signal 2: NLP Duplicates\nSentence-BERT all-MiniLM-L6-v2"]
-        GEO --> S3["Signal 3: Satellite Verification\nFine-Tuned SegFormer + Sentinel-2"]
+        GEO --> S3["Context: Reference Imagery\nManual Review Only"]
         
         S1 & S2 --> BASE["Base Risk Score Formula\n0.5 × Cost + 0.5 × NLP Similarity"]
     end
 
     subgraph CitizenEvidence["3. Citizen Vigilance & Verification"]
         CP["Citizen Reporting Portal\nVoice / Photo / GPS / PWA"] --> PIPE["AI Evidence Verification\nGPS Tolerance, Photo SHA-256 Seal"]
-        PIPE --> BOOST["Dynamic Score Boost\n+15.0 on 1st Verified Report"]
+        PIPE --> BOOST["Confidence-Weighted Score Boost\n+2 / +8 / +15"]
         BOOST --> BASE
     end
 
@@ -66,7 +66,7 @@ The system evaluates each work record across four distinct physical and administ
 |---|---|---|---|
 | **1. Cost Outlier Detection** | `scikit-learn` Isolation Forest | Projects partitioned by `work_category`; calculates category-specific cost Z-scores and Isolation Forest anomaly scores. | `cost_risk_score` (0–100) & `cost_zscore` |
 | **2. Ghost / Duplicate Detection** | `Sentence-BERT` (`all-MiniLM-L6-v2`) | Embeds project work descriptions into 384-dimensional dense semantic vector space. Cosine similarity threshold set at **91%** to flag cross-MP or cross-state duplicate entries. | `nlp_similarity_score` (0–100) |
-| **3. Aerial Physical Verification** | `SegFormer` (`MiT-B0` fine-tuned on `LandCover.ai`) | Before/after multi-spectral Sentinel-2 satellite imagery segmented into 4 land-cover classes (Buildings, Roads, Water, Woodland). 0.2% false-negative rate on held-out test patches. | `structure_detected` & `satellite_risk_score` |
+| **3. Reference Imagery** | Esri World Imagery basemap | Location context for manual officer review. The application does not infer a structure verdict from this image. | Neutral/manual-review status |
 | **4. Citizen Evidence Verification** | Multi-Signal Heuristic Cross-Check | Live camera capture, browser Web Crypto `SHA-256` hashing, EXIF validation, and multi-tier GPS proximity rings. | `verification_confidence` & `ai_category` |
 
 ---
@@ -80,7 +80,7 @@ flowchart LR
     A["Cost Risk Score\n(0 - 100)"] -->|Weight: 0.5| C["Weighted Base Score"]
     B["NLP Similarity Score\n(0 - 100)"] -->|Weight: 0.5| C
     C --> D{"Citizen Report\nVerified?"}
-    D -->|First Report| E["Add +15.0 Boost"]
+    D -->|Verified Report| E["Add +2 / +8 / +15 by confidence"]
     D -->|No Reports| F["Unboosted Base"]
     E --> G["Clamp to [0, 100]"]
     F --> G
@@ -98,7 +98,7 @@ flowchart LR
 1. **Base Risk Score Calculation:**
    $$\text{Score}_{\text{base}} = 0.5 \times \text{CostRisk} + 0.5 \times \text{NLPSimilarity}$$
 2. **Citizen Vigilance Adjustment:**
-   $$\text{Score}_{\text{boosted}} = \text{Score}_{\text{base}} + 15.0 \quad \text{(Applied on 1st verified citizen report only)}$$
+   $$\text{Score}_{\text{boosted}} = \text{Score}_{\text{base}} + b,\quad b \in \{2,8,15\}\ \text{according to evidence confidence}$$
 3. **Boundary Normalization:**
    $$\text{Score}_{\text{clamped}} = \min(100.0, \max(0.0, \text{Score}_{\text{boosted}}))$$
 4. **Statutory Officer Determination:**
@@ -129,7 +129,7 @@ sequenceDiagram
     Backend->>AI: Gemini Flash Audio Transcription + Grievance Categorization
     Backend->>Backend: Cross-check GPS against 3-tier location cache
     Backend->>Backend: Store in CSV / Supabase & increment report count
-    Backend->>Backend: Apply +15.0 Dynamic Risk Score Boost
+    Backend->>Backend: Apply confidence-weighted +2 / +8 / +15 risk boost
     Backend-->>Citizen: Return 11-char tracking code (e.g., CR-A1B2C3D4)
     Backend->>Officer: Dispatch flagged case to District Officer worklist
 ```
@@ -179,7 +179,7 @@ flowchart TD
 ├── anomaly_detector.py             # Isolation Forest & cost Z-score anomaly engine
 ├── nlp_duplicate.py                # Sentence-BERT duplicate & ghost project detection
 ├── satellite_check.py              # Earth Engine & satellite verification interface
-├── satellite_detector.py           # Fine-tuned SegFormer inference module
+├── satellite_detector.py           # Experimental detector (not used for production scoring)
 ├── explain_gemini.py               # Gemini 3.6 Flash explainability & Sahayak assistant
 ├── citizen_reports.py              # Citizen grievance intake, scoring boost & tracking
 ├── verification_pipeline.py        # Multi-signal AI verification & hash validation
@@ -268,7 +268,7 @@ The authentication gateway includes preconfigured roles for statutory evaluation
 
 ## 10. Automated Validation & Test Suite
 
-The system includes comprehensive automated test suites verifying model accuracy, API integrity, and zero-hardcoding compliance:
+The system includes validation scripts for scoring, API integrity, and persistence behavior:
 
 ```bash
 # Run comprehensive 29-test end-to-end integration suite

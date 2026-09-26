@@ -1,28 +1,16 @@
-"""
-Satellite verification signal for MPLADS Risk Intelligence System.
-Uses Google Earth Engine (Sentinel-2 / Landsat) to pull before/after imagery
-around district centroids and determine physical structure presence.
+"""Satellite reference-imagery support for MPLADS Risk Intelligence System.
 
-When landcover_segformer/ model directory exists (trained by landcover_trainer.py),
-real SegFormer pixel segmentation is used to detect buildings/roads/water.
-Falls back gracefully to heuristic scoring if model is not yet trained.
+Uses verified project coordinates, Earth Engine acquisition metadata when available,
+and honestly labelled Esri World Imagery reference tiles. It never claims automated
+structure detection when a validated detector was not run.
 """
 import os
 import io
 import re
 import math
-import hashlib
 from typing import Dict, Any, Tuple, Optional
 import pandas as pd
 import numpy as np
-
-# Real SegFormer detector — loads lazily on first use
-try:
-    from satellite_detector import predict_structure, is_model_ready
-    _HAS_DETECTOR = True
-except ImportError:
-    _HAS_DETECTOR = False
-    is_model_ready = lambda: False
 
 # Try importing Google Earth Engine
 try:
@@ -212,25 +200,8 @@ def select_sentinel2_pass(
         except Exception as e:
             print(f"Earth Engine query error: {e}")
 
-    # 2. Offline / Deterministic Sentinel-2 Orbit Simulation (Exact 5-day revisit cycle over India)
-    # Cloud cover distribution respects Indian climatology: <20% for dry season, higher for cloud-prone
-    coord_key = f"{lat:.4f}_{lng:.4f}"
-    h = int(hashlib.md5(coord_key.encode("utf-8")).hexdigest()[:8], 16)
-
-    # Primary 90-day window check
-    pass_offset_90 = (h % 18) * 5
-    cloud_90 = (h % 100)
-    if cloud_90 < cloud_threshold:
-        pass_dt = ref_dt - datetime.timedelta(days=int(pass_offset_90))
-        return pass_dt.strftime("%Y-%m-%d"), float(cloud_90), False
-
-    # Expanded 180-day window check
-    cloud_180 = ((h >> 4) % 100)
-    if cloud_180 < cloud_threshold:
-        pass_offset_180 = 90 + ((h >> 3) % 18) * 5
-        pass_dt = ref_dt - datetime.timedelta(days=int(pass_offset_180))
-        return pass_dt.strftime("%Y-%m-%d"), float(cloud_180), True
-
+    # Never fabricate an acquisition date or cloud percentage. Without a live
+    # Earth Engine response the optical verification is simply unavailable.
     return None, None, False
 
 
@@ -294,103 +265,20 @@ def check_satellite_status(project: Dict[str, Any], allow_network: bool = False)
             "details": "No cloud-free Sentinel-2 optical pass (<20% cloud cover) found in the 90-day or expanded 180-day lookback window."
         }
 
-    # Structure detection on verified tile
-    disbursed = float(project.get("total_fund_disbursed", 0) or 0)
-    zscore = float(project.get("cost_zscore", 0) or 0)
-    nlp_score = float(project.get("nlp_similarity_score", 0) or 0)
-
-    is_absent = (disbursed > 2000000 and zscore > 4.5 and nlp_score > 85)
-    risk_score = 100.0 if is_absent else 0.0
-    structure_text = "no physical structure detected despite fund disbursement" if is_absent else "structure consistent with civil construction"
-
+    # A confirmed acquisition date is useful provenance, but this service does
+    # not currently fetch the matching Sentinel-2 pixels or run a validated
+    # detector against them. Return an explicit manual-review state rather than
+    # inferring visual evidence from financial or NLP signals.
     return {
-        "satellite_status": "verified",
-        "status_label": "Verified",
-        "satellite_risk_score": risk_score,
+        "satellite_status": "manual_review_required",
+        "status_label": "Reference imagery available — manual review required",
+        "satellite_risk_score": None,
         "coordinates": (lat, lng),
         "satellite_pass_date": pass_date,
         "cloud_cover_pct": cloud_pct,
         "window_expanded": was_expanded,
-        "details": f"Verified via Sentinel-2 MSI (Pass: {pass_date}, Cloud: {cloud_pct:.1f}%). Analysis: {structure_text}."
+        "details": "Sentinel-2 acquisition metadata confirmed. Automated structure detection was not run."
     }
-
-
-    # ── Real SegFormer Detection (when model is trained) ──────────────────
-    if _HAS_DETECTOR and is_model_ready():
-        try:
-            # Build a synthetic RGB tile representative of the district:
-            # We use the PIL-drawn multispectral thumbnail as the input patch.
-            # This feeds real rendered land-cover pixels into the model.
-            thumb_buf = generate_satellite_thumbnail(
-                district=str(project.get("constituency") or project.get("ida", "")),
-                state=str(project.get("state", "")),
-                status="no_imagery",
-                coordinates=coords,
-                width=256,
-                height=256,
-            )
-            from PIL import Image
-            thumb_buf.seek(0)
-            tile_img = np.array(Image.open(thumb_buf).convert("RGB"))
-
-            det = predict_structure(tile_img)
-            struct_detected = det.get("structure_detected", False)
-            building_pct    = det.get("building_pct", 0.0)
-            road_pct        = det.get("road_pct", 0.0)
-            dominant        = det.get("dominant_class", "background")
-            model_src       = det.get("model_source", "unknown")
-
-            if not struct_detected:
-                return {
-                    "satellite_status": "not_visible",
-                    "satellite_risk_score": 100.0,
-                    "coordinates": coords,
-                    "details": (
-                        f"SegFormer ({model_src}): no built structure detected at district centroid. "
-                        f"Building pixels: {building_pct:.1f}%, Road pixels: {road_pct:.1f}%, "
-                        f"Dominant land cover: {dominant}."
-                    ),
-                }
-            else:
-                return {
-                    "satellite_status": "visible",
-                    "satellite_risk_score": 0.0,
-                    "coordinates": coords,
-                    "details": (
-                        f"SegFormer ({model_src}): built structure confirmed. "
-                        f"Building pixels: {building_pct:.1f}%, Road pixels: {road_pct:.1f}%, "
-                        f"Dominant land cover: {dominant}."
-                    ),
-                }
-        except Exception as det_err:
-            # Detector failed — fall through to heuristic below
-            print(f"[satellite_check] SegFormer inference error: {det_err}")
-
-    # ── Heuristic Fallback (no model trained yet) ──────────────────────────
-    nlp_score = float(project.get("nlp_similarity_score", 0) or 0)
-    cost_score = float(project.get("cost_risk_score", 0) or 0)
-
-    if cost_score > 80.0 and nlp_score > 85.0:
-        return {
-            "satellite_status": "not_visible",
-            "satellite_risk_score": 100.0,
-            "coordinates": coords,
-            "details": "[Heuristic fallback] High disbursement reported; no matching physical structure detected at district coordinates."
-        }
-    elif cost_score > 70.0:
-        return {
-            "satellite_status": "visible",
-            "satellite_risk_score": 0.0,
-            "coordinates": coords,
-            "details": "[Heuristic fallback] Structure confirmed visible at reported district coordinates."
-        }
-    else:
-        return {
-            "satellite_status": "no_imagery",
-            "satellite_risk_score": None,
-            "coordinates": coords,
-            "details": "Satellite verification pending model training or imagery unavailable."
-        }
 
 
 def add_satellite_signals(df: pd.DataFrame, max_rows: int = 5000) -> pd.DataFrame:
@@ -398,15 +286,12 @@ def add_satellite_signals(df: pd.DataFrame, max_rows: int = 5000) -> pd.DataFram
     Attaches satellite verification columns to the dataframe:
     - satellite_status: 'visible' | 'not_visible' | 'no_imagery'
     - satellite_risk_score: float (100.0, 0.0, or NaN)
-    Uses real SegFormer detection when model is trained, heuristic otherwise.
+    Adds only verified metadata-derived statuses; no financial/NLP heuristic is used as image evidence.
     """
     df = df.copy()
     init_earth_engine()
 
-    if _HAS_DETECTOR and is_model_ready():
-        print("[satellite_check] Using fine-tuned SegFormer detector for satellite signals.")
-    else:
-        print("[satellite_check] Model not yet trained — using heuristic fallback for satellite signals.")
+    print("[satellite_check] Satellite scores remain neutral unless verified acquisition metadata is available.")
 
     records = df.head(max_rows).to_dict(orient="records")
     statuses = ["no_imagery"] * len(df)
@@ -482,25 +367,8 @@ def _get_real_satellite_patch(lat: float, lon: float, width: int = 500, height: 
     except Exception:
         pass
 
-    # Offline Fallback: Crop a patch from real local GeoTIFFs in dataset 1/images
-    try:
-        import glob
-        images_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset 1", "images")
-        tifs = glob.glob(os.path.join(images_dir, "*.tif"))
-        if tifs:
-            h = int(hashlib.md5(f"{lat}_{lon}".encode()).hexdigest()[:8], 16)
-            chosen = tifs[h % len(tifs)]
-            with Image.open(chosen) as im:
-                mx = max(10, im.width - width - 50)
-                my = max(10, im.height - height - 50)
-                sx = (h * 41) % mx
-                sy = ((h >> 4) * 67) % my
-                return im.crop((sx, sy, sx + width, sy + height)).convert("RGB")
-    except Exception:
-        pass
-
-    # Ultra fallback: dark slate remote sensing base
-    return Image.new("RGB", (width, height), (28, 42, 36))
+    # Do not substitute imagery from another location when the tile service is unavailable.
+    return None
 
 
 def generate_satellite_thumbnail(
@@ -514,7 +382,7 @@ def generate_satellite_thumbnail(
     precision: str = "district"
 ) -> io.BytesIO:
     """
-    Generates a Sentinel-2 multispectral satellite aerial imagery tile
+    Generates an honestly labelled reference-imagery tile
     with coordinate reticles, scale reference, and status badge for the PDF dossier.
     """
     from PIL import Image, ImageDraw
@@ -561,7 +429,7 @@ def generate_satellite_thumbnail(
         draw = ImageDraw.Draw(img)
         # Top banner
         draw.rectangle([(0, 0), (width, 24)], fill=(39, 39, 42))
-        draw.text((12, 6), "COPERNICUS SENTINEL-2 MSI | OPTICAL COVERAGE LOG", fill=(212, 212, 216))
+        draw.text((12, 6), "SATELLITE METADATA | OPTICAL COVERAGE LOG", fill=(212, 212, 216))
         # Center message
         draw.text((width // 2 - 100, height // 2 - 18), "IMAGERY UNAVAILABLE", fill=(245, 158, 11))
         draw.text((width // 2 - 200, height // 2 + 2), "No cloud-free pass (<20% cloud cover) found in 90-day or expanded 180-day window.", fill=(161, 161, 170))
@@ -574,21 +442,27 @@ def generate_satellite_thumbnail(
         buf.seek(0)
         return buf
 
-    # ── CASE 3: Verified Sentinel-2 / Earth Observation Pass (Real Space Photo) ──
+    # ── CASE 3: Esri World Imagery reference tile (manual interpretation only) ──
     img = _get_real_satellite_patch(lat, lon, width=width, height=height)
+    if img is None:
+        img = Image.new("RGB", (width, height), color=(24, 24, 27))
+        draw = ImageDraw.Draw(img)
+        draw.rectangle([(0, 0), (width, 24)], fill=(39, 39, 42))
+        draw.text((12, 6), "ESRI WORLD IMAGERY | SERVICE STATUS", fill=(212, 212, 216))
+        draw.text((width // 2 - 125, height // 2 - 12), "REFERENCE IMAGERY UNAVAILABLE", fill=(245, 158, 11))
+        draw.text((width // 2 - 155, height // 2 + 8), "Tile service unavailable; no substitute image shown.", fill=(161, 161, 170))
+        draw.rectangle([(0, height - 22), (width, height)], fill=(39, 39, 42))
+        draw.text((12, height - 17), f"Requested coordinates: {lat:.4f}°N, {lon:.4f}°E | Manual review required", fill=(161, 161, 170))
+        buf = io.BytesIO()
+        img.save(buf, format="PNG", optimize=True)
+        buf.seek(0)
+        return buf
     draw = ImageDraw.Draw(img)
 
-    # Reticle and SegFormer overlay styling
-    if clean_stat in ["not_visible", "structure_absent"]:
-        reticle_color = (239, 68, 68)   # Alert Red
-        status_text = "VERIFIED: STRUCTURE ABSENT"
-        badge_bg = (153, 27, 27)
-        box_text = "[SegFormer: No Structure Detected]"
-    else:
-        reticle_color = (34, 197, 94)   # Success Green
-        status_text = "VERIFIED: STRUCTURE DETECTED"
-        badge_bg = (22, 101, 52)
-        box_text = "[SegFormer: Built Structure Detected]"
+    # Reference-location reticle. No automated detection claim is made.
+    reticle_color = (251, 191, 36)
+    status_text = "REFERENCE IMAGERY — MANUAL REVIEW"
+    badge_bg = (120, 53, 15)
 
     # Target Reticle at Center
     cx = width // 2
@@ -600,15 +474,11 @@ def generate_satellite_thumbnail(
     draw.line([(cx, cy - 36), (cx, cy - 14)], fill=reticle_color, width=2)
     draw.line([(cx, cy + 14), (cx, cy + 36)], fill=reticle_color, width=2)
 
-    # AI Detection Bounding Box around center structure
-    box_w, box_h = 50, 34
-    draw.rectangle([(cx - box_w, cy - box_h), (cx + box_w, cy + box_h)], outline=reticle_color, width=1)
-    draw.text((cx - box_w, cy - box_h - 12), box_text, fill=reticle_color)
 
     # Top Header Bar — PROMINENT CAPTURE DATE DISPLAY
     draw.rectangle([(0, 0), (width, 22)], fill=(15, 23, 42))
     date_label = f" | {formatted_date}" if formatted_date else ""
-    header_str = f"SENTINEL-2 EO{date_label}"
+    header_str = f"ESRI WORLD IMAGERY — REFERENCE ONLY{date_label}"
     draw.text((10, 5), header_str, fill=(241, 245, 249))
 
     # Scale Bar (top right)
@@ -632,6 +502,3 @@ def generate_satellite_thumbnail(
     img.save(buf, format="PNG", optimize=True)
     buf.seek(0)
     return buf
-
-
-

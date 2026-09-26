@@ -60,89 +60,24 @@ def _sanitize(record: dict) -> dict:
 
 
 def build_curated_locality_cache() -> int:
-    """
-    Builds or verifies geocode_locality_cache.csv for extractable village/panchayat localities.
-    Uses parent constituency coordinates combined with deterministic radial offsets (1.5 - 3.5 km)
-    so each unique village/panchayat in a district receives a fine-grained, distinct geographical anchor.
-    Returns the total number of cached locality entries.
-    """
-    if os.path.exists(_LOCALITY_CACHE_CSV) and os.path.getsize(_LOCALITY_CACHE_CSV) > 1000:
-        try:
-            existing = pd.read_csv(_LOCALITY_CACHE_CSV)
-            if len(existing) > 100:
-                logger.info(f"Locality cache already present with {len(existing)} records.")
-                return len(existing)
-        except Exception:
-            pass
+    """Return the count of genuinely geocoded locality rows.
 
-    if not os.path.exists(_DISTRICT_CACHE_CSV) or not os.path.exists(_RAW_CSV_PATH):
-        logger.warning("Prerequisite CSVs not found to build locality cache.")
+    Kept for API compatibility. Synthetic offsets are never generated. Only
+    Nominatim-, GPS-, or manually verified cache records qualify.
+    """
+    if not os.path.exists(_LOCALITY_CACHE_CSV):
         return 0
-
-    print("Building curated geocode_locality_cache.csv for verified showcase...")
-    dist_df = pd.read_csv(_DISTRICT_CACHE_CSV, dtype=str)
-    dist_coords: Dict[tuple, tuple] = {}
-    for _, r in dist_df.iterrows():
-        c = str(r.get("constituency", "")).strip().lower()
-        s = str(r.get("state", "")).strip().lower()
-        try:
-            lat = float(r.get("lat", ""))
-            lng = float(r.get("lng", ""))
-            dist_coords[(c, s)] = (lat, lng)
-        except (ValueError, TypeError):
-            continue
-
-    import location_enricher
-    raw_df = pd.read_csv(_RAW_CSV_PATH, low_memory=False)
-    raw_df["loc"] = raw_df["work_description"].dropna().apply(location_enricher.extract_locality)
-    valid = raw_df[raw_df["loc"].notnull() & ~raw_df["loc"].str.startswith("ward:")].copy()
-
-    # Drop duplicate triples
-    triples = valid[["loc", "constituency", "state"]].drop_duplicates()
-
-    rows = []
-    for _, row in triples.iterrows():
-        loc = str(row["loc"]).strip()
-        c = str(row["constituency"]).strip()
-        s = str(row["state"]).strip()
-        c_low = c.lower()
-        s_low = s.lower()
-
-        base_coords = dist_coords.get((c_low, s_low))
-        if not base_coords:
-            continue
-
-        base_lat, base_lng = base_coords
-
-        # Compute deterministic offset within ~1.5 - 3.5 km radius
-        h_str = f"{loc}_{c_low}_{s_low}"
-        h_int = int(hashlib.md5(h_str.encode("utf-8")).hexdigest()[:8], 16)
-        angle = (h_int % 360) * (math.pi / 180.0)
-        dist_km = 1.5 + ((h_int >> 10) % 200) / 100.0  # 1.5 to 3.5 km
-        d_lat = (dist_km / 111.0) * math.sin(angle)
-        d_lng = (dist_km / (111.0 * math.cos(math.radians(base_lat)))) * math.cos(angle)
-
-        v_lat = round(base_lat + d_lat, 6)
-        v_lng = round(base_lng + d_lng, 6)
-
-        rows.append({
-            "locality": loc,
-            "constituency": c,
-            "state": s,
-            "lat": v_lat,
-            "lng": v_lng,
-            "status": "locality_curated"
-        })
-
-    out_df = pd.DataFrame(rows)
-    out_df.to_csv(_LOCALITY_CACHE_CSV, index=False)
-    print(f"Created geocode_locality_cache.csv with {len(out_df)} verified entries.")
-    return len(out_df)
+    try:
+        existing = pd.read_csv(_LOCALITY_CACHE_CSV)
+        trusted = existing[existing["status"].isin(["nominatim", "verified", "gps"])]
+        return int(len(trusted))
+    except Exception:
+        return 0
 
 
 def initialize_showcase_signals(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Initializes verified demo showcase attributes on the active in-memory dataset:
+    Initializes reference-imagery showcase attributes on the active in-memory dataset:
     - Identifies records with location_precision in ['precise', 'locality'].
     - Prepares verified satellite status and genuine Sentinel-2 acquisition dates.
     - Honors Rule 3: unverified projects retain their honest 'no_imagery' status.
@@ -202,23 +137,18 @@ def initialize_showcase_signals(df: pd.DataFrame) -> pd.DataFrame:
             df.at[idx, "satellite_pass_date"] = pass_date
             df.at[idx, "cloud_cover_pct"] = cloud_pct
 
-            # Evaluate: structure visible unless cost/nlp indicates potential ghost/outlier pattern
-            risk = float(row.get("risk_score") or 0)
-            cost_z = float(row.get("cost_zscore") or 0)
-            nlp_score = float(row.get("nlp_similarity_score") or 0)
-            if risk >= 85.0 or (cost_z > 4.5 and nlp_score > 85):
-                df.at[idx, "satellite_status"] = "not_visible"
-                df.at[idx, "satellite_risk_score"] = 100.0
-            else:
-                df.at[idx, "satellite_status"] = "visible"
-                df.at[idx, "satellite_risk_score"] = 0.0
+            # Acquisition metadata alone does not establish whether a structure
+            # exists. Keep the result neutral until a validated detector or an
+            # officer supplies a finding.
+            df.at[idx, "satellite_status"] = "manual_review_required"
+            df.at[idx, "satellite_risk_score"] = np.nan
             verified_count += 1
         else:
             df.at[idx, "imagery_status"] = "unavailable"
             df.at[idx, "satellite_status"] = "imagery_unavailable"
             df.at[idx, "satellite_pass_date"] = None
 
-    print(f"Verified demo showcase active: {verified_count} cloud-free passes confirmed.")
+    print(f"Reference-imagery showcase active: {verified_count} cloud-free passes confirmed.")
     return df
 
 
@@ -303,7 +233,7 @@ def get_demo_showcase(
 
     return {
         "status": "success",
-        "mode": "verified_demo_showcase",
+        "mode": "reference_imagery_showcase",
         "total": total_matches,
         "total_in_selection": total_matches,
         "total_verified_all_states": len(base_filtered),
@@ -359,7 +289,7 @@ def get_showcase_sample(
     state: Optional[str] = Query(default=None, description="State name for instant sample project")
 ):
     """
-    Returns a single high-priority verified showcase project for 1-click live demo loading.
+    Returns one reference-imagery example when honest locality evidence is available.
     """
     if _main_df is None:
         raise HTTPException(status_code=503, detail="Dataset not initialized yet.")
@@ -379,7 +309,11 @@ def get_showcase_sample(
             subset = state_subset
 
     if subset.empty:
-        raise HTTPException(status_code=404, detail="No verified showcase project found for the given criteria.")
+        return {
+            "status": "unavailable",
+            "project": None,
+            "message": "No project currently has trusted locality coordinates and confirmed imagery metadata.",
+        }
 
     # Pick top risk project for dramatic demonstration
     sort_c = "risk_score" if "risk_score" in subset.columns else "sanction_amount" if "sanction_amount" in subset.columns else None

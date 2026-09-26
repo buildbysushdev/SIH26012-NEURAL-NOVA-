@@ -115,7 +115,7 @@ export const DetailView = {
     if (elWorkId) elWorkId.textContent = p.work_id || '';
 
     const score = Number(p.risk_score || 0).toFixed(1);
-    const riskClass = Number(score) > 70 ? 'high' : Number(score) >= 40 ? 'mid' : 'low';
+    const riskClass = Number(score) >= 60 ? 'high' : Number(score) >= 35 ? 'mid' : 'low';
     if (elScoreBadge) {
       elScoreBadge.textContent = `${score} / 100`;
       elScoreBadge.className = `risk-score-badge ${riskClass}`;
@@ -414,9 +414,8 @@ export const DetailView = {
       const lat = r.captured_lat ? Number(r.captured_lat).toFixed(4) : null;
       const lng = r.captured_lng ? Number(r.captured_lng).toFixed(4) : null;
 
-      // Simulated SHA-256 validation (if file exists and is intact)
-      // Generates real cryptographic SHA-256 seal
-      const mockHash = `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.slice(0, 32);
+      // Use real photo_hash from backend record; never fabricate a hash value
+      const evidenceHash = (r.photo_hash && r.photo_hash !== '' && r.photo_hash !== 'None') ? r.photo_hash : null;
 
       return `
         <div class="evidence-card">
@@ -425,7 +424,7 @@ export const DetailView = {
           </div>
           <div class="evidence-details">
             <div style="display: flex; align-items: center; justify-content: space-between;">
-              <span class="evidence-badge-custody verified">Chain-of-Custody Verified ✓</span>
+              <span class="evidence-badge-custody verified">Chain-of-Custody Reference ✓</span>
               <span style="font-size: 11px; color: var(--text-tertiary); font-family: var(--font-mono);">${escapeHtml(time.slice(0, 16))}</span>
             </div>
             <div style="font-size: var(--text-xs); color: var(--text-primary); font-weight: 500;">
@@ -436,8 +435,8 @@ export const DetailView = {
                 📍 Captured at: ${lat}°N, ${lng}°E
               </div>
             ` : ''}
-            <div class="evidence-hash-line" title="SHA-256: ${mockHash}...">
-              SHA-256: ${mockHash}...
+            <div class="evidence-hash-line" title="${evidenceHash ? 'SHA-256: ' + evidenceHash : 'Photo hash pending upload verification'}">
+              ${evidenceHash ? 'SHA-256: ' + escapeHtml(evidenceHash.slice(0, 32)) + '...' : '<em style="color:var(--text-tertiary)">Photo hash pending</em>'}
             </div>
           </div>
         </div>

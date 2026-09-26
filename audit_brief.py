@@ -34,7 +34,7 @@ from reportlab.platypus import (
 )
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY
 
-from explain_gemini import explain_flagged_project, synthesize_audit_doubts
+from explain_gemini import _template_explanation, _template_doubts
 from satellite_check import generate_satellite_thumbnail, geocode_district
 from citizen_reports import get_citizen_reports
 
@@ -86,9 +86,9 @@ def generate_audit_brief_pdf(
     """
     # 1. Synthesize explanation and structured doubts if not provided
     if not explanation:
-        explanation = explain_flagged_project(project, language=language)
+        explanation = _template_explanation(project)
     if not doubt_data:
-        doubt_data = synthesize_audit_doubts(project, language=language)
+        doubt_data = _template_doubts(project)
 
     buffer = io.BytesIO()
     # A4 dimensions: 595.28 x 841.89 pt. Printable width with 26pt margins = 543 pt.
@@ -691,8 +691,8 @@ def _generate_and_return_pdf(work_id: str, language: str = "English") -> Respons
     project = {k: (None if pd.isna(v) else v) for k, v in raw.items()}
 
     # Generate explanation and structured doubts
-    explanation = explain_flagged_project(project, language=language)
-    doubt_data = synthesize_audit_doubts(project, language=language)
+    explanation = _template_explanation(project)
+    doubt_data = _template_doubts(project)
 
     # Build 2-page PDF
     pdf_bytes = generate_audit_brief_pdf(project, explanation=explanation, doubt_data=doubt_data, language=language)
