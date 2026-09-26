@@ -412,6 +412,7 @@ def build_locality_cache():
 
 _district_cache: Optional[Dict] = None
 _locality_cache: Optional[Dict] = None
+_normalized_constituency_coords: Optional[Dict] = None
 
 
 def _ensure_caches_loaded():
@@ -441,9 +442,12 @@ def resolve_project_location(
       3. CONSTITUENCY_COORDS dict fallback (exact or substring match)       -> 'district'
       4. None                                                               -> 'unavailable'
     """
+    global _normalized_constituency_coords
     _ensure_caches_loaded()
 
     from verification_pipeline import CONSTITUENCY_COORDS, _normalize_constituency
+    if _normalized_constituency_coords is None:
+        _normalized_constituency_coords = {_normalize_constituency(k): v for k, v in CONSTITUENCY_COORDS.items()}
 
     locality_name = extract_locality(str(work_description or ""))
     c_lower = str(constituency or "").strip().lower()
@@ -468,14 +472,13 @@ def resolve_project_location(
             return lat, lng, locality_name, "district"
 
     # --- Tier: CONSTITUENCY_COORDS dict ---
-    norm_dict = {_normalize_constituency(k): v for k, v in CONSTITUENCY_COORDS.items()}
     norm = _normalize_constituency(constituency or "")
 
-    if norm in norm_dict:
-        lat, lng = norm_dict[norm]
+    if norm in _normalized_constituency_coords:
+        lat, lng = _normalized_constituency_coords[norm]
         return lat, lng, locality_name, "district"
 
-    for k_norm, coords in norm_dict.items():
+    for k_norm, coords in _normalized_constituency_coords.items():
         if k_norm and norm and (k_norm in norm or norm in k_norm):
             return coords[0], coords[1], locality_name, "district"
 

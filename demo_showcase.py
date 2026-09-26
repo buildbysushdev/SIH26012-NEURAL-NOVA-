@@ -1,17 +1,16 @@
 """
-demo_showcase.py — Verified Demo Showcase Subsystem for MPLADS Risk Intelligence System
+demo_showcase.py — Demo-Ready Geospatial Showcase for MPLADS Risk Intelligence System
 SIH26102, Team Neural Nova
 
 Provides a curated, ultra-fast entry point for live judging demonstrations.
-Returns ONLY projects where:
-1. location_precision is 'precise' or 'locality' (NOT 'district' or 'unavailable')
-2. satellite imagery is verified and available (imagery_status == 'available')
-3. Grouped state-by-state so judges can instantly inspect working examples for any state.
+Returns real MPLADS records where trusted locality coordinates are available.
+Each record can load current Esri World Imagery as geographic reference imagery.
+Risk flags remain dataset-derived; imagery is explicitly reserved for manual review.
 
 CRITICAL GUARDRAIL:
 - Unsupervised risk scores and raw dataset values are strictly preserved.
-- Projects without available imagery remain honestly labeled as 'IMAGERY STATUS: CLOUD/PENDING'.
-- Real Sentinel-2 pass dates are displayed; no synthetic before/after comparisons.
+- The UI labels Esri tiles as reference imagery, never as automated proof.
+- No synthetic before/after comparisons or satellite detection results are generated.
 """
 
 import os
@@ -76,79 +75,31 @@ def build_curated_locality_cache() -> int:
 
 
 def initialize_showcase_signals(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Initializes reference-imagery showcase attributes on the active in-memory dataset:
-    - Identifies records with location_precision in ['precise', 'locality'].
-    - Prepares verified satellite status and genuine Sentinel-2 acquisition dates.
-    - Honors Rule 3: unverified projects retain their honest 'no_imagery' status.
+    """Mark records with trusted coordinates as demo-ready reference imagery.
+
+    Esri World Imagery is fetched on demand by ``/project-satellite-image``.
+    It is contextual evidence for an officer, not an automated finding, so no
+    satellite risk score or acquisition date is invented here.
     """
     df = df.copy()
-
     if "imagery_status" not in df.columns:
-        df["imagery_status"] = "pending"
+        df["imagery_status"] = "unavailable"
     if "satellite_pass_date" not in df.columns:
         df["satellite_pass_date"] = None
+    if "imagery_source" not in df.columns:
+        df["imagery_source"] = None
 
-    # Filter to records having resolved locality/precise coordinates
-    is_locality = df["location_precision"].isin(["precise", "locality"])
-
-    # For each state, designate verified showcase projects (up to 350 per state)
-    showcase_indices = []
-    states = df["state"].dropna().unique()
-
-    for st in states:
-        st_mask = is_locality & (df["state"] == st)
-        matching_idx = df[st_mask].index.tolist()
-        if matching_idx:
-            # Take top records sorted by risk_score and sanction_amount for rich demo material
-            sort_cols = [c for c in ["risk_score", "sanction_amount"] if c in df.columns]
-            if sort_cols:
-                subset = df.loc[matching_idx].sort_values(sort_cols, ascending=[False] * len(sort_cols))
-            else:
-                subset = df.loc[matching_idx]
-            showcase_indices.extend(subset.head(350).index.tolist())
-
-    showcase_set = set(showcase_indices)
-    print(f"Designating {len(showcase_set)} verified projects for Demo Showcase across {len(states)} states.")
-
-    # Apply verified attributes ONLY to showcase projects
-    import satellite_check
-    verified_count = 0
-    for idx in showcase_set:
-        row = df.loc[idx]
-        lat = row.get("resolved_lat") or row.get("latitude")
-        lng = row.get("resolved_lng") or row.get("longitude")
-        if lat is None or lng is None:
-            continue
-
-        try:
-            lat = float(lat)
-            lng = float(lng)
-        except (ValueError, TypeError):
-            continue
-
-        # Real Sentinel-2 pass selection: 90 days <20% cloud, widen to 180 days if needed
-        pass_date, cloud_pct, was_expanded = satellite_check.select_sentinel2_pass(
-            lat=lat, lng=lng, cloud_threshold=20.0, primary_window_days=90, expanded_window_days=180
-        )
-
-        if pass_date:
-            df.at[idx, "imagery_status"] = "available"
-            df.at[idx, "satellite_pass_date"] = pass_date
-            df.at[idx, "cloud_cover_pct"] = cloud_pct
-
-            # Acquisition metadata alone does not establish whether a structure
-            # exists. Keep the result neutral until a validated detector or an
-            # officer supplies a finding.
-            df.at[idx, "satellite_status"] = "manual_review_required"
-            df.at[idx, "satellite_risk_score"] = np.nan
-            verified_count += 1
-        else:
-            df.at[idx, "imagery_status"] = "unavailable"
-            df.at[idx, "satellite_status"] = "imagery_unavailable"
-            df.at[idx, "satellite_pass_date"] = None
-
-    print(f"Reference-imagery showcase active: {verified_count} cloud-free passes confirmed.")
+    trusted = (
+        df["location_precision"].isin(["precise", "locality"])
+        & df["resolved_lat"].notnull()
+        & df["resolved_lng"].notnull()
+    )
+    df.loc[trusted, "imagery_status"] = "reference_available"
+    df.loc[trusted, "imagery_source"] = "Esri World Imagery"
+    df.loc[trusted, "satellite_status"] = "manual_review_required"
+    df.loc[trusted, "satellite_risk_score"] = np.nan
+    df.loc[trusted, "satellite_pass_date"] = None
+    print(f"Demo showcase ready: {int(trusted.sum())} projects have trusted locality coordinates.")
     return df
 
 
@@ -162,7 +113,7 @@ def get_demo_showcase(
     """
     Returns verified MPLADS showcase projects with:
     1. Real resolved locality/precise coordinates.
-    2. Available, verified Sentinel-2 satellite imagery (imagery_status == 'available').
+    2. On-demand Esri World Imagery labelled as reference imagery.
     3. Grouped state-by-state with real-time verified counts.
     """
     if _main_df is None:
@@ -171,7 +122,8 @@ def get_demo_showcase(
     # Strictly filter for precise/locality + available imagery
     mask = (
         _main_df["location_precision"].isin(["precise", "locality"])
-        & (_main_df["imagery_status"] == "available")
+        & (_main_df["imagery_status"].isin(["reference_available", "available"]))
+        & (_main_df["is_cost_outlier"] == True)
     )
 
     if not mask.any():
@@ -180,6 +132,7 @@ def get_demo_showcase(
             _main_df["location_precision"].isin(["precise", "locality"])
             & _main_df["resolved_lat"].notnull()
             & _main_df["resolved_lng"].notnull()
+            & (_main_df["is_cost_outlier"] == True)
         )
 
     base_filtered = _main_df[mask]
@@ -220,10 +173,10 @@ def get_demo_showcase(
         "work_id", "state", "constituency", "district", "mp_name",
         "work_category", "work_description", "sanction_amount",
         "risk_score", "cost_risk_score", "nlp_similarity_score",
-        "satellite_risk_score", "satellite_status", "imagery_status",
+        "satellite_risk_score", "satellite_status", "imagery_status", "imagery_source",
         "satellite_pass_date", "citizen_report_count", "feedback_status",
         "latitude", "longitude", "resolved_lat", "resolved_lng",
-        "locality_name", "location_precision", "coord_precision",
+        "locality_name", "location_precision", "coord_precision", "is_cost_outlier",
     ]
     cols = [c for c in cols if c in paged.columns]
     records = paged[cols].where(pd.notnull(paged[cols]), None).to_dict(orient="records")
@@ -250,7 +203,7 @@ def get_demo_showcase(
 @router.get("/demo-showcase/states", tags=["Demo Showcase"])
 def get_showcase_states():
     """
-    Returns a state-by-state list of verified projects with available satellite imagery.
+    Returns a state-by-state list of demo-ready projects with trusted locality coordinates.
     Used to populate the 'Browse verified examples by state' top panel.
     """
     if _main_df is None:
@@ -258,12 +211,14 @@ def get_showcase_states():
 
     mask = (
         _main_df["location_precision"].isin(["precise", "locality"])
-        & (_main_df["imagery_status"] == "available")
+        & (_main_df["imagery_status"].isin(["reference_available", "available"]))
+        & (_main_df["is_cost_outlier"] == True)
     )
     if not mask.any():
         mask = (
             _main_df["location_precision"].isin(["precise", "locality"])
             & _main_df["resolved_lat"].notnull()
+            & (_main_df["is_cost_outlier"] == True)
         )
 
     base_filtered = _main_df[mask]
@@ -296,10 +251,11 @@ def get_showcase_sample(
 
     mask = (
         _main_df["location_precision"].isin(["precise", "locality"])
-        & (_main_df["imagery_status"] == "available")
+        & (_main_df["imagery_status"].isin(["reference_available", "available"]))
+        & (_main_df["is_cost_outlier"] == True)
     )
     if not mask.any():
-        mask = _main_df["location_precision"].isin(["precise", "locality"])
+        mask = _main_df["location_precision"].isin(["precise", "locality"]) & (_main_df["is_cost_outlier"] == True)
 
     subset = _main_df[mask]
     if isinstance(state, str) and state.strip() and state.strip().lower() != "all":
@@ -312,7 +268,7 @@ def get_showcase_sample(
         return {
             "status": "unavailable",
             "project": None,
-            "message": "No project currently has trusted locality coordinates and confirmed imagery metadata.",
+            "message": "No project currently has trusted locality coordinates for reference imagery.",
         }
 
     # Pick top risk project for dramatic demonstration

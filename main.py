@@ -413,55 +413,72 @@ def audit_logs(limit: int = Query(100, ge=1, le=500), admin: dict = Depends(_req
 @app.get("/flagged-projects", tags=["Projects"])
 def flagged_projects(
     limit: int = Query(default=20, ge=1, le=500),
+    page: int = Query(default=1, ge=1),
+    page_size: Optional[int] = Query(default=None, ge=1, le=100),
+    include_meta: bool = Query(default=False),
     state: Optional[str] = Query(default=None),
     work_category: Optional[str] = Query(default=None),
     district: Optional[str] = Query(default=None, description="District filter for national auditors"),
+    search: Optional[str] = Query(default=None),
+    risk_level: Optional[str] = Query(default=None),
+    work_status: Optional[str] = Query(default=None),
+    year: Optional[str] = Query(default=None),
     officer: dict = Depends(auth_jwt.get_current_officer),
 ):
-    """
-    Returns projects flagged as cost outliers, sorted by risk_score descending.
-    Enforces server-side cryptographic role-based jurisdiction scoping:
-    - If officer's assigned district != 'ALL', strictly filters by their district.
-    - If officer is national admin ('ALL'), allows viewing all or filtering by query param.
-    """
+    """Return real anomaly records with server-side filtering and pagination."""
     if _df is None:
         raise HTTPException(status_code=503, detail="Dataset not loaded yet.")
 
     result = _df[_df["is_cost_outlier"] == True].copy()
-
-    # Server-side role-based jurisdiction enforcement
     officer_district = (officer.get("district") or "ALL").strip().upper()
     if officer_district != "ALL":
-        # Strictly enforce statutory jurisdiction server-side
         mask = (result["district"].astype(str).str.upper() == officer_district) | (result["constituency"].astype(str).str.upper() == officer_district)
         result = result[mask]
-    elif district:
+    elif district and district.strip().lower() not in {"all", "all districts"}:
         d_clean = district.strip().upper()
         mask = (result["district"].astype(str).str.upper() == d_clean) | (result["constituency"].astype(str).str.upper() == d_clean)
         result = result[mask]
 
-    if state:
-        result = result[result["state"].str.lower() == state.lower()]
-    if work_category:
-        result = result[result["work_category"].str.lower() == work_category.lower()]
+    if state and state.strip().lower() not in {"all", "all india"}:
+        result = result[result["state"].astype(str).str.lower() == state.strip().lower()]
+    if work_category and work_category.strip().lower() != "all":
+        result = result[result["work_category"].astype(str).str.lower() == work_category.strip().lower()]
+    if work_status and work_status.strip().lower() != "all":
+        result = result[result["work_status"].astype(str).str.lower().str.contains(work_status.strip().lower(), regex=False)]
+    if year:
+        result = result[result["sanction_date"].astype(str).str.startswith(str(year))]
+    if risk_level and risk_level.strip().lower() != "all":
+        score = result["risk_score"].fillna(0)
+        level = risk_level.strip().lower()
+        level_mask = (score >= 80) if level == "critical" else ((score >= 60) & (score < 80)) if level == "high" else ((score >= 35) & (score < 60)) if level == "medium" else (score < 35)
+        result = result[level_mask]
+    if search and search.strip():
+        q = search.strip().lower()
+        haystack = (result["work_id"].astype(str) + " " + result["work_description"].astype(str) + " " + result["district"].astype(str) + " " + result["constituency"].astype(str)).str.lower()
+        result = result[haystack.str.contains(q, na=False, regex=False)]
 
-    result = result.sort_values("risk_score", ascending=False).head(limit)
+    result = result.sort_values(["risk_score", "cost_risk_score"], ascending=False)
+    total = int(len(result))
+    effective_size = page_size or limit
+    start_idx = (page - 1) * effective_size
+    result = result.iloc[start_idx:start_idx + effective_size]
 
-    # Return complete column set for officer inspection
     cols = [
         "work_id", "state", "constituency", "district", "mp_name", "work_category",
         "work_description", "sanction_amount", "sanction_date", "completion_date",
         "amount_disbursed_completed", "total_fund_disbursed", "work_status", "ida",
         "latest_payment_status", "peer_average_cost", "risk_score_before_feedback", "cost_zscore",
         "cost_risk_score", "nlp_similarity_score", "satellite_risk_score",
-        "satellite_status", "citizen_report_count", "feedback_status",
+        "satellite_status", "imagery_status", "imagery_source", "citizen_report_count", "feedback_status",
         "risk_score", "similar_project", "similar_state", "is_cost_outlier",
         "latitude", "longitude", "resolved_lat", "resolved_lng",
         "location_precision", "coord_precision", "locality_name",
     ]
     cols = [c for c in cols if c in result.columns]
-    records = result[cols].where(pd.notnull(result[cols]), None).to_dict(orient="records")
-    return [_sanitize(r) for r in records]
+    records = [_sanitize(r) for r in result[cols].where(pd.notnull(result[cols]), None).to_dict(orient="records")]
+    if include_meta:
+        return {"items": records, "total": total, "page": page, "page_size": effective_size}
+    return records
 
 
 @app.get("/project", tags=["Projects"])

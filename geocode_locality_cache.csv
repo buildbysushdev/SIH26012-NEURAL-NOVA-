@@ -28,7 +28,7 @@ Teekoy Grama,PATHANAMTHITTA,Kerala,9.258591,76.808585,locality_curated
 Thidanadu Grama,PATHANAMTHITTA,Kerala,9.26786,76.764221,locality_curated
 Thekkekara Grama,PATHANAMTHITTA,Kerala,9.261437,76.77268,locality_curated
 Poonjar Grama,PATHANAMTHITTA,Kerala,9.243162,76.780328,locality_curated
-Kulathupuzha Grama,KOLLAM,Kerala,8.882122,76.622247,locality_curated
+Kulathupuzha Grama,KOLLAM,Kerala,8.9065347,77.0564917,nominatim
 Panayam Grama,KOLLAM,Kerala,8.867443,76.616381,locality_curated
 Panmana Grama,KOLLAM,Kerala,8.870193,76.612472,locality_curated
 Nainaragaram,TENKASI(SC),Tamil Nadu,9.44671,77.648293,locality_curated
@@ -182,7 +182,7 @@ Barbanda,KHUNTI(ST),Jharkhand,23.047762,85.271619,locality_curated
 Simbukel,KHUNTI(ST),Jharkhand,23.04115,85.286866,locality_curated
 Janjati,KHARGONE(ST),Madhya Pradesh,21.795181,75.615426,locality_curated
 Ahir,KHARGONE(ST),Madhya Pradesh,21.825161,75.595252,locality_curated
-Vankaner,BARDOLI(ST),Gujarat,21.098966,73.100741,locality_curated
+Vankaner,BARDOLI(ST),Gujarat,21.071915,73.168471,nominatim
 Tadkeshwar,BARDOLI(ST),Gujarat,21.128723,73.084428,locality_curated
 Naren,BARDOLI(ST),Gujarat,21.107934,73.131888,locality_curated
 Choryasi,BARDOLI(ST),Gujarat,21.134289,73.118768,locality_curated
@@ -2642,7 +2642,7 @@ Vemavaram,AMALAPURAM(SC),Andhra Pradesh,16.572347,82.034095,locality_curated
 Peddavanka,SRIKAKULAM,Andhra Pradesh,18.321129,83.897682,locality_curated
 Pedda Limbugam,SRIKAKULAM,Andhra Pradesh,18.283044,83.884044,locality_curated
 Payakarampuram,SRIKAKULAM,Andhra Pradesh,18.311239,83.8673,locality_curated
-Sakhinetipalli,AMALAPURAM(SC),Andhra Pradesh,16.571933,81.974172,locality_curated
+Sakhinetipalli,AMALAPURAM(SC),Andhra Pradesh,16.4041734,81.7574992,nominatim
 Padgha,NAVSARI,Gujarat,20.956925,72.939405,locality_curated
 Satem,NAVSARI,Gujarat,20.942914,72.92901,locality_curated
 Dabhalai,NAVSARI,Gujarat,20.928501,72.927935,locality_curated
@@ -2921,7 +2921,7 @@ Chhahun me,DEORIA,Uttar Pradesh,26.515728,83.754189,locality_curated
 BARO MAAR,ARAMBAG(SC),West Bengal,,,locality_curated
 NAYGRAM HIGH,ARAMBAG(SC),West Bengal,,,locality_curated
 Bollare,BANGALORE NORTH,Karnataka,13.053329,77.586189,locality_curated
-Alawara,ALWAR,Rajasthan,27.572307,76.651414,locality_curated
+Alawara,ALWAR,Rajasthan,26.7851156,77.0868158,nominatim
 Ramnagar Chaurahe,ETAWAH(SC),Uttar Pradesh,26.748156,79.009854,locality_curated
 Kurumala sanchay,ALATHUR(SC),Kerala,10.581097,76.536284,locality_curated
 Shitala,TAMLUK,West Bengal,22.280113,87.922422,locality_curated
@@ -3074,7 +3074,7 @@ Anbumani,CUDDALORE,Tamil Nadu,11.763112,79.799246,locality_curated
 School karimbedu,ARAKKONAM,Tamil Nadu,13.085699,79.65777,locality_curated
 Adlaguri Laxmi,BARPETA,Assam,26.336955,91.010548,locality_curated
 Rata,BANKA,Bihar,24.89602,86.907874,locality_curated
-Narakoduru,GUNTUR,Andhra Pradesh,16.323289,80.455035,locality_curated
+Narakoduru,GUNTUR,Andhra Pradesh,16.2390824,80.6372643,nominatim
 will be,GURDASPUR,Punjab,32.03611,75.425589,locality_curated
 Chandragutti,SHIMOGA,Karnataka,13.951177,75.546178,locality_curated
 Jeelani,MAVELIKKARA(SC),Kerala,9.23845,76.537158,locality_curated
@@ -3298,7 +3298,7 @@ Ankenpally,MEDAK,Telangana,18.053474,78.289028,locality_curated
 Anantha Padmanabha swamy,NIZAMABAD,Telangana,18.68705,78.099896,locality_curated
 Mallikarjuna,NIZAMABAD,Telangana,18.686246,78.085282,locality_curated
 Beerappa,NIZAMABAD,Telangana,18.698267,78.112346,locality_curated
-Ashti,HINGOLI,Maharashtra,19.707591,77.144168,locality_curated
+Ashti,HINGOLI,Maharashtra,19.3731889,77.7107942,nominatim
 Babhali,HINGOLI,Maharashtra,19.741989,77.134076,locality_curated
 Maksoha,KHERI,Uttar Pradesh,27.880955,80.755464,locality_curated
 Delelnagar,KHERI,Uttar Pradesh,27.883275,80.79337,locality_curated
@@ -5651,7 +5651,7 @@ samatpara,JUNAGADH,Gujarat,21.52176,70.485012,locality_curated
 mendpara,JUNAGADH,Gujarat,21.50001,70.464291,locality_curated
 parabvavdi,JUNAGADH,Gujarat,21.508158,70.429512,locality_curated
 Sirpalli,HINGOLI,Maharashtra,19.734859,77.173847,locality_curated
-Bhagwanpur,MUZAFFARPUR,Bihar,26.130783,85.383019,locality_curated
+Bhagwanpur,MUZAFFARPUR,Bihar,26.0706276,85.0984303,nominatim
 KANDEL,KALAHANDI,Odisha,19.885578,83.161737,locality_curated
 KHALIAPALI,KALAHANDI,Odisha,19.905586,83.181122,locality_curated
 Harisinghpur,SITAMARHI,Bihar,26.570041,85.488439,locality_curated
@@ -5937,7 +5937,7 @@ Balaji,MUMBAI SOUTH CENTRAL,Maharashtra,19.010681,72.848299,locality_curated
 Vitthal Rakumai,MUMBAI SOUTH CENTRAL,Maharashtra,19.007004,72.814798,locality_curated
 Kumaradevam,RAJAHMUNDRY,Andhra Pradesh,17.030745,81.801233,locality_curated
 Chagallu,RAJAHMUNDRY,Andhra Pradesh,16.984047,81.806112,locality_curated
-Rangampeta,RAJAHMUNDRY,Andhra Pradesh,16.989331,81.789577,locality_curated
+Rangampeta,RAJAHMUNDRY,Andhra Pradesh,17.0502611,81.9975397,nominatim
 Santra Bazer Gopal,MATHURAPUR(SC),West Bengal,22.090784,88.410667,locality_curated
 Vallioor Town,TIRUNELVELI,Tamil Nadu,8.739919,77.763753,locality_curated
 Pariyarathukulangara,MAVELIKKARA(SC),Kerala,9.28629,76.54665,locality_curated
@@ -7331,7 +7331,7 @@ Dubaha,MUZAFFARPUR,Bihar,26.126126,85.337317,locality_curated
 Nonphara,MUZAFFARPUR,Bihar,26.134169,85.358427,locality_curated
 Maheshpur,MUZAFFARPUR,Bihar,26.09304,85.36687,locality_curated
 Nawa,BANSWARA(ST),Rajasthan,23.55532,74.417104,locality_curated
-Tughlakabad,SOUTH DELHI,Delhi,28.49549,77.175278,locality_curated
+Tughlakabad,SOUTH DELHI,Delhi,28.5292556,77.2726466,nominatim
 Minlun,OUTER MANIPUR(ST),Manipur,24.984187,94.19111,locality_curated
 KALKA,UDAIPUR(ST),Rajasthan,24.60929,73.701886,locality_curated
 Senthangalam Town,NAMAKKAL,Tamil Nadu,11.238904,78.165071,locality_curated
@@ -10640,7 +10640,7 @@ Chota Amguri,Shri Rwngwra Narzary (2022-28) (2022-2028),Assam,,,locality_curated
 Sataibari,Shri Rwngwra Narzary (2022-28) (2022-2028),Assam,,,locality_curated
 Laokhata,Shri Rwngwra Narzary (2022-28) (2022-2028),Assam,,,locality_curated
 Eruvessi Grama,Dr. John Brittas (2021-27) (2021-2027),Kerala,,,locality_curated
-Vazhathope Grama,Dr. John Brittas (2021-27) (2021-2027),Kerala,,,locality_curated
+Vazhathope Grama,Dr. John Brittas (2021-27) (2021-2027),Kerala,9.8747128,76.959695,nominatim
 Arpookara Grama,Dr. John Brittas (2021-27) (2021-2027),Kerala,,,locality_curated
 Ambaji Gram,Shri Babubhai Jesangbhai Desai (2023-29) (2023-2029),Gujarat,,,locality_curated
 Archha,Shri Vivek K. Tankha (2022-28) (2022-2028),Madhya Pradesh,,,locality_curated
@@ -10843,7 +10843,7 @@ Venkateshwara,Shri Damodar Rao Divakonda (2022-28) (2022-2028),Telangana,,,local
 Naguldevpalli,Shri Damodar Rao Divakonda (2022-28) (2022-2028),Telangana,,,locality_curated
 Prakash,Shri Meda Raghunadha Reddy (2024-30) (2024-2030),Andhra Pradesh,,,locality_curated
 Kallooppara Grama,Smt. P. T. Usha (2022-28) (2022-2028),Kerala,,,locality_curated
-Pinarayi Grama,Shri Sandosh Kumar P (2022-28) (2022-2028),Kerala,,,locality_curated
+Pinarayi Grama,Shri Sandosh Kumar P (2022-28) (2022-2028),Kerala,11.8102535,75.4947553,nominatim
 Padiyur Grama,Shri Sandosh Kumar P (2022-28) (2022-2028),Kerala,,,locality_curated
 Samarbar,Smt. Ranjeet Ranjan (2022-28) (2022-2028),Chhattisgarh,,,locality_curated
 Votimitta,Shri Meda Raghunadha Reddy (2024-30) (2024-2030),Andhra Pradesh,,,locality_curated
@@ -11964,8 +11964,8 @@ Ravinuthala,Shri Yerram Venkata Subba Reddy (2024-30) (2024-2030),Andhra Pradesh
 Sai,Smt. Sumitra Balmik (2022-28) (2022-2028),Madhya Pradesh,,,locality_curated
 devrasan,Shri Mayankkumar Nayak (2024-30) (2024-2030),Gujarat,,,locality_curated
 Tikar,Shri Pradip Kumar Varma (2024-30) (2024-2030),Jharkhand,,,locality_curated
-Belthangady,Dr. Dharmasthala Veerendra Heggade (2022-28) (2022-2028),Karnataka,,,locality_curated
-Dharmasthala Gram,Dr. Dharmasthala Veerendra Heggade (2022-28) (2022-2028),Karnataka,,,locality_curated
+Belthangady,Dr. Dharmasthala Veerendra Heggade (2022-28) (2022-2028),Karnataka,12.9899316,75.2789925,nominatim
+Dharmasthala Gram,Dr. Dharmasthala Veerendra Heggade (2022-28) (2022-2028),Karnataka,12.9519571,75.3813122,nominatim
 thenipet,Shri P. Chidambaram (2022-28) (2022-2028),Tamil Nadu,,,locality_curated
 Pandari,Dr. Sarfraz Ahmad (2024-30) (2024-2030),Jharkhand,,,locality_curated
 Bazar,Dr. Sarfraz Ahmad (2024-30) (2024-2030),Jharkhand,,,locality_curated
@@ -12118,7 +12118,7 @@ MADANAHI,Dr. Sangeeta Balwant (2024-30) (2024-2030),Uttar Pradesh,,,locality_cur
 upper kotla,Dr. Sikander Kumar (2022-28) (2022-2028),Himachal Pradesh,,,locality_curated
 Katav,Shri Govindbhai Laljibhai Dholakia (2024-30) (2024-2030),Gujarat,,,locality_curated
 premise Puliyarai,Shri Ilaiyaraaja (2022-28) (2022-2028),Tamil Nadu,,,locality_curated
-Puliyarai,Shri Ilaiyaraaja (2022-28) (2022-2028),Tamil Nadu,,,locality_curated
+Puliyarai,Shri Ilaiyaraaja (2022-28) (2022-2028),Tamil Nadu,9.0043321,77.1884827,nominatim
 Allur,Shri P. Chidambaram (2022-28) (2022-2028),Tamil Nadu,,,locality_curated
 Mepal,Shri P. Chidambaram (2022-28) (2022-2028),Tamil Nadu,,,locality_curated
 kotlindora,Dr. Parmar Jashvantsinh Salamsinh (2024-30) (2024-2030),Gujarat,,,locality_curated
@@ -12207,7 +12207,7 @@ Phuljori,Dr. Sarfraz Ahmad (2024-30) (2024-2030),Jharkhand,,,locality_curated
 village Mednisar,Dr. Sarfraz Ahmad (2024-30) (2024-2030),Jharkhand,,,locality_curated
 Sahdara,Shri Vivek K. Tankha (2022-28) (2022-2028),Madhya Pradesh,,,locality_curated
 Kali Mata,Shri Sanjay Singh (2024-30) (2024-2030),Delhi,,,locality_curated
-Belthangady Town,Dr. Dharmasthala Veerendra Heggade (2022-28) (2022-2028),Karnataka,,,locality_curated
+Belthangady Town,Dr. Dharmasthala Veerendra Heggade (2022-28) (2022-2028),Karnataka,12.9899316,75.2789925,nominatim
 fatepur,Shri Mayankkumar Nayak (2024-30) (2024-2030),Gujarat,,,locality_curated
 Khavad,Shri Mayankkumar Nayak (2024-30) (2024-2030),Gujarat,,,locality_curated
 Mahervada,Shri Mayankkumar Nayak (2024-30) (2024-2030),Gujarat,,,locality_curated
@@ -12915,7 +12915,7 @@ SAROJANI NAGAR,Prof. Ram Gopal Yadav (2020-26) (2020-2026),Uttar Pradesh,,,local
 Sutan,Shri Samirul Islam (2023-29) (2023-2029),West Bengal,,,locality_curated
 Khatra high,Shri Samirul Islam (2023-29) (2023-2029),West Bengal,,,locality_curated
 Dhamari,Shri Pramod Tiwari (2022-28) (2022-2028),Rajasthan,,,locality_curated
-Thenhipalam Grama,Shri P. P. Suneer (2024-30) (2024-2030),Kerala,,,locality_curated
+Thenhipalam Grama,Shri P. P. Suneer (2024-30) (2024-2030),Kerala,11.1322621,75.8937441,nominatim
 Pilni,Shri Randeep Singh Surjewala (2022-28) (2022-2028),Rajasthan,,,locality_curated
 Jaswanti,Shri Randeep Singh Surjewala (2022-28) (2022-2028),Rajasthan,,,locality_curated
 Sdr,Shri Randeep Singh Surjewala (2022-28) (2022-2028),Rajasthan,,,locality_curated
@@ -13007,7 +13007,7 @@ Singampunari Town,Shri P. Chidambaram (2022-28) (2022-2028),Tamil Nadu,,,localit
 Bahudinpur,Dr. Ashok Kumar Mittal (2022-28) (2022-2028),Punjab,,,locality_curated
 Guru Ravidas,Dr. Ashok Kumar Mittal (2022-28) (2022-2028),Punjab,,,locality_curated
 Vellathooval,Shri Abdul Wahab (2021-27) (2021-2027),Kerala,,,locality_curated
-Korem,Shri Damodar Rao Divakonda (2022-28) (2022-2028),Telangana,,,locality_curated
+Korem,Shri Damodar Rao Divakonda (2022-28) (2022-2028),Telangana,18.5348694,78.9124328,nominatim
 Kethaveerunipadu,Shri Yerram Venkata Subba Reddy (2024-30) (2024-2030),Andhra Pradesh,,,locality_curated
 Varini,Shri Yerram Venkata Subba Reddy (2024-30) (2024-2030),Andhra Pradesh,,,locality_curated
 Gaonli,Shri Randeep Singh Surjewala (2022-28) (2022-2028),Rajasthan,,,locality_curated
@@ -13161,7 +13161,7 @@ Village Bandos,Dr. Sikander Kumar (2022-28) (2022-2028),Himachal Pradesh,,,local
 Village Har Gram,Dr. Sikander Kumar (2022-28) (2022-2028),Himachal Pradesh,,,locality_curated
 delana,Shri Naresh Bansal (2020-26) (2020-2026),Uttarakhand,,,locality_curated
 linch,Shri Mayankkumar Nayak (2024-30) (2024-2030),Gujarat,,,locality_curated
-Shivneri,Shri Chandrakant Damodar Handore (2024-30) (2024-2030),Maharashtra,,,locality_curated
+Shivneri,Shri Chandrakant Damodar Handore (2024-30) (2024-2030),Maharashtra,19.053663,72.9384788,nominatim
 Kharoli Gram,Dr. Kalpana Saini (2022-28) (2022-2028),Uttarakhand,,,locality_curated
 Nagireddypalli,Shri Meda Raghunadha Reddy (2024-30) (2024-2030),Andhra Pradesh,,,locality_curated
 Rajampet,Shri Meda Raghunadha Reddy (2024-30) (2024-2030),Andhra Pradesh,,,locality_curated
