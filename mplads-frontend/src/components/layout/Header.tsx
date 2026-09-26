@@ -19,6 +19,7 @@ import { useAuth } from "../../context/AuthContext";
 import { usePortalBase } from "../../lib/usePortalBase";
 import { useToast } from "../../context/ToastContext";
 import { formatIST } from "../../lib/istTime";
+import emblemImg from "../../assets/emblem_cleaned.png";
 
 const INDIAN_LANGUAGES = [
   { code: "en", label: "English", native: "English", available: true },
@@ -63,38 +64,14 @@ export function IndianFlag({ className = "w-9 h-6", style }: { className?: strin
 }
 
 /** State Emblem of India (Ashoka Lion Capital with motto "सत्यमेव जयते") */
-export function AshokaEmblem({ className = "w-10 h-12", style }: { className?: string; style?: React.CSSProperties }) {
+export function AshokaEmblem({ className = "w-9 h-11", style }: { className?: string; style?: React.CSSProperties }) {
   return (
-    <svg
-      viewBox="0 0 100 115"
-      width="40"
-      height="48"
-      className={className}
-      style={{ width: "2.5rem", height: "3rem", maxWidth: "100%", flexShrink: 0, ...style }}
-      fill="currentColor"
-      aria-label="National Emblem of India"
-    >
-      <path d="M50 8 C44 8 41 12 40 17 C39 22 41 27 42 32 C43 36 44 40 45 44 C47 43 49 42 50 42 C51 42 53 43 55 44 C56 40 57 36 58 32 C59 27 61 22 60 17 C59 12 56 8 50 8 Z" className="text-[#0b2545]" />
-      <path d="M46 19 C48 18 52 18 54 19 M47 24 C49 23 51 23 53 24 M48 29 L52 29 M47 34 C49 35 51 35 53 34 M45 37 L55 37" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" className="text-amber-600/80" />
-      <path d="M38 16 C34 16 30 19 28 23 C26 27 26 33 28 37 C29 40 31 43 33 46 C36 44 38 43 41 42 C39 37 38 32 38 27 C38 23 38 19 38 16 Z" className="text-[#0b2545]" />
-      <path d="M31 23 C33 25 35 27 36 29 M30 29 C32 31 34 33 35 36" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-amber-600/80" />
-      <path d="M62 16 C66 16 70 19 72 23 C74 27 74 33 72 37 C71 40 69 43 67 46 C64 44 62 43 59 42 C61 37 62 32 62 27 C62 23 62 19 62 16 Z" className="text-[#0b2545]" />
-      <path d="M69 23 C67 25 65 27 64 29 M70 29 C68 31 66 33 65 36" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-amber-600/80" />
-      <rect x="22" y="46" width="56" height="12" rx="2" className="text-[#0b2545]" />
-      <circle cx="50" cy="52" r="4.5" stroke="currentColor" strokeWidth="1.2" fill="none" className="text-[#0056b3]" />
-      <circle cx="50" cy="52" r="1.2" className="text-[#0056b3]" />
-      <line x1="50" y1="47.5" x2="50" y2="56.5" stroke="currentColor" strokeWidth="0.8" className="text-[#0056b3]" />
-      <line x1="45.5" y1="52" x2="54.5" y2="52" stroke="currentColor" strokeWidth="0.8" className="text-[#0056b3]" />
-      <line x1="46.8" y1="48.8" x2="53.2" y2="55.2" stroke="currentColor" strokeWidth="0.8" className="text-[#0056b3]" />
-      <line x1="46.8" y1="55.2" x2="53.2" y2="48.8" stroke="currentColor" strokeWidth="0.8" className="text-[#0056b3]" />
-      <path d="M28 50 C29 48 32 49 34 52 C33 54 31 55 29 54 Z" fill="currentColor" className="text-amber-300" />
-      <path d="M66 52 C68 49 71 48 72 50 C70 54 68 55 66 52 Z" fill="currentColor" className="text-amber-300" />
-      <path d="M26 60 C32 66 42 68 50 68 C58 68 68 66 74 60 C66 63 58 64 50 64 C42 64 34 63 26 60 Z" className="text-[#0b2545]" />
-      <rect x="20" y="69" width="60" height="3" rx="1" className="text-[#0b2545]" />
-      <text x="50" y="83" textAnchor="middle" fontSize="9.5" fontWeight="bold" fontFamily="serif" letterSpacing="0.05em" className="fill-[#0b2545]">
-        सत्यमेव जयते
-      </text>
-    </svg>
+    <img
+      src={emblemImg}
+      alt="State Emblem of India"
+      className={`object-contain block ${className}`}
+      style={{ display: "block", flexShrink: 0, ...style }}
+    />
   );
 }
 

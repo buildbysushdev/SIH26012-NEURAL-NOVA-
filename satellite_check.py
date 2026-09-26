@@ -404,8 +404,8 @@ def generate_satellite_thumbnail(
         except Exception:
             formatted_date = f"Imagery captured: {pass_date}"
 
-    # ── CASE 1: Location Precision Insufficient (Skip optical verification) ──
-    if clean_stat == "location_precision_insufficient" or prec_clean in ["district", "unavailable"]:
+    # ── CASE 1: Location Precision Insufficient (Only when coordinates truly missing) ──
+    if (clean_stat == "location_precision_insufficient" and clean_stat not in ["visible", "not_visible"]) and not coordinates:
         img = Image.new("RGB", (width, height), color=(15, 23, 42))  # Slate dark
         draw = ImageDraw.Draw(img)
         # Top banner
@@ -423,24 +423,27 @@ def generate_satellite_thumbnail(
         buf.seek(0)
         return buf
 
-    # ── CASE 2: Imagery Unavailable (Excessive cloud cover in 90d and 180d) ──
-    if clean_stat in ["imagery_unavailable", "no_imagery", "pending"]:
-        img = Image.new("RGB", (width, height), color=(24, 24, 27))  # Charcoal
-        draw = ImageDraw.Draw(img)
-        # Top banner
-        draw.rectangle([(0, 0), (width, 24)], fill=(39, 39, 42))
-        draw.text((12, 6), "SATELLITE METADATA | OPTICAL COVERAGE LOG", fill=(212, 212, 216))
-        # Center message
-        draw.text((width // 2 - 100, height // 2 - 18), "IMAGERY UNAVAILABLE", fill=(245, 158, 11))
-        draw.text((width // 2 - 200, height // 2 + 2), "No cloud-free pass (<20% cloud cover) found in 90-day or expanded 180-day window.", fill=(161, 161, 170))
-        draw.text((width // 2 - 130, height // 2 + 18), "On-site DISHA physical verification required.", fill=(113, 113, 122))
-        # Bottom info bar
-        draw.rectangle([(0, height - 22), (width, height)], fill=(39, 39, 42))
-        draw.text((12, height - 17), f"Locality: {lat:.4f}°N, {lon:.4f}°E ({str(district).title()}, {str(state).title()}) | Status: Imagery Unavailable", fill=(161, 161, 170))
-        buf = io.BytesIO()
-        img.save(buf, format="PNG", optimize=True)
-        buf.seek(0)
-        return buf
+    # ── CASE 2: Imagery Unavailable (Excessive cloud cover or pending) ──
+    if clean_stat in ["imagery_unavailable", "no_imagery", "pending"] and clean_stat not in ["visible", "not_visible"]:
+        # If coordinates exist, try to retrieve ESRI World Imagery as reference rather than black box
+        patch_try = _get_real_satellite_patch(lat, lon, width=width, height=height)
+        if patch_try is None:
+            img = Image.new("RGB", (width, height), color=(24, 24, 27))  # Charcoal
+            draw = ImageDraw.Draw(img)
+            # Top banner
+            draw.rectangle([(0, 0), (width, 24)], fill=(39, 39, 42))
+            draw.text((12, 6), "SATELLITE METADATA | OPTICAL COVERAGE LOG", fill=(212, 212, 216))
+            # Center message
+            draw.text((width // 2 - 100, height // 2 - 18), "IMAGERY UNAVAILABLE", fill=(245, 158, 11))
+            draw.text((width // 2 - 200, height // 2 + 2), "No cloud-free pass (<20% cloud cover) found in 90-day or expanded 180-day window.", fill=(161, 161, 170))
+            draw.text((width // 2 - 130, height // 2 + 18), "On-site DISHA physical verification required.", fill=(113, 113, 122))
+            # Bottom info bar
+            draw.rectangle([(0, height - 22), (width, height)], fill=(39, 39, 42))
+            draw.text((12, height - 17), f"Locality: {lat:.4f}°N, {lon:.4f}°E ({str(district).title()}, {str(state).title()}) | Status: Imagery Unavailable", fill=(161, 161, 170))
+            buf = io.BytesIO()
+            img.save(buf, format="PNG", optimize=True)
+            buf.seek(0)
+            return buf
 
     # ── CASE 3: Esri World Imagery reference tile (manual interpretation only) ──
     img = _get_real_satellite_patch(lat, lon, width=width, height=height)

@@ -9,6 +9,7 @@ import { ConfirmDialog } from "../ui/Feedback";
 import type { RiskAlert } from "../../types";
 import { updateAlertStatus } from "../../services/api";
 import { useToast } from "../../context/ToastContext";
+import LocationOsmMap from "../common/LocationOsmMap";
 
 export default function AlertDetails({
   alert,
@@ -61,6 +62,18 @@ export default function AlertDetails({
               {alert.projectId} — {alert.projectName}
             </button>
             <p className="text-xs text-gray-500 mt-0.5">{alert.location}</p>
+
+            {/* Live OpenStreetMap (OSM) Location Preview */}
+            <div className="mt-2.5">
+              <LocationOsmMap
+                latitude={(alert as any).latitude}
+                longitude={(alert as any).longitude}
+                locationName={alert.location}
+                projectName={alert.projectName}
+                projectId={alert.projectId}
+                height="170px"
+              />
+            </div>
           </div>
 
           <div>

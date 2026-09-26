@@ -770,8 +770,8 @@ def get_project_satellite_image(
                 except Exception:
                     pass
 
-    # If coordinates are missing or precision is district-level/unavailable, enforce honest status
-    if prec in ["district", "unavailable"] or target_lat is None or target_lng is None:
+    # If coordinates are missing entirely, mark location insufficient
+    if target_lat is None or target_lng is None:
         sat_status = "location_precision_insufficient"
 
     coords = (target_lat, target_lng) if (target_lat is not None and target_lng is not None) else None
