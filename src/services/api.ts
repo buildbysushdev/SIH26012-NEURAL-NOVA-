@@ -112,6 +112,10 @@ export function mapBackendProjectToFrontend(r: any, idx = 0): Project {
     similarState: r.similar_state,
     costZScore: costZ,
     satelliteStatus: r.satellite_status,
+    imageryStatus: r.imagery_status,
+    imagerySource: r.imagery_source,
+    locationPrecision: r.location_precision || r.coord_precision,
+    localityName: r.locality_name,
     satelliteRiskScore: r.satellite_risk_score,
     citizenReportCount: citizenCount,
     feedbackStatus: r.feedback_status,
@@ -126,6 +130,16 @@ export function mapBackendProjectToFrontend(r: any, idx = 0): Project {
 }
 
 // ---------------------------------------------------------------------------
+export async function getDemoShowcase(state?: string, limit = 4): Promise<Project[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (state && state !== "All" && state !== "All India") params.set("state", state);
+  const response = await fetchWithTimeout(`${BACKEND_BASE_URL}/demo-showcase?${params.toString()}`, {}, 12000);
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.detail || "Demo-ready projects are unavailable.");
+  const records = Array.isArray(body.items) ? body.items : [];
+  return records.map((row: any, index: number) => mapBackendProjectToFrontend(row, index));
+}
+
 // Dashboard
 // ---------------------------------------------------------------------------
 export async function getDashboardStats(state?: string): Promise<DashboardStats> {
@@ -241,99 +255,39 @@ export async function getProjects(filters: ProjectFilters = {}): Promise<{ data:
     }
   }
 
-  // Load real scored projects from the current MPLADS dataset.
-  try {
-    const authHeaders = await getAuthHeaders();
-    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/flagged-projects?limit=300`, {
-      headers: authHeaders,
-    });
-    if (res.ok) {
-      const records = await res.json();
-      if (Array.isArray(records) && records.length > 0) {
-        let mapped = records.map((r: any, idx: number) => mapBackendProjectToFrontend(r, idx));
-        if (filters.state && filters.state !== "All") mapped = mapped.filter((p) => p.state.toLowerCase() === filters.state?.toLowerCase());
-        if (filters.district && filters.district !== "All") mapped = mapped.filter((p) => p.district.toLowerCase() === filters.district?.toLowerCase());
-        if (filters.category && filters.category !== "All") mapped = mapped.filter((p) => p.category === filters.category);
-        if (filters.status && filters.status !== "All") mapped = mapped.filter((p) => p.status === filters.status);
-        if (filters.riskLevel && filters.riskLevel !== "All") mapped = mapped.filter((p) => p.riskLevel === filters.riskLevel);
-        if (filters.year) mapped = mapped.filter((p) => String(p.year) === filters.year);
-
-        if (filters.sortBy) {
-          const dir = filters.sortDir === "desc" ? -1 : 1;
-          mapped.sort((a, b) => {
-            const av = a[filters.sortBy as keyof Project];
-            const bv = b[filters.sortBy as keyof Project];
-            if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
-            return String(av).localeCompare(String(bv)) * dir;
-          });
-        }
-
-        const total = mapped.length;
-        const page = filters.page ?? 1;
-        const pageSize = filters.pageSize ?? 10;
-        const start = (page - 1) * pageSize;
-        const data = mapped.slice(start, start + pageSize);
-        return { data, total };
-      }
-    }
-  } catch (err) {
-    console.warn("Could not fetch real projects from backend, falling back:", err);
-  }
-
-  return { data: [], total: 0 };
+  return getFlaggedProjects(filters);
 }
 
 export async function getFlaggedProjects(filters: ProjectFilters = {}): Promise<{ data: Project[]; total: number }> {
-  try {
-    const params = new URLSearchParams();
-    if (filters.state && filters.state !== "All") params.set("state", filters.state);
-    if (filters.category && filters.category !== "All") params.set("work_category", filters.category);
-    if (filters.district && filters.district !== "All") params.set("district", filters.district);
-    params.set("limit", String(filters.pageSize || 100));
+  const params = new URLSearchParams({
+    include_meta: "true",
+    page: String(filters.page || 1),
+    page_size: String(filters.pageSize || 20),
+  });
+  if (filters.state && filters.state !== "All") params.set("state", filters.state);
+  if (filters.category && filters.category !== "All") params.set("work_category", filters.category);
+  if (filters.district && filters.district !== "All") params.set("district", filters.district);
+  if (filters.search) params.set("search", filters.search);
+  if (filters.riskLevel && filters.riskLevel !== "All") params.set("risk_level", filters.riskLevel);
+  if (filters.status && filters.status !== "All") params.set("work_status", filters.status);
+  if (filters.year) params.set("year", filters.year);
 
-    const authHeaders = await getAuthHeaders();
-    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/flagged-projects?${params.toString()}`, {
-      headers: authHeaders,
+  const authHeaders = await getAuthHeaders();
+  const response = await fetchWithTimeout(`${BACKEND_BASE_URL}/flagged-projects?${params.toString()}`, { headers: authHeaders }, 12000);
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.detail || "Flagged projects are unavailable.");
+  const records = Array.isArray(body.items) ? body.items : Array.isArray(body) ? body : [];
+  let mapped = records.map((row: any, index: number) => mapBackendProjectToFrontend(row, index));
+  if (filters.sortBy) {
+    const direction = filters.sortDir === "asc" ? 1 : -1;
+    mapped = mapped.sort((left: Project, right: Project) => {
+      const a = left[filters.sortBy as keyof Project];
+      const b = right[filters.sortBy as keyof Project];
+      if (typeof a === "number" && typeof b === "number") return (a - b) * direction;
+      return String(a).localeCompare(String(b)) * direction;
     });
-    if (res.ok) {
-      const records = await res.json();
-      if (Array.isArray(records) && records.length > 0) {
-        const mapped: Project[] = records.map((r: any, idx: number) => mapBackendProjectToFrontend(r, idx));
-
-        let filtered = mapped;
-        if (filters.state && filters.state !== "All") {
-          filtered = filtered.filter((p) => p.state.toLowerCase() === filters.state?.toLowerCase());
-        }
-        if (filters.district && filters.district !== "All") {
-          filtered = filtered.filter((p) => p.district.toLowerCase() === filters.district?.toLowerCase());
-        }
-        if (filters.riskLevel && filters.riskLevel !== "All") {
-          filtered = filtered.filter((p) => p.riskLevel === filters.riskLevel);
-        }
-        if (filters.status && filters.status !== "All") {
-          filtered = filtered.filter((p) => p.status === filters.status);
-        }
-        if (filters.category && filters.category !== "All") {
-          filtered = filtered.filter((p) => p.category === filters.category);
-        }
-        if (filters.search) {
-          const q = filters.search.toLowerCase();
-          filtered = filtered.filter(
-            (p) =>
-              p.id.toLowerCase().includes(q) ||
-              p.name.toLowerCase().includes(q) ||
-              p.district.toLowerCase().includes(q) ||
-              p.state.toLowerCase().includes(q)
-          );
-        }
-        return { data: filtered, total: filtered.length };
-      }
-    }
-  } catch (err) {
-    console.warn("Could not fetch live flagged projects:", err);
   }
-
-  return { data: [], total: 0 };
+  return { data: mapped, total: Number(body.total ?? mapped.length) };
 }
 
 export function getSatelliteImageUrl(workId: string): string {

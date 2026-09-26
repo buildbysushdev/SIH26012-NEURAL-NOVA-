@@ -21,6 +21,7 @@ import { DISTRICTS_BY_STATE } from "../../data/geography";
 import type { Project } from "../../types";
 import { formatDate } from "../../lib/format";
 import GovPageHeader from "../../components/layout/GovPageHeader";
+import DemoReadyProjects from "../../components/dashboard/DemoReadyProjects";
 
 export default function SuperAdminDashboard() {
   const navigate = useNavigate();
@@ -127,6 +128,12 @@ export default function SuperAdminDashboard() {
             </div>
           </div>
         }
+      />
+
+      <DemoReadyProjects
+        state={selectedState}
+        onOpen={(project) => navigate(`/admin/projects/${encodeURIComponent(project.id)}`)}
+        title="National demo-ready anomaly evidence"
       />
 
       {/* KPI Cards Row (Includes the 2 new requested cards: Total State Expenditure & Total Sanctioned Projects) */}

@@ -26,6 +26,7 @@ import StatCard from "../components/dashboard/StatCard";
 import RiskDistributionChart from "../components/dashboard/RiskDistributionChart";
 import CitizenReportsWidget from "../components/dashboard/CitizenReportsWidget";
 import AIInsightCard from "../components/dashboard/AIInsightCard";
+import DemoReadyProjects from "../components/dashboard/DemoReadyProjects";
 import { RiskBadge } from "../components/ui/Badge";
 import { CardSkeleton } from "../components/ui/Feedback";
 import {
@@ -179,6 +180,11 @@ export default function Dashboard() {
             </span>
           </div>
         }
+      />
+
+      <DemoReadyProjects
+        state={assignedState}
+        onOpen={(project) => navigate(`${portalBase}/projects/${encodeURIComponent(project.id)}`)}
       />
 
       {/* 1. TOP KPI SECTION: 6 Cards including the 2 new requested cards */}

@@ -57,6 +57,10 @@ export interface Project {
   costAnomalyScore?: number;
   duplicateSimilarityScore?: number;
   satelliteStatus?: string;
+  imageryStatus?: string;
+  imagerySource?: string;
+  locationPrecision?: string;
+  localityName?: string;
   satelliteRiskScore?: number;
   citizenReportCount?: number;
   feedbackStatus?: "confirmed_issue" | "false_positive" | "reviewed" | null;

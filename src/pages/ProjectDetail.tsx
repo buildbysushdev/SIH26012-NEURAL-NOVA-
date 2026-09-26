@@ -8,6 +8,9 @@ import {
   Sparkles,
   AlertCircle,
   FileCheck,
+  MapPinned,
+  Clock3,
+  UserRoundCheck,
 } from "lucide-react";
 import Tabs from "../components/ui/Tabs";
 import { RiskBadge, StatusBadge } from "../components/ui/Badge";
@@ -135,6 +138,12 @@ export default function ProjectDetail() {
 
   const isFalsePositive = project?.feedbackStatus === "false_positive";
   const isConfirmed = project?.feedbackStatus === "confirmed_issue";
+  const hasTrustedCoordinates = project?.locationPrecision === "locality" || project?.locationPrecision === "precise";
+  const recommendedAction = !hasTrustedCoordinates
+    ? { title: "Request precise site coordinates", detail: "The current location is district-level or unavailable. Ask the implementing agency for project GPS before drawing a satellite conclusion.", icon: MapPinned, tone: "amber" }
+    : (project?.citizenReportCount || 0) > 0 || (project?.riskScore || 0) >= 80 || Math.abs(project?.costZScore || 0) >= 3
+    ? { title: "Send an officer for field inspection", detail: "The combined anomaly strength warrants on-site verification of scope, expenditure and physical progress.", icon: UserRoundCheck, tone: "red" }
+    : { title: "Review imagery, then recheck in 7 days", detail: "Coordinates are trusted, but reference imagery alone cannot confirm execution. Compare documents now and schedule a short follow-up.", icon: Clock3, tone: "blue" };
 
   return (
     <div className="space-y-5 animate-fade-in pb-10">
@@ -165,6 +174,10 @@ export default function ProjectDetail() {
                   <StatusBadge status={project.status} />
                   <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-navy-800 px-2 py-0.5 rounded">
                     {project.category}
+                  </span>
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-extrabold ${isFalsePositive ? "bg-emerald-100 text-emerald-800" : isConfirmed ? "bg-red-100 text-red-800" : "bg-red-700 text-white"}`}>
+                    {isFalsePositive ? <CheckCircle2 size={11} /> : <ShieldAlert size={11} />}
+                    {isFalsePositive ? "GENUINE · FLAG CLEARED" : isConfirmed ? "FIELD INSPECTION REQUIRED" : "ANOMALY DETECTED"}
                   </span>
                 </div>
                 <h1 className="text-xl font-bold text-gray-900 dark:text-white mt-2">{project.name}</h1>
@@ -198,7 +211,7 @@ export default function ProjectDetail() {
                     onClick={() => setFeedbackModal("confirmed_issue")}
                     disabled={isConfirmed}
                   >
-                    {isConfirmed ? "Reviewed" : "Mark as Reviewed"}
+                    {isConfirmed ? "Inspection Requested" : "Send for Inspection"}
                   </Button>
                   <Button
                     variant="outline"
@@ -207,7 +220,7 @@ export default function ProjectDetail() {
                     onClick={() => setFeedbackModal("false_positive")}
                     disabled={isFalsePositive}
                   >
-                    {isFalsePositive ? "Marked False Positive" : "Mark as False Positive"}
+                    {isFalsePositive ? "Marked Genuine" : "Mark as Genuine"}
                   </Button>
                 </div>
               </div>
@@ -226,7 +239,7 @@ export default function ProjectDetail() {
                 <span>
                   <strong>Officer Review Status: </strong>
                   {isFalsePositive
-                    ? "This work was verified as a False Positive. Automated risk penalty has been alleviated (-25 pts applied)."
+                    ? "This work was verified as genuine. The automated anomaly was cleared and the persisted risk adjustment was applied (-25 points)."
                     : "This work was confirmed as requiring supervisory inspection. District monitoring team has been notified."}
                 </span>
               </div>
@@ -262,6 +275,22 @@ export default function ProjectDetail() {
             </div>
           </Card>
 
+          <Card className={`border ${recommendedAction.tone === "red" ? "border-red-200 bg-red-50/60" : recommendedAction.tone === "amber" ? "border-amber-200 bg-amber-50/60" : "border-blue-200 bg-blue-50/60"}`}>
+            <div className="flex items-start gap-3">
+              <div className="rounded-lg bg-white p-2 text-navy-800 shadow-sm"><recommendedAction.icon size={19} /></div>
+              <div className="flex-1">
+                <p className="text-[10px] font-extrabold uppercase tracking-wider text-gray-500">Recommended next action</p>
+                <h3 className="mt-0.5 text-base font-bold text-gray-900">{recommendedAction.title}</h3>
+                <p className="mt-1 text-xs leading-relaxed text-gray-700">{recommendedAction.detail}</p>
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <div className={`rounded border p-2 text-[11px] ${!hasTrustedCoordinates ? "border-amber-400 bg-white font-bold" : "border-gray-200 bg-white/70 text-gray-500"}`}><MapPinned size={13} className="mb-1" />Request coordinates</div>
+                  <div className={`rounded border p-2 text-[11px] ${hasTrustedCoordinates && ((project.citizenReportCount || 0) > 0 || project.riskScore >= 80 || Math.abs(project.costZScore || 0) >= 3) ? "border-red-400 bg-white font-bold" : "border-gray-200 bg-white/70 text-gray-500"}`}><UserRoundCheck size={13} className="mb-1" />Send field officer</div>
+                  <div className={`rounded border p-2 text-[11px] ${hasTrustedCoordinates && (project.citizenReportCount || 0) === 0 && project.riskScore < 80 && Math.abs(project.costZScore || 0) < 3 ? "border-blue-400 bg-white font-bold" : "border-gray-200 bg-white/70 text-gray-500"}`}><Clock3 size={13} className="mb-1" />Recheck in 7 days</div>
+                </div>
+              </div>
+            </div>
+          </Card>
+
           {/* Tabs Navigation */}
           <Tabs tabs={TABS} active={tab} onChange={setTab} />
 
@@ -293,8 +322,8 @@ export default function ProjectDetail() {
             onClose={() => setFeedbackModal(null)}
             title={
               feedbackModal === "false_positive"
-                ? "Mark Project as False Positive"
-                : "Mark Project as Reviewed"
+                ? "Mark Project as Genuine"
+                : "Send Project for Field Inspection"
             }
           >
             <div className="space-y-4 text-sm text-gray-700">
@@ -302,8 +331,8 @@ export default function ProjectDetail() {
                 <AlertCircle size={18} className="text-navy-700 shrink-0 mt-0.5" />
                 <p className="text-xs leading-relaxed text-gray-600">
                   {feedbackModal === "false_positive"
-                    ? "Marking as false positive informs the risk engine that the detected anomaly is legitimate (e.g. specialized terrain, verified scope). Risk score will be decreased by 25 points."
-                    : "Marking as reviewed confirms supervisory acknowledgment and keeps this work in the audit trail for physical inspection follow-up."}
+                    ? "Marking genuine records that the detected anomaly has a legitimate explanation (for example specialized terrain or verified scope). The risk score will decrease by 25 points across every portal."
+                    : "This confirms the anomaly requires field inspection. The decision and updated score will be visible to officers, Super Admin, and citizens viewing this project."}
                 </p>
               </div>
 

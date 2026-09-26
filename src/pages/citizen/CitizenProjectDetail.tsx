@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { ChevronLeft, MapPin, Calendar, Wallet, AlertCircle } from "lucide-react";
+import { ChevronLeft, MapPin, Calendar, Wallet, AlertCircle, Satellite, ShieldCheck } from "lucide-react";
 import { StatusBadge } from "../../components/ui/Badge";
 import { Skeleton, ErrorState } from "../../components/ui/Feedback";
-import { getProjectById } from "../../services/api";
+import { getProjectById, getSatelliteImageUrl } from "../../services/api";
 import { formatDate, formatINR } from "../../lib/format";
 import type { Project } from "../../types";
 import CitizenTimeline from "../../components/citizen/CitizenTimeline";
@@ -63,6 +63,26 @@ export default function CitizenProjectDetail() {
               </div>
             ))}
           </div>
+
+          <div className={`rounded-xl border p-4 ${project.feedbackStatus === "false_positive" ? "border-emerald-200 bg-emerald-50" : project.feedbackStatus === "confirmed_issue" ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"}`}>
+            <div className="flex items-start gap-2">
+              <ShieldCheck size={18} className={project.feedbackStatus === "false_positive" ? "text-emerald-700" : project.feedbackStatus === "confirmed_issue" ? "text-red-700" : "text-amber-700"} />
+              <div>
+                <p className="text-sm font-bold text-gray-900">{project.feedbackStatus === "false_positive" ? "Officer verified this work as genuine" : project.feedbackStatus === "confirmed_issue" ? "Field inspection has been requested" : "Automated anomaly is awaiting officer review"}</p>
+                <p className="mt-1 text-xs text-gray-600">This status comes from the same live project record used by the Officer and Super Admin portals. Citizen reports submitted here are visible to both teams.</p>
+              </div>
+            </div>
+          </div>
+
+          {project.latitude !== 0 && project.longitude !== 0 && (
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+              <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+                <div><h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900"><Satellite size={16} /> Site reference imagery</h3><p className="text-[11px] text-gray-500">Esri World Imagery · geographic reference only · manual review required</p></div>
+                <span className="font-mono text-[10px] text-gray-500">{project.latitude.toFixed(5)}, {project.longitude.toFixed(5)}</span>
+              </div>
+              <img src={getSatelliteImageUrl(project.id)} alt="Project site reference" className="h-64 w-full object-cover" />
+            </div>
+          )}
 
           <div className="bg-white border border-gray-200 rounded-xl p-5">
             <h3 className="font-semibold text-gray-900 mb-4">Project Timeline</h3>

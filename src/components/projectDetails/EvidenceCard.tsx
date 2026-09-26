@@ -35,7 +35,7 @@ export default function EvidenceCard({
   const { showToast } = useToast();
 
   const deviationPct = Math.round(
-    ((project.expenditure - project.peerAverageCost) / project.peerAverageCost) * 100
+    project.peerAverageCost > 0 ? ((project.expenditure - project.peerAverageCost) / project.peerAverageCost) * 100 : 0
   );
 
   const evidence = [
@@ -64,12 +64,12 @@ export default function EvidenceCard({
       title: "Satellite Physical Verification",
       badge: project.satelliteStatus || (project.riskFactors.satelliteVerification === "Review" ? "Verification Advised" : "Normal"),
       text: project.satelliteStatus
-        ? `Optical & radar analysis: ${project.satelliteStatus}.${
+        ? `Reference imagery review status: ${project.satelliteStatus}.${
             project.satelliteRiskScore ? ` Anomaly score: ${project.satelliteRiskScore}/100.` : ""
           }`
         : project.riskFactors.satelliteVerification === "Review"
-        ? "Physical inspection recommended based on historical ground progress imagery."
-        : "Imagery analysis indicates ground activity consistent with reported physical progress.",
+        ? "Reference imagery is available for an officer to compare with project records; no automated structure verdict has been made."
+        : "Reference imagery is available for manual review. It does not prove reported physical progress.",
       action: "View Satellite Telemetry",
     },
     {
@@ -249,7 +249,7 @@ export default function EvidenceCard({
             </div>
             <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-1.5">
               <div className="flex justify-between">
-                <span className="text-gray-500 text-xs">Imagery Analysis Status:</span>
+                <span className="text-gray-500 text-xs">Reference Review Status:</span>
                 <span className="font-semibold text-gray-900 text-xs">
                   {project.satelliteStatus || (project.riskFactors.satelliteVerification === "Review" ? "Physical Verification Recommended" : "Manual review required")}
                 </span>

@@ -6,6 +6,7 @@ import CitizenProjectCard from "../../components/citizen/CitizenProjectCard";
 import { EmptyState, Skeleton } from "../../components/ui/Feedback";
 import { getProjects } from "../../services/api";
 import type { Project } from "../../types";
+import DemoReadyProjects from "../../components/dashboard/DemoReadyProjects";
 
 const STEPS = [
   { icon: FileCheck2, label: "Work Recommended", desc: "MP recommends a development work in the constituency." },
@@ -46,6 +47,13 @@ export default function CitizenHome() {
 
       <section className="max-w-4xl mx-auto px-4 -mt-8 sm:-mt-9 relative z-10">
         <CitizenSearch onSearch={handleSearch} loading={loading} />
+      </section>
+
+      <section className="max-w-6xl mx-auto px-4 mt-10">
+        <DemoReadyProjects
+          onOpen={(project) => navigate(`/citizen/project/${encodeURIComponent(project.id)}`)}
+          title="Projects with location and reference imagery"
+        />
       </section>
 
       <section className="max-w-4xl mx-auto px-4 mt-10">
