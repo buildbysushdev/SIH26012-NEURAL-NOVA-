@@ -10,18 +10,14 @@ export default function ProgressTimeline({ project }: { project: Project }) {
 
   const milestones = [
     { label: "Sanctioned", done: true, date: formatDate(project.sanctionDate) },
-    { label: "Funds Released", done: true, date: formatDate(project.sanctionDate) },
+    { label: "Funds Released", done: project.releasedAmount > 0, date: project.releasedAmount > 0 ? "Recorded" : "Not reported" },
     { label: "Work Started", done: project.physicalProgress > 0, date: project.physicalProgress > 0 ? formatDate(project.sanctionDate) : "Pending" },
-    { label: "Current Progress", done: true, date: `${project.physicalProgress}% complete` },
+    { label: "Current Progress", done: project.physicalProgress > 0, date: project.physicalProgress > 0 ? `${project.physicalProgress}% complete` : "Not reported" },
     { label: "Expected Completion", done: project.status === "Completed", date: formatDate(project.expectedCompletion) },
   ];
 
   const progressChartData = [
-    { stage: "Start", expected: 0, actual: 0 },
-    { stage: "Q1", expected: Math.round(project.expectedProgress * 0.3), actual: Math.round(project.physicalProgress * 0.25) },
-    { stage: "Q2", expected: Math.round(project.expectedProgress * 0.6), actual: Math.round(project.physicalProgress * 0.55) },
-    { stage: "Q3", expected: Math.round(project.expectedProgress * 0.85), actual: Math.round(project.physicalProgress * 0.8) },
-    { stage: "Now", expected: project.expectedProgress, actual: project.physicalProgress },
+    { stage: "Current", expected: project.expectedProgress, actual: project.physicalProgress },
   ];
 
   return (

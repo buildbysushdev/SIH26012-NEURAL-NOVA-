@@ -60,7 +60,7 @@ export default function App() {
   return (
     <AuthProvider>
       <ToastProvider>
-        <BrowserRouter>
+        <BrowserRouter basename={window.location.pathname === "/app" || window.location.pathname.startsWith("/app/") ? "/app" : undefined}>
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<Login />} />

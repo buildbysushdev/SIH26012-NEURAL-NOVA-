@@ -244,14 +244,14 @@ export default function EvidenceCard({
                 <span className="font-mono">
                   {project.latitude.toFixed(4)}° N, {project.longitude.toFixed(4)}° E
                 </span>
-                <span className="text-emerald-400 font-medium">Sentinel-2 MSI (10m L2A)</span>
+                <span className="text-emerald-400 font-medium">Esri World Imagery · Reference</span>
               </div>
             </div>
             <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-1.5">
               <div className="flex justify-between">
                 <span className="text-gray-500 text-xs">Imagery Analysis Status:</span>
                 <span className="font-semibold text-gray-900 text-xs">
-                  {project.satelliteStatus || (project.riskFactors.satelliteVerification === "Review" ? "Physical Verification Recommended" : "Activity Verified")}
+                  {project.satelliteStatus || (project.riskFactors.satelliteVerification === "Review" ? "Physical Verification Recommended" : "Manual review required")}
                 </span>
               </div>
               {project.satelliteRiskScore !== undefined && (
@@ -262,7 +262,7 @@ export default function EvidenceCard({
               )}
             </div>
             <p className="text-xs text-gray-500">
-              High-resolution Copernicus Sentinel-2 multispectral earth observation tile centered on project geocoordinates.
+              Reference basemap imagery centered on the available coordinates. No automated structure verdict is inferred from this image.
             </p>
           </div>
         )}

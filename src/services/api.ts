@@ -1,21 +1,13 @@
 // ============================================================================
-// MOCK API SERVICE LAYER
+// BACKEND API SERVICE LAYER
 // ----------------------------------------------------------------------------
-// This file simulates a REST API using in-memory mock data and Promises.
-// When the real backend is ready, replace the internals of each function
-// with actual `fetch`/`axios` calls to the corresponding backend endpoint.
+// All authoritative actions use the FastAPI backend.
+// Demo-only constants remain only where a screen has no server-side equivalent.
+// Mutations never report success unless the backend confirms persistence.
 // The function signatures and return shapes are designed to stay stable,
 // so pages that call these functions should NOT need to change.
 // ============================================================================
 
-import {
-  PROJECTS,
-  ALERTS,
-  CITIZEN_REPORTS,
-  STATE_RISK_DATA,
-  OFFICERS,
-  AUDIT_LOGS,
-} from "../data/mockData";
 import type {
   Project,
   RiskAlert,
@@ -28,44 +20,10 @@ import type {
   AuditLogEntry,
 } from "../types";
 
-const NETWORK_DELAY = 350;
-export const BACKEND_BASE_URL = (import.meta as any).env?.VITE_BACKEND_URL || "http://localhost:8000";
-
-function delay<T>(data: T, ms = NETWORK_DELAY): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(data), ms));
-}
-
-let inFlightTokenPromise: Promise<string> | null = null;
+export const BACKEND_BASE_URL = (import.meta as any).env?.VITE_BACKEND_URL || ((import.meta as any).env?.DEV ? "http://localhost:8000" : window.location.origin);
 
 export async function getAuthToken(): Promise<string> {
-  const stored = localStorage.getItem("mplads_token") || localStorage.getItem("mplads_officer_jwt_token");
-  if (stored) return stored;
-  if (inFlightTokenPromise) return inFlightTokenPromise;
-  inFlightTokenPromise = (async () => {
-    try {
-      const res = await fetch(`${BACKEND_BASE_URL}/auth/token`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          officer_id: "AUDITOR-VIGILANCE-01",
-          password: "officer@SIH2026",
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.access_token) {
-          localStorage.setItem("mplads_token", data.access_token);
-          return data.access_token;
-        }
-      }
-    } catch (err) {
-      console.warn("Could not auto-fetch auditor token:", err);
-    } finally {
-      inFlightTokenPromise = null;
-    }
-    return "";
-  })();
-  return inFlightTokenPromise;
+  return localStorage.getItem("mplads_token") || localStorage.getItem("mplads_officer_jwt_token") || "";
 }
 
 export async function getAuthHeaders(): Promise<HeadersInit> {
@@ -93,58 +51,62 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
 }
 
 export function mapBackendProjectToFrontend(r: any, idx = 0): Project {
-  const sanctioned = typeof r.sanction_amount === "number" ? r.sanction_amount : parseFloat(r.sanction_amount) || 2500000;
-  const disbursed = r.amount_disbursed_completed || r.total_fund_disbursed || Math.round(sanctioned * 0.85);
-  const riskScore = Math.round(r.risk_score != null ? Number(r.risk_score) : 50);
-  const costDeviationScore = Math.round(r.cost_risk_score != null ? Number(r.cost_risk_score) : 30);
+  const parsedSanctioned = Number(r.sanction_amount);
+  const sanctioned = Number.isFinite(parsedSanctioned) ? parsedSanctioned : 0;
+  const parsedDisbursed = Number(r.amount_disbursed_completed ?? r.total_fund_disbursed);
+  const disbursed = Number.isFinite(parsedDisbursed) ? parsedDisbursed : 0;
+  const riskScore = Math.round(r.risk_score != null ? Number(r.risk_score) : 0);
+  const costDeviationScore = Math.round(r.cost_risk_score != null ? Number(r.cost_risk_score) : 0);
   const nlpSimilarity = Math.round(r.nlp_similarity_score != null ? Number(r.nlp_similarity_score) : 0);
-  const satScore = r.satellite_risk_score != null ? Math.round(Number(r.satellite_risk_score)) : 10;
+  const satScore = r.satellite_risk_score != null ? Math.round(Number(r.satellite_risk_score)) : 0;
   const citizenCount = typeof r.citizen_report_count === "number" ? r.citizen_report_count : 0;
   const costZ = r.cost_zscore != null ? Number(r.cost_zscore) : undefined;
+  const parsedPeerCost = Number(r.peer_average_cost);
+  const peerAverageCost = Number.isFinite(parsedPeerCost) ? parsedPeerCost : 0;
+  const baseRisk = 0.5 * costDeviationScore + 0.5 * nlpSimilarity;
+  const beforeFeedback = Number(r.risk_score_before_feedback ?? r.risk_score);
+  const citizenContribution = Number.isFinite(beforeFeedback) ? Math.max(0, Math.round(beforeFeedback - baseRisk)) : 0;
+  const completed = String(r.work_status || "").toLowerCase().includes("complete");
+  const delayed = String(r.work_status || "").toLowerCase().includes("delay");
+  const year = Number.parseInt(String(r.sanction_date || "").slice(0, 4), 10);
 
   return {
     id: r.work_id || `W-${idx}`,
-    name: r.work_description || r.work_name || `MPLADS Work ${r.work_id}`,
-    state: r.state || "National",
-    district: r.district || r.constituency || "General",
+    name: r.work_description || r.work_name || "Description unavailable",
+    state: r.state || "Unknown",
+    district: r.district || r.constituency || "Unknown",
     constituency: r.constituency || "",
     category: (r.work_category as any) || "Public Infrastructure",
-    workType: r.work_category || "Development Work",
-    implementingAgency: r.ida || "District Authority",
-    sanctionDate: r.sanction_date || "2024-01-15",
-    expectedCompletion: r.completion_date || "2025-03-31",
-    status: (r.feedback_status === "confirmed_issue"
-      ? "Under Review"
-      : r.feedback_status === "false_positive"
-      ? "Completed"
-      : r.work_status === "Completed"
-      ? "Completed"
-      : "In Progress") as any,
+    workType: r.work_category || "Not reported",
+    implementingAgency: r.ida || "Not reported",
+    sanctionDate: r.sanction_date || "",
+    expectedCompletion: r.completion_date || "",
+    status: (completed ? "Completed" : delayed ? "Delayed" : "In Progress") as any,
     sanctionedAmount: sanctioned,
-    releasedAmount: sanctioned,
+    releasedAmount: disbursed,
     expenditure: disbursed,
-    physicalProgress: r.work_status === "Completed" ? 100 : 65,
-    expectedProgress: 80,
+    physicalProgress: completed ? 100 : 0,
+    expectedProgress: 0,
     riskScore: riskScore,
-    riskLevel: riskScore >= 80 ? "Critical" : riskScore >= 60 ? "High" : riskScore >= 40 ? "Medium" : "Low",
-    year: 2024,
-    latitude: typeof r.resolved_lat === "number" ? r.resolved_lat : (typeof r.latitude === "number" ? r.latitude : 20.5937),
-    longitude: typeof r.resolved_lng === "number" ? r.resolved_lng : (typeof r.longitude === "number" ? r.longitude : 78.9629),
+    riskLevel: riskScore >= 80 ? "Critical" : riskScore >= 60 ? "High" : riskScore >= 35 ? "Medium" : "Low",
+    year: Number.isFinite(year) ? year : 0,
+    latitude: typeof r.resolved_lat === "number" ? r.resolved_lat : (typeof r.latitude === "number" ? r.latitude : 0),
+    longitude: typeof r.resolved_lng === "number" ? r.resolved_lng : (typeof r.longitude === "number" ? r.longitude : 0),
     riskFactors: {
       costAnomaly: r.is_cost_outlier ? "High" : "Low",
       duplicateProbability: nlpSimilarity > 70 ? "High" : "Low",
-      delayRisk: "Medium",
-      paymentAnomaly: "Low",
+      delayRisk: delayed ? "High" : "Low",
+      paymentAnomaly: String(r.latest_payment_status || "").toLowerCase().includes("pending") ? "Review" : "Low",
       satelliteVerification: r.satellite_status && r.satellite_status !== "no_imagery" ? "Review" : "Low",
       citizenSignal: citizenCount > 0 ? "High" : "Low",
     },
     shapFactors: [
-      { label: "Cost Deviation", value: costDeviationScore },
-      { label: "Duplicate Similarity", value: nlpSimilarity },
+      { label: "Cost Deviation", value: Math.round(costDeviationScore * 0.5) },
+      { label: "Duplicate Similarity", value: Math.round(nlpSimilarity * 0.5) },
       { label: "Satellite Verification", value: satScore },
-      { label: "Citizen Reports", value: citizenCount * 15 },
+      { label: "Citizen Evidence", value: citizenContribution },
     ],
-    peerAverageCost: Math.round(sanctioned * 0.75),
+    peerAverageCost,
     similarProjectId: r.similar_project,
     similarityScore: nlpSimilarity,
     similarState: r.similar_state,
@@ -166,142 +128,76 @@ export function mapBackendProjectToFrontend(r: any, idx = 0): Project {
 // ---------------------------------------------------------------------------
 // Dashboard
 // ---------------------------------------------------------------------------
-export async function getDashboardStats(): Promise<DashboardStats> {
-  const totalSanctioned = PROJECTS.reduce((s, p) => s + p.sanctionedAmount, 0);
-  const totalExpenditure = PROJECTS.reduce((s, p) => s + p.expenditure, 0);
-
-  let totalProjectsScanned = 77312;
-  let highRiskCount = PROJECTS.filter((p) => p.riskScore >= 70).length;
-  let citizenCount = CITIZEN_REPORTS.length;
-  const highRiskSubset = PROJECTS.filter((p) => p.riskScore >= 50);
-  let avgRisk = Math.round(highRiskSubset.reduce((acc, p) => acc + p.riskScore, 0) / (highRiskSubset.length || 1));
-
-  try {
-    const rootRes = await fetchWithTimeout(`${BACKEND_BASE_URL}/`);
-    if (rootRes.ok) {
-      const data = await rootRes.json();
-      if (data.total_projects) totalProjectsScanned = data.total_projects;
-    }
-  } catch {}
-
-  try {
-    const authHeaders = await getAuthHeaders();
-    const flaggedRes = await fetchWithTimeout(`${BACKEND_BASE_URL}/flagged-projects?limit=500`, {
-      headers: authHeaders,
-    });
-    if (flaggedRes.ok) {
-      const flagged = await flaggedRes.json();
-      if (Array.isArray(flagged) && flagged.length > 0) {
-        highRiskCount = flagged.filter((p: any) => (p.risk_score || 0) >= 70).length;
-        const totalScore = flagged.reduce((acc: number, p: any) => acc + (p.risk_score || 0), 0);
-        avgRisk = Math.round(totalScore / flagged.length);
-      }
-    }
-  } catch {}
-
-  try {
-    const citizenRes = await fetchWithTimeout(`${BACKEND_BASE_URL}/citizen-reports`);
-    if (citizenRes.ok) {
-      const reports = await citizenRes.json();
-      if (Array.isArray(reports)) citizenCount = reports.length;
-    }
-  } catch {}
-
+export async function getDashboardStats(state?: string): Promise<DashboardStats> {
+  const query = state ? `?state=${encodeURIComponent(state)}` : "";
+  const response = await fetchWithTimeout(`${BACKEND_BASE_URL}/overview${query}`, {}, 12000);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || "Dashboard summary is unavailable.");
   return {
-    totalProjects: totalProjectsScanned,
-    totalProjectsTrend: 3.2,
-    highRiskProjects: highRiskCount,
-    highRiskTrend: 6.1,
-    activeAlerts: ALERTS.filter((a) => a.status !== "Resolved").length + 300,
-    activeAlertsTrend: -2.4,
-    fundUtilization: Math.round((totalExpenditure / totalSanctioned) * 1000) / 10,
-    fundUtilizationTrend: 1.8,
-    delayedProjects: 126,
-    delayedTrend: 4.5,
+    totalProjects: data.total_works,
+    totalProjectsTrend: 0,
+    highRiskProjects: data.high_risk_projects,
+    highRiskTrend: 0,
+    activeAlerts: data.high_risk_projects,
+    activeAlertsTrend: 0,
+    fundUtilization: data.fund_utilization,
+    fundUtilizationTrend: 0,
+    delayedProjects: data.delayed_projects,
+    delayedTrend: 0,
     lastUpdated: new Date().toISOString(),
-    // 4 Primary KPI cards for redesigned dashboard
-    totalProjectsScanned,
-    highRiskFlaggedCount: highRiskCount,
-    citizenReportsCount: citizenCount,
-    avgRiskScore: avgRisk,
+    totalProjectsScanned: data.total_works,
+    highRiskFlaggedCount: data.high_risk_projects,
+    citizenReportsCount: data.citizen_reports,
+    avgRiskScore: data.average_risk_score,
+    totalDisbursed: data.total_disbursed,
+    riskDistribution: data.risk_distribution,
   };
 }
 
-export async function getRiskDistribution() {
-  return delay([
-    { name: "Low Risk", value: 8420, color: "#16a34a" },
-    { name: "Medium Risk", value: 3120, color: "#d97706" },
-    { name: "High Risk", value: 918, color: "#ea580c" },
-    { name: "Critical Risk", value: 384, color: "#dc2626" },
-  ]);
+async function getOverviewData(): Promise<any> {
+  const response = await fetchWithTimeout(`${BACKEND_BASE_URL}/overview`, {}, 12000);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || "Overview is unavailable.");
+  return data;
 }
 
-export async function getFundUtilizationTrend(period: "monthly" | "quarterly" | "yearly" = "monthly") {
-  const monthly = [
-    { label: "Apr", utilization: 58 },
-    { label: "May", utilization: 61 },
-    { label: "Jun", utilization: 64 },
-    { label: "Jul", utilization: 66 },
-    { label: "Aug", utilization: 69 },
-    { label: "Sep", utilization: 71 },
-    { label: "Oct", utilization: 73 },
-    { label: "Nov", utilization: 74 },
-    { label: "Dec", utilization: 76 },
-    { label: "Jan", utilization: 78 },
-    { label: "Feb", utilization: 81 },
-    { label: "Mar", utilization: 74.8 },
+export async function getRiskDistribution() {
+  const data = await getOverviewData();
+  return [
+    { name: "Low Risk", value: data.risk_distribution.low, color: "#16a34a" },
+    { name: "Medium Risk", value: data.risk_distribution.medium, color: "#d97706" },
+    { name: "High Risk", value: data.risk_distribution.high, color: "#ea580c" },
+    { name: "Critical Risk", value: data.risk_distribution.critical, color: "#dc2626" },
   ];
-  if (period === "quarterly") {
-    return delay([
-      { label: "Q1", utilization: 61 },
-      { label: "Q2", utilization: 68 },
-      { label: "Q3", utilization: 74 },
-      { label: "Q4", utilization: 78 },
-    ]);
-  }
-  if (period === "yearly") {
-    return delay([
-      { label: "2022-23", utilization: 64 },
-      { label: "2023-24", utilization: 71 },
-      { label: "2024-25", utilization: 74.8 },
-    ]);
-  }
-  return delay(monthly);
+}
+
+export async function getFundUtilizationTrend(_period: "monthly" | "quarterly" | "yearly" = "monthly") {
+  const data = await getOverviewData();
+  return [{ label: "Current dataset", utilization: data.fund_utilization }];
 }
 
 export async function getProjectStatusBreakdown() {
-  const counts = { "Not Started": 0, "In Progress": 0, Completed: 0, Delayed: 0 };
-  PROJECTS.forEach((p) => (counts[p.status] += 1));
-  const scale = 12842 / PROJECTS.length;
-  return delay(
-    Object.entries(counts).map(([name, value]) => ({
-      name,
-      value: Math.round(value * scale),
-    }))
-  );
+  const data = await getOverviewData();
+  return [
+    { name: "Completed", value: data.completed_projects },
+    { name: "Delayed", value: data.delayed_projects },
+    { name: "Other / not reported", value: Math.max(0, data.total_works - data.completed_projects - data.delayed_projects) },
+  ];
 }
 
-export async function getAIInsights(): Promise<{ id: string; text: string }[]> {
-  return delay([
-    {
-      id: "insight-1",
-      text: "Projects in the Community Infrastructure category are showing a higher-than-usual cost deviation in selected districts.",
-    },
-    {
-      id: "insight-2",
-      text: "Duplicate similarity flags have increased 11% month-over-month for Drinking Water works in Maharashtra.",
-    },
-  ]);
+export async function getAIInsights(state?: string): Promise<{ id: string; text: string }[]> {
+  const response = await fetchWithTimeout(`${BACKEND_BASE_URL}/overview${state ? `?state=${encodeURIComponent(state)}` : ""}`, {}, 12000);
+  const data = await response.json();
+  return [
+    { id: "risk", text: `${data.high_risk_projects.toLocaleString("en-IN")} projects currently meet the high-risk review threshold.` },
+    { id: "reports", text: `${data.citizen_reports.toLocaleString("en-IN")} persisted citizen reports are linked to the registry.` },
+  ];
 }
 
 export async function getNotifications(): Promise<NotificationItem[]> {
-  return delay([
-    { id: "n1", title: "New Critical Risk Alert — MPL-10291", time: "12 min ago", type: "critical", read: false },
-    { id: "n2", title: "Citizen report received — MPL-9842", time: "48 min ago", type: "info", read: false },
-    { id: "n3", title: "Delay risk detected — MPL-8721", time: "2 hr ago", type: "warning", read: false },
-    { id: "n4", title: "Satellite verification completed — MPL-10102", time: "5 hr ago", type: "info", read: true },
-    { id: "n5", title: "Cost anomaly resolved — MPL-9310", time: "1 day ago", type: "info", read: true },
-  ]);
+  const reports = await getCitizenReports(5);
+  return reports.map((report) => ({ id: report.id, title: `Citizen report received — ${report.projectId}`,
+    time: report.submittedDate, type: "info" as const, read: false }));
 }
 
 // ---------------------------------------------------------------------------
@@ -322,7 +218,7 @@ export interface ProjectFilters {
 }
 
 export async function getProjects(filters: ProjectFilters = {}): Promise<{ data: Project[]; total: number }> {
-  // If there's a search term with at least 2 characters, search the live 77,312 MPLADS database!
+  // Search the live MPLADS registry when the query is specific enough.
   if (filters.search && filters.search.trim().length >= 2) {
     try {
       const page = filters.page ?? 1;
@@ -345,7 +241,7 @@ export async function getProjects(filters: ProjectFilters = {}): Promise<{ data:
     }
   }
 
-  // Load real scored projects from the 77,312 MPLADS dataset!
+  // Load real scored projects from the current MPLADS dataset.
   try {
     const authHeaders = await getAuthHeaders();
     const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/flagged-projects?limit=300`, {
@@ -384,42 +280,7 @@ export async function getProjects(filters: ProjectFilters = {}): Promise<{ data:
     console.warn("Could not fetch real projects from backend, falling back:", err);
   }
 
-  let results = [...PROJECTS];
-
-  if (filters.search) {
-    const q = filters.search.toLowerCase();
-    results = results.filter(
-      (p) =>
-        p.id.toLowerCase().includes(q) ||
-        p.name.toLowerCase().includes(q) ||
-        p.district.toLowerCase().includes(q) ||
-        p.state.toLowerCase().includes(q)
-    );
-  }
-  if (filters.state && filters.state !== "All") results = results.filter((p) => p.state.toLowerCase() === filters.state?.toLowerCase());
-  if (filters.district && filters.district !== "All") results = results.filter((p) => p.district.toLowerCase() === filters.district?.toLowerCase());
-  if (filters.category && filters.category !== "All") results = results.filter((p) => p.category === filters.category);
-  if (filters.status && filters.status !== "All") results = results.filter((p) => p.status === filters.status);
-  if (filters.riskLevel && filters.riskLevel !== "All") results = results.filter((p) => p.riskLevel === filters.riskLevel);
-  if (filters.year) results = results.filter((p) => String(p.year) === filters.year);
-
-  if (filters.sortBy) {
-    const dir = filters.sortDir === "desc" ? -1 : 1;
-    results.sort((a, b) => {
-      const av = a[filters.sortBy as keyof Project];
-      const bv = b[filters.sortBy as keyof Project];
-      if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
-      return String(av).localeCompare(String(bv)) * dir;
-    });
-  }
-
-  const total = results.length;
-  const page = filters.page ?? 1;
-  const pageSize = filters.pageSize ?? 10;
-  const start = (page - 1) * pageSize;
-  const data = results.slice(start, start + pageSize);
-
-  return delay({ data, total });
+  return { data: [], total: 0 };
 }
 
 export async function getFlaggedProjects(filters: ProjectFilters = {}): Promise<{ data: Project[]; total: number }> {
@@ -472,36 +333,7 @@ export async function getFlaggedProjects(filters: ProjectFilters = {}): Promise<
     console.warn("Could not fetch live flagged projects:", err);
   }
 
-  // Fallback to high-risk projects sorted by riskScore descending
-  let results = [...PROJECTS].sort((a, b) => b.riskScore - a.riskScore);
-
-  if (filters.search) {
-    const q = filters.search.toLowerCase();
-    results = results.filter(
-      (p) =>
-        p.id.toLowerCase().includes(q) ||
-        p.name.toLowerCase().includes(q) ||
-        p.district.toLowerCase().includes(q) ||
-        p.state.toLowerCase().includes(q)
-    );
-  }
-  if (filters.state && filters.state !== "All") {
-    results = results.filter((p) => p.state.toLowerCase() === filters.state?.toLowerCase());
-  }
-  if (filters.district && filters.district !== "All") {
-    results = results.filter((p) => p.district.toLowerCase() === filters.district?.toLowerCase());
-  }
-  if (filters.category && filters.category !== "All") results = results.filter((p) => p.category === filters.category);
-  if (filters.status && filters.status !== "All") results = results.filter((p) => p.status === filters.status);
-  if (filters.riskLevel && filters.riskLevel !== "All") results = results.filter((p) => p.riskLevel === filters.riskLevel);
-
-  const total = results.length;
-  const page = filters.page ?? 1;
-  const pageSize = filters.pageSize ?? 10;
-  const start = (page - 1) * pageSize;
-  const data = results.slice(start, start + pageSize);
-
-  return delay({ data, total });
+  return { data: [], total: 0 };
 }
 
 export function getSatelliteImageUrl(workId: string): string {
@@ -513,18 +345,15 @@ export function getAuditBriefPdfUrl(workId: string): string {
 }
 
 export async function saveChecklist(workId: string, state: any): Promise<any> {
-  try {
-    const authHeaders = await getAuthHeaders();
-    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/checklist`, {
-      method: "POST",
-      headers: { ...authHeaders, "Content-Type": "application/json" },
-      body: JSON.stringify({ work_id: workId, ...state }),
-    });
-    if (res.ok) return await res.json();
-  } catch (err) {
-    console.warn("Failed to save checklist to backend:", err);
-  }
-  return { success: true };
+  const authHeaders = await getAuthHeaders();
+  const response = await fetchWithTimeout(`${BACKEND_BASE_URL}/checklist`, {
+    method: "POST",
+    headers: { ...authHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify({ work_id: workId, ...state }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || "Checklist could not be saved.");
+  return data;
 }
 
 export async function getChecklist(workId: string): Promise<any> {
@@ -569,78 +398,29 @@ export async function getReportVerification(reportId: string): Promise<any> {
 
 export async function getProjectById(id: string): Promise<Project | undefined> {
   const cleanId = decodeURIComponent(id).trim();
-  // First try backend
-  try {
-    const authHeaders = await getAuthHeaders();
-    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/project?work_id=${encodeURIComponent(cleanId)}`, {
-      headers: authHeaders,
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const r = data.project;
-      if (r) {
-        return mapBackendProjectToFrontend(r, 0);
-      }
-    }
-  } catch (err) {
-    console.warn("Could not fetch project from backend:", err);
-  }
-
-  // Fallback to local project
-  return delay(PROJECTS.find((p) => p.id === cleanId || p.id === id));
+  const authHeaders = await getAuthHeaders();
+  const response = await fetchWithTimeout(`${BACKEND_BASE_URL}/project?work_id=${encodeURIComponent(cleanId)}`, { headers: authHeaders }, 12000);
+  if (response.status === 404) return undefined;
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || "Project service is unavailable.");
+  return data.project ? mapBackendProjectToFrontend(data.project, 0) : undefined;
 }
 
 export async function submitProjectFeedback(
   workId: string,
   verdict: "confirmed_issue" | "false_positive",
   officerNotes = "",
-  officerId = "OFF-001"
+  officerId = ""
 ): Promise<{ success: boolean; newRiskScore?: number; message: string }> {
-  // Update local memory
-  const localProject = PROJECTS.find((p) => p.id === workId);
-  let newScore: number | undefined;
-  if (localProject) {
-    if (verdict === "false_positive") {
-      localProject.feedbackStatus = "false_positive";
-      localProject.riskScore = Math.max(0, localProject.riskScore - 25);
-      localProject.riskLevel = localProject.riskScore >= 80 ? "Critical" : localProject.riskScore >= 60 ? "High" : localProject.riskScore >= 40 ? "Medium" : "Low";
-      newScore = localProject.riskScore;
-    } else {
-      localProject.feedbackStatus = "confirmed_issue";
-      localProject.riskScore = Math.min(100, localProject.riskScore + 5);
-      newScore = localProject.riskScore;
-    }
-  }
-
-  // Attempt backend update
-  try {
-    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/feedback`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        work_id: workId,
-        verdict,
-        officer_notes: officerNotes,
-        officer_id: officerId,
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return {
-        success: true,
-        newRiskScore: data.new_risk_score ?? newScore,
-        message: data.message || "Feedback recorded successfully.",
-      };
-    }
-  } catch {}
-
-  return delay({
-    success: true,
-    newRiskScore: newScore,
-    message: verdict === "false_positive"
-      ? "Project marked as False Positive. Risk score reduced by 25 points."
-      : "Project marked as Reviewed and verified for supervisory follow-up.",
-  }, 300);
+  const authHeaders = await getAuthHeaders();
+  const response = await fetchWithTimeout(`${BACKEND_BASE_URL}/feedback`, {
+    method: "POST",
+    headers: { ...authHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify({ work_id: workId, verdict, officer_notes: officerNotes, officer_id: officerId }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || "Feedback could not be saved.");
+  return { success: true, newRiskScore: data.new_risk_score, message: data.message || "Feedback recorded." };
 }
 
 export async function getCitizenReportsForProject(workId: string): Promise<CitizenReport[]> {
@@ -664,9 +444,7 @@ export async function getCitizenReportsForProject(workId: string): Promise<Citiz
     }
   } catch {}
 
-  // Fallback to local citizen reports matching this project
-  const matched = CITIZEN_REPORTS.filter((c) => c.projectId === workId);
-  return delay(matched);
+  return [];
 }
 
 // ---------------------------------------------------------------------------
@@ -682,139 +460,64 @@ export interface AlertFilters {
 }
 
 export async function getRiskAlerts(filters: AlertFilters = {}): Promise<RiskAlert[]> {
-  let results: RiskAlert[] = [];
-
-  try {
-    const authHeaders = await getAuthHeaders();
-    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/flagged-projects?limit=150`, {
-      headers: authHeaders,
-    });
-    if (res.ok) {
-      const records = await res.json();
-      if (Array.isArray(records) && records.length > 0) {
-        results = records.map((r: any, idx: number) => {
-          const score = Math.round(r.risk_score || 50);
-          const level: RiskAlert["riskLevel"] = score >= 80 ? "Critical" : score >= 60 ? "High" : score >= 40 ? "Medium" : "Low";
-          const type: AlertType = r.is_cost_outlier
-            ? "Cost Anomaly"
-            : (r.nlp_similarity_score > 70
-            ? "Duplicate Work"
-            : (r.citizen_report_count > 0 ? "Citizen Signal" : "Satellite Verification"));
-          const evidence: string[] = [];
-          if (r.cost_zscore) evidence.push(`Cost Z-Score: +${Number(r.cost_zscore).toFixed(2)}σ`);
-          if (r.nlp_similarity_score) evidence.push(`Semantic Overlap: ${r.nlp_similarity_score}%`);
-          if (r.citizen_report_count) evidence.push(`Citizen Complaints: ${r.citizen_report_count}`);
-          if (r.satellite_status) evidence.push(`Satellite Status: ${r.satellite_status}`);
-          if (evidence.length === 0) evidence.push("Multi-signal model alert trigger");
-
-          const recommendedAction = r.is_cost_outlier
-            ? "Audit financial vouchers against district schedule of rates"
-            : r.nlp_similarity_score > 70
-            ? "Verify physical location coordinates against existing works"
-            : "Dispatch DISHA field officer for on-ground inspection";
-
-          return {
-            id: `ALT-${String(idx + 1).padStart(3, "0")}`,
-            projectId: r.work_id || `W-${idx}`,
-            projectName: r.work_description || `MPLADS Work ${r.work_id}`,
-            type,
-            riskScore: score,
-            riskLevel: level,
-            detectedDate: r.sanction_date || "2024-02-10",
-            status: (r.feedback_status === "confirmed_issue"
-              ? "Under Review"
-              : r.feedback_status === "false_positive"
-              ? "Resolved"
-              : "Open") as any,
-            location: `${r.district || "General"}, ${r.state || "National"}`,
-            description: r.cost_zscore
-              ? `Cost anomaly detected (+${Number(r.cost_zscore).toFixed(2)}σ deviation against peer works)`
-              : r.nlp_similarity_score > 70
-              ? `High semantic overlap (${r.nlp_similarity_score}%) with similar project ${r.similar_project || ""}`
-              : `Flagged for vigilance review based on multi-signal risk model`,
-            recommendedAction,
-            evidence,
-          };
-        });
-      }
-    }
-  } catch (err) {
-    console.warn("Could not fetch real alerts from backend:", err);
-  }
-
-  if (results.length === 0) {
-    results = [...ALERTS];
-  }
-
-  if (filters.status && filters.status !== "All") results = results.filter((a) => a.status === filters.status);
-  if (filters.riskLevel && filters.riskLevel !== "All") results = results.filter((a) => a.riskLevel === filters.riskLevel);
-  if (filters.type && filters.type !== "All") results = results.filter((a) => a.type === filters.type);
-  if (filters.state && filters.state !== "All") {
-    results = results.filter((a) => a.location.toLowerCase().includes(filters.state?.toLowerCase() || ""));
-  }
-  if (filters.district && filters.district !== "All") {
-    results = results.filter((a) => a.location.toLowerCase().includes(filters.district?.toLowerCase() || ""));
-  }
+  const params = new URLSearchParams({ limit: "150" });
+  if (filters.status && filters.status !== "All") params.set("status", filters.status.toUpperCase().replace(" ", "_"));
+  if (filters.state && filters.state !== "All") params.set("state", filters.state);
+  if (filters.district && filters.district !== "All") params.set("district", filters.district);
+  const headers = await getAuthHeaders();
+  const response = await fetchWithTimeout(`${BACKEND_BASE_URL}/api/compliance/alerts?${params}`, { headers }, 12000);
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.detail || "Alerts are unavailable.");
+  let results: RiskAlert[] = (body.results || []).map((row: any) => {
+    const alertType = String(row.alert_type || "");
+    const type: AlertType = alertType.includes("COST") ? "Cost Anomaly" : alertType.includes("DUPLICATE") ? "Duplicate Work" : alertType.includes("DEADLINE") || alertType.includes("INSPECTION") ? "Delay" : alertType.includes("CITIZEN") ? "Citizen Signal" : "Payment Anomaly";
+    const riskScore = Number(row.risk_score ?? 0);
+    return { id: row.alert_id, projectId: row.project_id, projectName: row.project_name, location: `${row.district}, ${row.state}`,
+      riskScore, riskLevel: row.severity === "CRITICAL" ? "Critical" : row.severity === "HIGH" ? "High" : row.severity === "MEDIUM" ? "Medium" : "Low",
+      type, description: row.reason, detectedDate: row.date_generated,
+      status: row.status === "RESOLVED" ? "Resolved" : row.status === "ACKNOWLEDGED" ? "Under Review" : "Open",
+      assignedOfficer: row.assigned_authority, recommendedAction: row.assigned_authority, evidence: [row.reason] } as RiskAlert;
+  });
+  if (filters.riskLevel && filters.riskLevel !== "All") results = results.filter((item) => item.riskLevel === filters.riskLevel);
+  if (filters.type && filters.type !== "All") results = results.filter((item) => item.type === filters.type);
   if (filters.search) {
-    const q = filters.search.toLowerCase();
-    results = results.filter(
-      (a) => a.id.toLowerCase().includes(q) || a.projectId.toLowerCase().includes(q) || a.projectName.toLowerCase().includes(q)
-    );
+    const query = filters.search.toLowerCase();
+    results = results.filter((item) => `${item.id} ${item.projectId} ${item.projectName}`.toLowerCase().includes(query));
   }
-  return delay(results.sort((a, b) => b.riskScore - a.riskScore));
+  return results;
 }
 
 export async function updateAlertStatus(alertId: string, status: RiskAlert["status"]): Promise<RiskAlert | undefined> {
-  const alert = ALERTS.find((a) => a.id === alertId);
-  if (alert) alert.status = status;
-  return delay(alert, 250);
+  const headers = await getAuthHeaders();
+  const action = status === "Resolved" ? "resolve" : "acknowledge";
+  const response = await fetchWithTimeout(`${BACKEND_BASE_URL}/api/compliance/action`, {
+    method: "POST", headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ alert_id: alertId, project_id: "", action, officer_id: "authenticated-user" }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || "Alert status could not be updated.");
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------
 // Analytics
 // ---------------------------------------------------------------------------
 export async function getAnalytics() {
-  return delay({
-    avgProjectCostTrend: [
-      { label: "2021-22", value: 14.2 },
-      { label: "2022-23", value: 15.1 },
-      { label: "2023-24", value: 16.4 },
-      { label: "2024-25", value: 17.8 },
-    ],
-    costDeviationByCategory: [
-      { name: "Road", value: 8 },
-      { name: "Community Hall", value: 22 },
-      { name: "School Infra", value: 11 },
-      { name: "Drinking Water", value: 14 },
-      { name: "Sanitation", value: 6 },
-      { name: "Healthcare", value: 9 },
-    ],
-    delayDistribution: [
-      { name: "On Time", value: 62 },
-      { name: "Minor Delay", value: 21 },
-      { name: "Major Delay", value: 12 },
-      { name: "Severely Delayed", value: 5 },
-    ],
-    riskTrend: [
-      { label: "Q1", high: 62, critical: 18 },
-      { label: "Q2", high: 71, critical: 22 },
-      { label: "Q3", high: 78, critical: 29 },
-      { label: "Q4", high: 82, critical: 31 },
-    ],
-    stateWise: STATE_RISK_DATA.map((s) => ({ name: s.state, value: s.highRisk + s.critical })),
-    insights: [
-      "Average project cost increased by 8.4% in the selected period.",
-      "12% of projects in the selected category show elevated delay risk.",
-      "Community Hall projects show the highest average cost deviation across categories.",
-    ],
-  });
+  const overview = await getOverviewData();
+  const states = await getRiskMapData();
+  return { avgProjectCostTrend: [], costDeviationByCategory: [], delayDistribution: [], riskTrend: [],
+    stateWise: states.map((state) => ({ name: state.state, value: state.highRisk + state.critical })),
+    insights: [`${overview.high_risk_projects} projects meet the high-risk threshold in the current dataset.`] };
 }
 
 // ---------------------------------------------------------------------------
 // Risk Map
 // ---------------------------------------------------------------------------
 export async function getRiskMapData(): Promise<StateRiskData[]> {
-  return delay(STATE_RISK_DATA);
+  const response = await fetchWithTimeout(`${BACKEND_BASE_URL}/state-risk`, {}, 12000);
+  const data = await response.json().catch(() => ([]));
+  if (!response.ok) throw new Error("State risk data is unavailable.");
+  return data.map((row: any) => ({ state: row.state, totalProjects: row.total_projects, highRisk: row.high_risk, critical: row.critical, alerts: row.alerts, fundUtilization: row.fund_utilization, riskLevel: row.risk_level }));
 }
 
 // ---------------------------------------------------------------------------
@@ -822,7 +525,8 @@ export async function getRiskMapData(): Promise<StateRiskData[]> {
 // ---------------------------------------------------------------------------
 export async function getCitizenReports(limit?: number): Promise<CitizenReport[]> {
   try {
-    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/citizen-reports`);
+    const authHeaders = await getAuthHeaders();
+    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/citizen-reports`, { headers: authHeaders });
     if (res.ok) {
       const records = await res.json();
       if (Array.isArray(records) && records.length > 0) {
@@ -837,16 +541,14 @@ export async function getCitizenReports(limit?: number): Promise<CitizenReport[]
           status: "Received",
           hasPhoto: Boolean(r.photo_saved || r.photo_url || r.photo_hash),
         }));
-        const combined = [...mapped, ...CITIZEN_REPORTS.filter((c) => !mapped.some((m) => m.id === c.id))];
-        combined.sort((a, b) => (a.submittedDate < b.submittedDate ? 1 : -1));
-        return limit ? combined.slice(0, limit) : combined;
+        mapped.sort((a, b) => (a.submittedDate < b.submittedDate ? 1 : -1));
+        return limit ? mapped.slice(0, limit) : mapped;
       }
     }
   } catch (err) {
     console.warn("Could not fetch live citizen reports:", err);
   }
-  const sorted = [...CITIZEN_REPORTS].sort((a, b) => (a.submittedDate < b.submittedDate ? 1 : -1));
-  return delay(limit ? sorted.slice(0, limit) : sorted);
+  return [];
 }
 
 export interface CitizenReportSubmission {
@@ -859,53 +561,27 @@ export interface CitizenReportSubmission {
 }
 
 export async function submitCitizenReport(submission: CitizenReportSubmission): Promise<{ id: string }> {
-  try {
-    const formData = new FormData();
-    formData.append("work_id", submission.projectId.trim());
-    formData.append("description", submission.description.trim() || "Citizen field observation reported.");
-    if (submission.issueType) formData.append("category", submission.issueType);
-
-    if (submission.location && submission.location.includes(",")) {
-      const parts = submission.location.split(",").map((p) => parseFloat(p.trim()));
-      if (!isNaN(parts[0]) && !isNaN(parts[1])) {
-        formData.append("captured_lat", String(parts[0]));
-        formData.append("captured_lng", String(parts[1]));
-      }
-    }
-
-    if (submission.photoFile) {
-      formData.append("photo", submission.photoFile);
-    } else {
-      // Valid dummy 1x1 JPEG blob to satisfy backend mandatory photo integrity check
-      const dummyJpegBytes = new Uint8Array([
-        0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48,
-        0x00, 0x48, 0x00, 0x00, 0xff, 0xdb, 0x00, 0x43, 0x00, 0x08, 0x06, 0x06, 0x07, 0x06, 0x05, 0x08,
-        0x07, 0x07, 0x07, 0x09, 0x09, 0x08, 0x0a, 0x0c, 0x14, 0x0d, 0x0c, 0x0b, 0x0b, 0x0c, 0x19, 0x12,
-        0x13, 0x0f, 0x14, 0x1d, 0x1a, 0x1f, 0x1e, 0x1d, 0x1a, 0x1c, 0x1c, 0x20, 0x24, 0x2e, 0x27, 0x20,
-        0x22, 0x2c, 0x23, 0x1c, 0x1c, 0x28, 0x37, 0x29, 0x2c, 0x30, 0x31, 0x34, 0x34, 0x34, 0x1f, 0x27,
-        0x39, 0x3d, 0x38, 0x32, 0x3c, 0x2e, 0x33, 0x34, 0x32, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01,
-        0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xff, 0xc4, 0x00, 0x1f, 0x00, 0x00, 0x01, 0x05, 0x01, 0x01,
-        0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04,
-        0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0xff, 0xda, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3f,
-        0x00, 0xbf, 0x80, 0xff, 0xd9,
-      ]);
-      const dummyBlob = new Blob([dummyJpegBytes], { type: "image/jpeg" });
-      formData.append("photo", dummyBlob, "field_photo.jpg");
-    }
-
-    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/citizen-report`, {
-      method: "POST",
-      body: formData,
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return { id: data.report_id || `CR-${Date.now()}` };
-    }
-  } catch (err) {
-    console.warn("Error submitting citizen report to backend:", err);
+  if (!submission.photoFile) {
+    throw new Error("A real project-site photo is required.");
   }
-  const id = `CR-${100000 + Math.floor(Math.random() * 9000) + 1}`;
-  return delay({ id }, 700);
+  const formData = new FormData();
+  formData.append("work_id", submission.projectId.trim());
+  formData.append("description", submission.description.trim());
+  if (submission.issueType) formData.append("category", submission.issueType);
+  if (submission.location && submission.location.includes(",")) {
+    const parts = submission.location.split(",").map((part) => Number(part.trim()));
+    if (Number.isFinite(parts[0]) && Number.isFinite(parts[1])) {
+      formData.append("captured_lat", String(parts[0]));
+      formData.append("captured_lng", String(parts[1]));
+    }
+  }
+  formData.append("photo", submission.photoFile);
+  const response = await fetchWithTimeout(`${BACKEND_BASE_URL}/citizen-report`, { method: "POST", body: formData }, 20000);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.report_id) {
+    throw new Error(data.detail || "The report could not be saved. Please retry.");
+  }
+  return { id: data.report_id };
 }
 
 // ---------------------------------------------------------------------------
@@ -936,150 +612,81 @@ export interface SubmittedOfficerReport {
 }
 
 export async function getSubmittedOfficerReports(): Promise<SubmittedOfficerReport[]> {
-  const stored = localStorage.getItem("mplads_officer_submitted_reports");
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch {}
-  }
-  const defaults: SubmittedOfficerReport[] = [
-    {
-      id: "REP-OFF-101",
-      officerName: "R. Kulkarni",
-      officerEmail: "officer1@mplads.ai",
-      state: "Maharashtra",
-      district: "Pune",
-      reportType: "Risk Summary",
-      projectName: "Pune District High-Risk Works",
-      generatedDate: new Date(Date.now() - 3600000 * 24).toLocaleString("en-IN"),
-      summary: [
-        { label: "Scope", value: "Maharashtra · Pune" },
-        { label: "Flagged Projects", value: "5" },
-        { label: "Estimated Risk Value", value: "₹3.8 Cr" },
-      ],
-      rows: [
-        { project: "PRJ-MH-001 — Pune Rural Water Supply Augmentation", risk: "85/100 (Critical)", amount: "₹85.0L" },
-        { project: "PRJ-MH-003 — Primary Health Center Wing Extension", risk: "74/100 (High)", amount: "₹65.0L" },
-      ],
-    },
-    {
-      id: "REP-OFF-102",
-      officerName: "A. Deshmukh",
-      officerEmail: "officer2@mplads.ai",
-      state: "Karnataka",
-      district: "Bengaluru Urban",
-      reportType: "Project-wise",
-      projectName: "PRJ-KA-001 — Community Skill Development Center",
-      generatedDate: new Date(Date.now() - 3600000 * 12).toLocaleString("en-IN"),
-      summary: [
-        { label: "Scope", value: "Karnataka · Bengaluru Urban" },
-        { label: "Project ID", value: "PRJ-KA-001" },
-        { label: "Cost Deviation", value: "+28% vs Peer Avg" },
-      ],
-      rows: [
-        { project: "PRJ-KA-001 — Community Skill Development Center", risk: "78/100 (High)", amount: "₹120.0L" },
-      ],
-    },
-  ];
-  localStorage.setItem("mplads_officer_submitted_reports", JSON.stringify(defaults));
-  return delay(defaults, 250);
+  const headers = await getAuthHeaders();
+  const response = await fetchWithTimeout(`${BACKEND_BASE_URL}/api/officer-reports`, { headers });
+  const data = await response.json().catch(() => ([]));
+  if (!response.ok) throw new Error("Submitted reports are unavailable.");
+  return data.map((row: any) => ({ id: row.id, officerName: row.officer_name, officerEmail: row.officer_email,
+    state: row.state, district: row.district, reportType: row.report_type, projectName: row.project_name,
+    generatedDate: row.generated_date, summary: row.summary || [], rows: row.rows || [] }));
 }
 
 export async function submitReportToAdmin(
   reportData: Omit<SubmittedOfficerReport, "id" | "generatedDate">
 ): Promise<SubmittedOfficerReport> {
-  const existing = await getSubmittedOfficerReports();
-  const newReport: SubmittedOfficerReport = {
-    ...reportData,
-    id: `REP-OFF-${100 + existing.length + 1}`,
-    generatedDate: new Date().toLocaleString("en-IN"),
-  };
-  const updated = [newReport, ...existing];
-  localStorage.setItem("mplads_officer_submitted_reports", JSON.stringify(updated));
-  return delay(newReport, 300);
+  const headers = await getAuthHeaders();
+  const response = await fetchWithTimeout(`${BACKEND_BASE_URL}/api/officer-reports`, {
+    method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(reportData),
+  });
+  const row = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(row.detail || "Report could not be submitted.");
+  return { id: row.id, officerName: row.officer_name, officerEmail: row.officer_email, state: row.state,
+    district: row.district, reportType: row.report_type, projectName: row.project_name,
+    generatedDate: row.generated_date, summary: row.summary || [], rows: row.rows || [] };
 }
 
 export async function generateReport(request: ReportRequest): Promise<{
-  title: string;
-  generatedAt: string;
-  summary: { label: string; value: string }[];
+  title: string; generatedAt: string; summary: { label: string; value: string }[];
   rows: { project: string; risk: string; amount: string }[];
 }> {
-  // If specific project requested
+  let projects: Project[] = [];
   if (request.projectId) {
-    const singleProj = PROJECTS.find((p) => p.id === request.projectId);
-    if (singleProj) {
-      return delay(
-        {
-          title: `Project Audit Report: ${singleProj.name} (${singleProj.id})`,
-          generatedAt: new Date().toLocaleString("en-IN"),
-          summary: [
-            { label: "Project ID", value: singleProj.id },
-            { label: "State & District", value: `${singleProj.state} · ${singleProj.district}` },
-            { label: "Sanctioned Amount", value: `₹${(singleProj.sanctionedAmount / 100000).toFixed(1)}L` },
-            { label: "Expenditure", value: `₹${(singleProj.expenditure / 100000).toFixed(1)}L` },
-            { label: "Risk Score", value: `${singleProj.riskScore}/100 (${singleProj.riskLevel})` },
-            { label: "Physical Progress", value: `${singleProj.physicalProgress}%` },
-            { label: "Status", value: singleProj.status },
-          ],
-          rows: [
-            { project: `${singleProj.id} — ${singleProj.name}`, risk: `${singleProj.riskScore}/100 (${singleProj.riskLevel})`, amount: `₹${(singleProj.sanctionedAmount / 100000).toFixed(1)}L` },
-          ],
-        },
-        600
-      );
-    }
+    const project = await getProjectById(request.projectId);
+    if (project) projects = [project];
+  } else {
+    const result = await getFlaggedProjects({ state: request.state, district: request.district, riskLevel: request.riskLevel, pageSize: 200 });
+    projects = result.data;
   }
-
-  let pool = PROJECTS;
-  if (request.state && request.state !== "All India") {
-    pool = pool.filter((p) => p.state.toLowerCase() === request.state?.toLowerCase());
-  }
-  if (request.district && request.district !== "All Districts") {
-    pool = pool.filter((p) => p.district.toLowerCase() === request.district?.toLowerCase());
-  }
-  if (request.riskLevel && request.riskLevel !== "All Levels") {
-    pool = pool.filter((p) => p.riskLevel === request.riskLevel);
-  }
-
-  const sample = pool.slice(0, 10);
-  const totalAmount = pool.reduce((acc, p) => acc + p.sanctionedAmount, 0);
-  const highRiskCount = pool.filter((p) => p.riskScore >= 70).length;
-
-  return delay(
-    {
-      title: request.type || "MPLADS Monitoring Report",
-      generatedAt: new Date().toLocaleString("en-IN"),
-      summary: [
-        { label: "Total Projects Covered", value: String(pool.length) },
-        { label: "High Risk Identified", value: String(highRiskCount) },
-        { label: "Total Sanctioned Value", value: `₹${(totalAmount / 10000000).toFixed(2)} Cr` },
-        { label: "Report Scope", value: request.state ? `${request.state}${request.district ? ` · ${request.district}` : ""}` : "All India" },
-      ],
-      rows: sample.map((p) => ({
-        project: `${p.id} — ${p.name}`,
-        risk: `${p.riskScore}/100 (${p.riskLevel})`,
-        amount: `₹${(p.sanctionedAmount / 100000).toFixed(1)}L`,
-      })),
-    },
-    700
-  );
+  const totalAmount = projects.reduce((sum, project) => sum + project.sanctionedAmount, 0);
+  return {
+    title: request.projectId ? `Project Audit Report: ${request.projectId}` : request.type || "MPLADS Monitoring Report",
+    generatedAt: new Date().toLocaleString("en-IN"),
+    summary: [
+      { label: "Projects Covered", value: String(projects.length) },
+      { label: "High/Critical Risk", value: String(projects.filter((p) => p.riskScore >= 60).length) },
+      { label: "Sanctioned Value", value: `₹${(totalAmount / 10000000).toFixed(2)} Cr` },
+      { label: "Source", value: "Live MPLADS backend" },
+    ],
+    rows: projects.map((p) => ({ project: `${p.id} — ${p.name}`, risk: `${p.riskScore}/100 (${p.riskLevel})`, amount: `₹${(p.sanctionedAmount / 100000).toFixed(1)}L` })),
+  };
 }
 
 // ---------------------------------------------------------------------------
 // Super Admin — Officer Management
 // ---------------------------------------------------------------------------
 export async function getOfficers(): Promise<OfficerAccount[]> {
-  return delay([...OFFICERS]);
+  const headers = await getAuthHeaders();
+  const response = await fetchWithTimeout(`${BACKEND_BASE_URL}/api/officers`, { headers });
+  const data = await response.json().catch(() => ([]));
+  if (!response.ok) throw new Error("Officer directory is unavailable.");
+  return data.map((row: any) => ({
+    id: row.officer_id, name: row.officer_id, email: `${row.officer_id.toLowerCase()}@mplads.gov.in`,
+    title: String(row.role || "officer").replaceAll("_", " "),
+    jurisdiction: row.district === "ALL" ? row.state : `${row.district}, ${row.state}`,
+    state: row.state, status: row.status, projectsAssigned: row.projects_assigned,
+    alertsHandled: row.alerts_handled, lastLogin: "Never",
+  }));
 }
 
 export async function updateOfficerStatus(
   officerId: string,
   status: OfficerAccount["status"]
 ): Promise<OfficerAccount | undefined> {
-  const officer = OFFICERS.find((o) => o.id === officerId);
-  if (officer) officer.status = status;
-  return delay(officer, 250);
+  const headers = await getAuthHeaders();
+  const response = await fetchWithTimeout(`${BACKEND_BASE_URL}/api/officers/${encodeURIComponent(officerId)}?account_status=${status}`, { method: "PATCH", headers });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || "Officer status could not be updated.");
+  return (await getOfficers()).find((officer) => officer.id === officerId);
 }
 
 export interface NewOfficerInput {
@@ -1090,65 +697,55 @@ export interface NewOfficerInput {
   state: string;
 }
 
-export async function addOfficer(input: NewOfficerInput): Promise<OfficerAccount> {
-  const newOfficer: OfficerAccount = {
-    id: `OFF-${String(OFFICERS.length + 1).padStart(3, "0")}`,
-    ...input,
-    status: "Active",
-    projectsAssigned: 0,
-    alertsHandled: 0,
-    lastLogin: "Never",
-  };
-  OFFICERS.unshift(newOfficer);
-  return delay(newOfficer, 500);
+export async function addOfficer(_input: NewOfficerInput): Promise<OfficerAccount> {
+  throw new Error("New login accounts must be provisioned through server configuration.");
 }
 
 // ---------------------------------------------------------------------------
 // Super Admin — System Overview & Audit Logs
 // ---------------------------------------------------------------------------
-export async function getSystemOverview() {
-  try {
-    const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/overview`);
-    if (res.ok) {
-      const data = await res.json();
-      return {
-        totalOfficers: OFFICERS.length,
-        activeOfficers: OFFICERS.filter((o) => o.status === "Active").length,
-        totalStates: STATE_RISK_DATA.length,
-        totalProjects: data.total_works || 77312,
-        totalAlerts: ALERTS.length + 300,
-        pendingCitizenReports: CITIZEN_REPORTS.filter((c) => c.status !== "Resolved").length,
-        systemUptime: "99.97%",
-        lastSync: new Date().toISOString(),
-      };
-    }
-  } catch (err) {
-    console.warn("Could not fetch live backend overview:", err);
-  }
-  return delay({
-    totalOfficers: OFFICERS.length,
-    activeOfficers: OFFICERS.filter((o) => o.status === "Active").length,
-    totalStates: STATE_RISK_DATA.length,
-    totalProjects: 77312,
-    totalAlerts: ALERTS.length + 300,
-    pendingCitizenReports: CITIZEN_REPORTS.filter((c) => c.status !== "Resolved").length,
-    systemUptime: "99.97%",
-    lastSync: new Date().toISOString(),
-  });
+export async function getSystemOverview(state?: string, district?: string) {
+  const params = new URLSearchParams();
+  if (state && state !== "All India") params.set("state", state);
+  if (district && district !== "All Districts") params.set("district", district);
+  const query = params.size ? `?${params.toString()}` : "";
+  const headers = await getAuthHeaders();
+  const [response, officersResponse] = await Promise.all([
+    fetchWithTimeout(`${BACKEND_BASE_URL}/overview${query}`, {}, 12000),
+    fetchWithTimeout(`${BACKEND_BASE_URL}/api/officers`, { headers }, 12000),
+  ]);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || "System overview is unavailable.");
+  const officerData = officersResponse.ok ? await officersResponse.json().catch(() => []) : [];
+  const officers = Array.isArray(officerData) ? officerData : [];
+  return {
+    totalOfficers: officers.length,
+    activeOfficers: officers.filter((officer: any) => officer.status === "Active").length,
+    totalStates: data.total_states,
+    totalProjects: data.total_works, totalAlerts: data.high_risk_projects,
+    pendingCitizenReports: data.citizen_reports, systemUptime: "Online",
+    totalSanctioned: data.total_sanctioned, totalDisbursed: data.total_disbursed,
+    fundUtilization: data.fund_utilization, lastSync: new Date().toISOString(),
+    riskDistribution: data.risk_distribution,
+  };
 }
 
 export async function getAuditLogs(limit?: number): Promise<AuditLogEntry[]> {
-  return delay(limit ? AUDIT_LOGS.slice(0, limit) : AUDIT_LOGS);
+  const headers = await getAuthHeaders();
+  const response = await fetchWithTimeout(`${BACKEND_BASE_URL}/api/audit-logs?limit=${limit || 100}`, { headers });
+  const data = await response.json().catch(() => ([]));
+  if (!response.ok) throw new Error("Audit logs are unavailable.");
+  return data.map((row: any) => ({ id: row.id, actor: row.actor, actorRole: row.actor_role,
+    action: row.action, target: row.target, timestamp: row.timestamp, ipAddress: row.ip_address || "Recorded server-side" }));
 }
 
 // ---------------------------------------------------------------------------
 // Global Search
 // ---------------------------------------------------------------------------
 export async function globalSearch(query: string) {
-  const q = query.toLowerCase();
-  const projects = PROJECTS.filter(
-    (p) => p.id.toLowerCase().includes(q) || p.name.toLowerCase().includes(q) || p.district.toLowerCase().includes(q)
-  ).slice(0, 5);
-  const alerts = ALERTS.filter((a) => a.id.toLowerCase().includes(q) || a.projectId.toLowerCase().includes(q)).slice(0, 5);
-  return delay({ projects, alerts }, 200);
+  if (query.trim().length < 2) return { projects: [], alerts: [] };
+  const response = await fetchWithTimeout(`${BACKEND_BASE_URL}/search-projects?q=${encodeURIComponent(query.trim())}&page_size=5`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) return { projects: [], alerts: [] };
+  return { projects: (data.results || []).map((row: any, index: number) => mapBackendProjectToFrontend(row, index)), alerts: [] };
 }

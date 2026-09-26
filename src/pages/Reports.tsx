@@ -19,9 +19,11 @@ import {
   generateReport,
   getSubmittedOfficerReports,
   submitReportToAdmin,
+  getFlaggedProjects,
   type SubmittedOfficerReport,
 } from "../services/api";
-import { PROJECTS, DISTRICTS_BY_STATE } from "../data/mockData";
+import { DISTRICTS_BY_STATE } from "../data/geography";
+import type { Project } from "../types";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import clsx from "clsx";
@@ -65,6 +67,7 @@ export default function Reports() {
   const [loading, setLoading] = useState(false);
   const [sendingToAdmin, setSendingToAdmin] = useState(false);
   const [report, setReport] = useState<Awaited<ReturnType<typeof generateReport>> | null>(null);
+  const [availableProjects, setAvailableProjects] = useState<Project[]>([]);
 
   // Load received reports for Super Admin
   useEffect(() => {
@@ -83,9 +86,14 @@ export default function Reports() {
     }
   }, [isSuperAdmin, user?.assignedState]);
 
+  useEffect(() => {
+    getFlaggedProjects({ state: !isSuperAdmin ? user?.assignedState : state, district, pageSize: 200 })
+      .then((result) => setAvailableProjects(result.data))
+      .catch(() => setAvailableProjects([]));
+  }, [isSuperAdmin, user?.assignedState, state, district]);
   // Filtered projects for Project-wise selector
   const availableProjectsForSelection = useMemo(() => {
-    let pool = PROJECTS;
+    let pool = availableProjects;
     if (!isSuperAdmin && user?.assignedState) {
       pool = pool.filter((p) => p.state.toLowerCase() === user.assignedState?.toLowerCase());
     } else if (state && state !== "All States") {
@@ -132,7 +140,7 @@ export default function Reports() {
   async function handleSendToSuperAdmin() {
     if (!report) return;
     setSendingToAdmin(true);
-    const selectedProj = PROJECTS.find((p) => p.id === selectedProjectId);
+    const selectedProj = availableProjects.find((p) => p.id === selectedProjectId);
     await submitReportToAdmin({
       officerName: user?.name || "State Monitoring Officer",
       officerEmail: user?.email || "officer@mplads.ai",

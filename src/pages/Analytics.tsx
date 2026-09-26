@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   LineChart,
   Line,
@@ -19,7 +19,9 @@ import Card from "../components/ui/Card";
 import Select from "../components/ui/Select";
 import Button from "../components/ui/Button";
 import { useAuth } from "../context/AuthContext";
-import { PROJECTS, DISTRICTS_BY_STATE, ALL_CATEGORIES } from "../data/mockData";
+import { DISTRICTS_BY_STATE, ALL_CATEGORIES } from "../data/geography";
+import { getProjects } from "../services/api";
+import type { Project } from "../types";
 
 const PIE_COLORS = ["#16a34a", "#d97706", "#ea580c", "#dc2626"];
 
@@ -36,6 +38,13 @@ export default function Analytics() {
 
   // Keep officer locked to assigned state
   const effectiveState = isOfficer ? assignedState : selectedState;
+  const [liveProjects, setLiveProjects] = useState<Project[]>([]);
+
+  useEffect(() => {
+    getProjects({ state: effectiveState === "All" ? "" : effectiveState, district: selectedDistrict === "All" ? "" : selectedDistrict, category: selectedCategory === "All" ? "" : selectedCategory, pageSize: 300 })
+      .then((result) => setLiveProjects(result.data))
+      .catch(() => setLiveProjects([]));
+  }, [effectiveState, selectedDistrict, selectedCategory]);
 
   // District options based on effective state
   const districtOptions = useMemo(() => {
@@ -46,14 +55,14 @@ export default function Analytics() {
 
   // Target projects reactively filtered
   const filteredProjects = useMemo(() => {
-    return PROJECTS.filter((p) => {
+    return liveProjects.filter((p) => {
       const matchState = effectiveState === "All" || p.state.toLowerCase() === effectiveState.toLowerCase();
       const matchDistrict = selectedDistrict === "All" || p.district.toLowerCase() === selectedDistrict.toLowerCase();
       const matchCat = selectedCategory === "All" || p.category === selectedCategory;
       const matchYear = selectedYear === "All" || String(p.year) === selectedYear;
       return matchState && matchDistrict && matchCat && matchYear;
     });
-  }, [effectiveState, selectedDistrict, selectedCategory, selectedYear]);
+  }, [effectiveState, selectedDistrict, selectedCategory, selectedYear, liveProjects]);
 
   // 1. Average Cost Trend (Live from filtered projects)
   const avgCostTrendData = useMemo(() => {
@@ -63,10 +72,10 @@ export default function Analytics() {
       const avg =
         projs.length > 0
           ? Math.round(projs.reduce((acc, p) => acc + p.sanctionedAmount, 0) / projs.length / 100000)
-          : Math.round(15 + (yr - 2022) * 1.8);
+          : 0;
       return {
         label: `${yr}-${String(yr + 1).slice(-2)}`,
-        value: avg || 18,
+        value: avg,
       };
     });
   }, [filteredProjects]);
@@ -76,13 +85,13 @@ export default function Analytics() {
     return ALL_CATEGORIES.map((cat) => {
       const catProjs = filteredProjects.filter((p) => p.category === cat);
       if (catProjs.length === 0) {
-        return { name: cat, value: 5 };
+        return { name: cat, value: 0 };
       }
       const avgDev = Math.round(
         catProjs.reduce((acc, p) => {
           if (p.costZScore) return acc + Math.round(p.costZScore * 14);
           if (p.costAnomalyScore) return acc + p.costAnomalyScore;
-          return acc + (p.riskScore >= 70 ? 24 : 8);
+          return acc + (p.riskScore >= 60 ? 24 : 8);
         }, 0) / catProjs.length
       );
       return {
@@ -101,21 +110,12 @@ export default function Analytics() {
     let severe = 0;
 
     filteredProjects.forEach((p) => {
-      const lag = (p.expectedProgress || 70) - (p.physicalProgress || 50);
+      const lag = p.expectedProgress - p.physicalProgress;
       if (p.status === "Completed" || lag <= 5) onTime++;
       else if (lag <= 15) minor++;
       else if (lag <= 30) major++;
       else severe++;
     });
-
-    if (filteredProjects.length === 0) {
-      return [
-        { name: "On Time", value: 60 },
-        { name: "Minor Delay", value: 25 },
-        { name: "Major Delay", value: 10 },
-        { name: "Severely Delayed", value: 5 },
-      ];
-    }
 
     return [
       { name: "On Time", value: Math.round((onTime / total) * 100) },
@@ -131,10 +131,7 @@ export default function Analytics() {
     const critical = filteredProjects.filter((p) => p.riskLevel === "Critical").length;
 
     return [
-      { label: "Q1", high: Math.max(1, Math.round(high * 0.7)), critical: Math.max(1, Math.round(critical * 0.6)) },
-      { label: "Q2", high: Math.max(2, Math.round(high * 0.85)), critical: Math.max(1, Math.round(critical * 0.8)) },
-      { label: "Q3", high: Math.max(2, Math.round(high * 0.95)), critical: Math.max(1, Math.round(critical * 0.9)) },
-      { label: "Q4 (Current)", high: Math.max(1, high), critical: Math.max(1, critical) },
+      { label: "Current", high, critical },
     ];
   }, [filteredProjects]);
 
@@ -145,7 +142,7 @@ export default function Analytics() {
     if (isOfficer || effectiveState !== "All") {
       const districts = DISTRICTS_BY_STATE[effectiveState] || [];
       return districts.map((dist) => {
-        const dProjs = PROJECTS.filter(
+        const dProjs = liveProjects.filter(
           (p) => p.state.toLowerCase() === effectiveState.toLowerCase() && p.district.toLowerCase() === dist.toLowerCase()
         );
         const flagged = dProjs.filter((p) => p.riskScore >= 60).length;
@@ -158,23 +155,23 @@ export default function Analytics() {
 
     // Super Admin All India
     return Object.keys(DISTRICTS_BY_STATE).map((st) => {
-      const sProjs = PROJECTS.filter((p) => p.state.toLowerCase() === st.toLowerCase());
+      const sProjs = liveProjects.filter((p) => p.state.toLowerCase() === st.toLowerCase());
       const flagged = sProjs.filter((p) => p.riskScore >= 60).length;
       return {
         name: st,
         value: flagged,
       };
     });
-  }, [isOfficer, effectiveState]);
+  }, [isOfficer, effectiveState, liveProjects]);
 
   // Dynamic AI Insights recomputed from filtered data
   const dynamicInsights = useMemo(() => {
     const total = filteredProjects.length;
-    const highCrit = filteredProjects.filter((p) => p.riskScore >= 70).length;
+    const highCrit = filteredProjects.filter((p) => p.riskScore >= 60).length;
     const avgCostLakhs =
       total > 0
         ? (filteredProjects.reduce((acc, p) => acc + p.sanctionedAmount, 0) / total / 100000).toFixed(1)
-        : "18.5";
+        : "0.0";
 
     const scopeLabel = selectedDistrict !== "All" ? `${selectedDistrict} District` : effectiveState;
 
@@ -198,7 +195,7 @@ export default function Analytics() {
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             {isOfficer
-              ? `Real-time multi-signal telemetry strictly scoped to ${assignedState}`
+              ? `Dataset-derived risk telemetry scoped to ${assignedState}`
               : "National telemetry, cost deviation indices, and schedule delay risk models"}
           </p>
         </div>

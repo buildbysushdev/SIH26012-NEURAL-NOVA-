@@ -26,7 +26,7 @@ import IndiaRiskMap from "../components/dashboard/IndiaRiskMap";
 import { getRiskMapData, getProjects } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { usePortalBase } from "../lib/usePortalBase";
-import { PROJECTS, DISTRICTS_BY_STATE, ALL_CATEGORIES } from "../data/mockData";
+import { DISTRICTS_BY_STATE, ALL_CATEGORIES } from "../data/geography";
 import type { StateRiskData, Project } from "../types";
 
 // State Coordinates for map centering
@@ -103,16 +103,16 @@ export default function RiskMap() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   useEffect(() => {
-    if (!isOfficer) {
-      getRiskMapData().then(setAdminMapData);
-      getProjects({ pageSize: 100 }).then((res) => setAdminProjects(res.data));
-    }
-  }, [isOfficer]);
+    getRiskMapData().then(setAdminMapData).catch(() => setAdminMapData([]));
+    getProjects({ state: isOfficer ? assignedState : "", pageSize: 300 })
+      .then((res) => setAdminProjects(res.data))
+      .catch(() => setAdminProjects([]));
+  }, [isOfficer, assignedState]);
 
   // Projects strictly scoped to officer's assigned state
   const stateProjects = useMemo(() => {
-    return PROJECTS.filter((p) => p.state.toLowerCase() === assignedState.toLowerCase());
-  }, [assignedState]);
+    return (adminProjects || []).filter((p) => p.state.toLowerCase() === assignedState.toLowerCase());
+  }, [assignedState, adminProjects]);
 
   // Filtered state projects for the officer map
   const filteredStateProjects = useMemo(() => {
@@ -159,7 +159,7 @@ export default function RiskMap() {
               </h1>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              National geospatial surveillance across all 36 States & Union Territories
+              Dataset-derived project map across States & Union Territories
             </p>
           </div>
         </div>
@@ -208,7 +208,7 @@ export default function RiskMap() {
             <ShieldAlert size={12} /> Critical/High Risk
           </span>
           <p className="text-xl font-black text-red-600 dark:text-red-400 mt-1">
-            {stateProjects.filter((p) => p.riskScore >= 70).length}
+            {stateProjects.filter((p) => p.riskScore >= 60).length}
           </p>
         </Card>
         <Card className="p-3 bg-white dark:bg-navy-900 border border-gray-200 dark:border-navy-800">

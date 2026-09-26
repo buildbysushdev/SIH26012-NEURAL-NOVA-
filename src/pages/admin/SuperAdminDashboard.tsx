@@ -16,9 +16,9 @@ import IndiaRiskMap from "../../components/dashboard/IndiaRiskMap";
 import PriorityAlerts from "../../components/dashboard/PriorityAlerts";
 import { CardSkeleton } from "../../components/ui/Feedback";
 import Card from "../../components/ui/Card";
-import { StatusBadge } from "../../components/ui/Badge";
-import { getSystemOverview, getRiskMapData, getRiskAlerts, getOfficers, getAuditLogs } from "../../services/api";
-import { PROJECTS, DISTRICTS_BY_STATE } from "../../data/mockData";
+import { getSystemOverview, getRiskMapData, getRiskAlerts, getOfficers, getAuditLogs, getProjects } from "../../services/api";
+import { DISTRICTS_BY_STATE } from "../../data/geography";
+import type { Project } from "../../types";
 import { formatDate } from "../../lib/format";
 import GovPageHeader from "../../components/layout/GovPageHeader";
 
@@ -29,18 +29,23 @@ export default function SuperAdminDashboard() {
   const [alerts, setAlerts] = useState<any[] | null>(null);
   const [officers, setOfficers] = useState<any[] | null>(null);
   const [logs, setLogs] = useState<any[] | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
 
   // Filters: State defaults to "All India"
   const [selectedState, setSelectedState] = useState("All India");
   const [selectedDistrict, setSelectedDistrict] = useState("All Districts");
 
   useEffect(() => {
-    getSystemOverview().then(setOverview);
     getRiskMapData().then(setMapData);
     getRiskAlerts({ status: "Open" }).then((a) => setAlerts(a));
     getOfficers().then(setOfficers);
     getAuditLogs(6).then(setLogs);
+    getProjects({ pageSize: 300 }).then((result) => setProjects(result.data));
   }, []);
+
+  useEffect(() => {
+    getSystemOverview(selectedState, selectedDistrict).then(setOverview);
+  }, [selectedState, selectedDistrict]);
 
   const stateList = useMemo(() => ["All India", ...Object.keys(DISTRICTS_BY_STATE).sort()], []);
 
@@ -49,50 +54,22 @@ export default function SuperAdminDashboard() {
     return ["All Districts", ...(DISTRICTS_BY_STATE[selectedState] || [])];
   }, [selectedState]);
 
-  // Reactive client-side filtering of projects
-  const filteredProjects = useMemo(() => {
-    return PROJECTS.filter((p) => {
-      const matchState = selectedState === "All India" || p.state.toLowerCase() === selectedState.toLowerCase();
-      const matchDistrict = selectedDistrict === "All Districts" || p.district.toLowerCase() === selectedDistrict.toLowerCase();
-      return matchState && matchDistrict;
-    });
-  }, [selectedState, selectedDistrict]);
-
   // Compute live aggregates for KPIs
-  const totalExpenditure = useMemo(() => {
-    return filteredProjects.reduce((sum, p) => sum + p.expenditure, 0);
-  }, [filteredProjects]);
+  const totalExpenditure = Number(overview?.totalDisbursed || 0);
 
-  const totalSanctionedProjects = useMemo(() => {
-    if (selectedState === "All India") {
-      return overview?.totalProjects || 77312;
-    }
-    return filteredProjects.length;
-  }, [selectedState, overview, filteredProjects]);
+  const totalSanctionedProjects = overview?.totalProjects || 0;
 
-  const formattedExpenditure = useMemo(() => {
-    if (selectedState === "All India") {
-      return "₹3,865.60 Cr";
-    }
-    if (totalExpenditure >= 10000000) {
-      return `₹${(totalExpenditure / 10000000).toFixed(2)} Cr`;
-    }
-    return `₹${(totalExpenditure / 100000).toFixed(2)} L`;
-  }, [selectedState, totalExpenditure]);
+  const formattedExpenditure = totalExpenditure >= 10000000
+    ? `₹${(totalExpenditure / 10000000).toFixed(2)} Cr`
+    : `₹${(totalExpenditure / 100000).toFixed(2)} L`;
 
   // Reactive Risk Distribution Chart Data
-  const reactiveRiskDist = useMemo(() => {
-    const low = filteredProjects.filter((p) => p.riskLevel === "Low").length;
-    const medium = filteredProjects.filter((p) => p.riskLevel === "Medium").length;
-    const high = filteredProjects.filter((p) => p.riskLevel === "High").length;
-    const critical = filteredProjects.filter((p) => p.riskLevel === "Critical").length;
-    return [
-      { name: "Low", value: low, color: "#16a34a" },
-      { name: "Medium", value: medium, color: "#d97706" },
-      { name: "High", value: high, color: "#ea580c" },
-      { name: "Critical", value: critical, color: "#dc2626" },
-    ];
-  }, [filteredProjects]);
+  const reactiveRiskDist = [
+    { name: "Low", value: overview?.riskDistribution?.low || 0, color: "#16a34a" },
+    { name: "Medium", value: overview?.riskDistribution?.medium || 0, color: "#d97706" },
+    { name: "High", value: overview?.riskDistribution?.high || 0, color: "#ea580c" },
+    { name: "Critical", value: overview?.riskDistribution?.critical || 0, color: "#dc2626" },
+  ];
 
   // Reactive Officers List
   const reactiveOfficers = useMemo(() => {
@@ -107,18 +84,21 @@ export default function SuperAdminDashboard() {
     if (selectedState === "All India") return alerts.slice(0, 5);
     return alerts
       .filter((a) => {
-        const proj = PROJECTS.find((p) => p.id === a.projectId);
-        return proj ? proj.state.toLowerCase() === selectedState.toLowerCase() : a.location.toLowerCase().includes(selectedState.toLowerCase());
+        return a.location.toLowerCase().includes(selectedState.toLowerCase());
       })
       .slice(0, 5);
   }, [alerts, selectedState]);
+
+  const activeAlertCount = !alerts ? 0 : selectedState === "All India"
+    ? alerts.length
+    : alerts.filter((alert) => alert.location.toLowerCase().includes(selectedState.toLowerCase())).length;
 
   return (
     <div className="space-y-5 animate-fade-in">
       {/* Dashboard Top Banner — Official GovPageHeader */}
       <GovPageHeader
         title="National Monitoring Overview · राष्ट्रीय निगरानी"
-        description="Real-time analytics across all 36 States & Union Territories · MoSPI Central Control"
+        description="Dataset-derived analytics across States & Union Territories · MoSPI Central Control"
         statusDot="green"
         rightContent={
           <div className="flex items-center flex-wrap gap-2.5 bg-gray-50 p-2 rounded border border-gray-200">
@@ -143,7 +123,7 @@ export default function SuperAdminDashboard() {
               </select>
             )}
             <div className="text-[10px] text-gray-400 pl-2 hidden sm:flex items-center gap-1">
-              <Server size={11} /> Uptime: {overview?.systemUptime ?? "99.97%"}
+              <Server size={11} /> Backend: {overview?.systemUptime ?? "Checking"}
             </div>
           </div>
         }
@@ -190,7 +170,7 @@ export default function SuperAdminDashboard() {
 
             <StatCard
               label="Active Alerts"
-              value={String(reactiveAlerts.length)}
+              value={String(activeAlertCount)}
               icon={ShieldAlert}
               tone="amber"
               onClick={() => navigate("/admin/alerts")}
@@ -245,7 +225,9 @@ export default function SuperAdminDashboard() {
                     <td className="py-2.5 px-3 text-gray-600 dark:text-gray-300">{o.jurisdiction}</td>
                     <td className="py-2.5 px-3 text-gray-700 dark:text-gray-300 font-medium">{o.projectsAssigned}</td>
                     <td className="py-2.5 px-3">
-                      <StatusBadge status={o.status === "Active" ? "Resolved" : "Delayed"} />
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${o.status === "Active" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"}`}>
+                        {o.status === "Active" ? "● Active" : "○ Inactive"}
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -263,7 +245,7 @@ export default function SuperAdminDashboard() {
       </div>
 
       {/* Real National Risk Map */}
-      {mapData && <IndiaRiskMap data={mapData} />}
+      {mapData && <IndiaRiskMap data={mapData} projects={projects} />}
 
       {/* Priority Alerts & Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

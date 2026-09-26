@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Search as SearchIcon, MapPin } from "lucide-react";
+import { Search as SearchIcon } from "lucide-react";
 import Input from "../ui/Input";
 import Button from "../ui/Button";
 
@@ -25,16 +25,6 @@ export default function CitizenSearch({ onSearch, loading }: { onSearch: (q: str
         <div className="flex gap-2">
           <Button type="submit" size="lg" loading={loading} className="flex-1 sm:flex-none">
             Search Project
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="lg"
-            icon={<MapPin size={16} />}
-            onClick={() => onSearch("")}
-            className="flex-1 sm:flex-none"
-          >
-            Near Me
           </Button>
         </div>
       </div>

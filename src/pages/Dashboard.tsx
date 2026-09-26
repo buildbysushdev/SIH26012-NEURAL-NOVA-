@@ -35,7 +35,7 @@ import {
   getAIInsights,
   type ProjectFilters,
 } from "../services/api";
-import { PROJECTS, DISTRICTS_BY_STATE, ALL_CATEGORIES } from "../data/mockData";
+import { DISTRICTS_BY_STATE, ALL_CATEGORIES } from "../data/geography";
 import type { DashboardStats, Project, CitizenReport } from "../types";
 
 const RISK_LEVEL_OPTIONS = [
@@ -82,18 +82,9 @@ export default function Dashboard() {
 
   // Initial load for dashboard KPIs and background widgets
   useEffect(() => {
-    getDashboardStats().then(setStats);
-    getCitizenReports(20).then((res) => {
-      // Filter citizen reports to only assigned state
-      const stateReports = res.filter((cr) => {
-        const proj = PROJECTS.find((p) => p.id === cr.projectId);
-        return proj
-          ? proj.state.toLowerCase() === assignedState.toLowerCase()
-          : cr.location.toLowerCase().includes(assignedState.toLowerCase());
-      });
-      setReports(stateReports);
-    });
-    getAIInsights().then(setInsights);
+    getDashboardStats(assignedState).then(setStats);
+    getCitizenReports(20).then(setReports);
+    getAIInsights(assignedState).then(setInsights);
   }, [assignedState]);
 
   // Fetch Flagged Projects whenever filters or page changes
@@ -129,15 +120,13 @@ export default function Dashboard() {
 
   // Scoped projects for assignedState
   const scopedStateProjects = useMemo(() => {
-    return PROJECTS.filter((p) => p.state.toLowerCase() === assignedState.toLowerCase());
-  }, [assignedState]);
+    return (flaggedProjects || []).filter((p) => p.state.toLowerCase() === assignedState.toLowerCase());
+  }, [assignedState, flaggedProjects]);
 
   // Two new KPI cards scoped to officer's state (Section 2C)
-  const stateExpenditure = useMemo(() => {
-    return scopedStateProjects.reduce((sum, p) => sum + p.expenditure, 0);
-  }, [scopedStateProjects]);
+  const stateExpenditure = stats?.totalDisbursed ?? 0;
 
-  const stateSanctionedCount = scopedStateProjects.length;
+  const stateSanctionedCount = stats?.totalProjects ?? 0;
 
   const formattedStateExpenditure = useMemo(() => {
     if (stateExpenditure >= 10000000) {
@@ -176,8 +165,8 @@ export default function Dashboard() {
       {/* Dashboard Top Header — GovPageHeader with MoSPI identity */}
       <GovPageHeader
         title={`State Risk Intelligence Dashboard · राज्य निगरानी`}
-        subtitle={`Officer ID: ${user?.id || "OFF-001"} · MoSPI Sentinel Feed`}
-        description={`Real-time analytics scoped to ${assignedState} · DISHA Vigilance Portal`}
+        subtitle={`Officer ID: ${user?.id || "OFF-001"} · MPLADS data feed`}
+        description={`Dataset-derived analytics scoped to ${assignedState} · DISHA Vigilance Portal`}
         scopeBadge={`Jurisdiction: ${assignedState}`}
         statusDot="green"
         rightContent={
@@ -219,7 +208,6 @@ export default function Dashboard() {
             <StatCard
               label="Projects Scanned"
               value={stateSanctionedCount.toLocaleString("en-IN")}
-              trend={2.4}
               icon={FolderKanban}
               tone="navy"
               onClick={() => navigate(`${portalBase}/projects`)}
@@ -228,9 +216,7 @@ export default function Dashboard() {
             {/* High-Risk Flagged within state */}
             <StatCard
               label="High-Risk Flagged"
-              value={String(scopedStateProjects.filter((p) => p.riskScore >= 70).length)}
-              trend={-3.1}
-              trendGoodDirection="down"
+              value={String(stats.highRiskFlaggedCount ?? 0)}
               icon={ShieldAlert}
               tone="red"
               onClick={() => handleFilterChange("riskLevel", "High")}
@@ -240,8 +226,6 @@ export default function Dashboard() {
             <StatCard
               label="Citizen Reports"
               value={String(reports?.length ?? 0)}
-              trend={-1.5}
-              trendGoodDirection="down"
               icon={MessageSquareWarning}
               tone="amber"
               onClick={() => navigate(`${portalBase}/alerts`)}
@@ -250,9 +234,7 @@ export default function Dashboard() {
             {/* Average Risk Score */}
             <StatCard
               label="Avg Risk Score"
-              value={`${Math.round(scopedStateProjects.reduce((a, b) => a + b.riskScore, 0) / (scopedStateProjects.length || 1))}/100`}
-              trend={-0.6}
-              trendGoodDirection="down"
+              value={`${Math.round(stats.avgRiskScore ?? 0)}/100`}
               icon={Activity}
               tone="navy"
             />

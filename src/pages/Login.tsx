@@ -35,35 +35,35 @@ const DEMO_PRESETS: DemoPreset[] = [
     email: "officer1@mplads.ai",
     name: "R. Kulkarni, DISHA",
     district: "DELHI",
-    password: "officer123",
+    password: "officer@SIH2026",
     badgeLabel: "Delhi (OFFICER-DELHI-01)",
   },
   {
     role: "officer",
-    id: "OFFICER-KAR-02",
-    email: "officer2@mplads.ai",
-    name: "A. Deshmukh, DISHA",
-    district: "BENGALURU",
-    password: "officer123",
-    badgeLabel: "Karnataka (OFFICER-KAR-02)",
+    id: "OFFICER-MH-01",
+    email: "officer-mh@mplads.gov.in",
+    name: "Pune District Officer",
+    district: "PUNE",
+    password: "officer@SIH2026",
+    badgeLabel: "Maharashtra (OFFICER-MH-01)",
   },
   {
     role: "officer",
-    id: "OFF-003",
-    email: "officer3@mplads.ai",
-    name: "K. Iyer, DISHA",
-    district: "LUCKNOW",
-    password: "officer123",
-    badgeLabel: "Uttar Pradesh (OFF-003)",
+    id: "OFFICER-JH-01",
+    email: "officer-jh@mplads.gov.in",
+    name: "Giridih District Officer",
+    district: "GIRIDIH",
+    password: "officer@SIH2026",
+    badgeLabel: "Jharkhand (OFFICER-JH-01)",
   },
   {
     role: "admin",
-    id: "ADMIN-VIGIL-01",
+    id: "ADMIN-NEURAL-NOVA",
     email: "admin@mplads.ai",
     name: "P. Sharma, IAS",
     district: "PAN-INDIA",
-    password: "admin123",
-    badgeLabel: "Super Admin (ADMIN-VIGIL-01)",
+    password: "admin@SIH2026",
+    badgeLabel: "Super Admin (ADMIN-NEURAL-NOVA)",
   },
 ];
 
@@ -83,13 +83,13 @@ export default function Login() {
 
   const [role, setRole] = useState<RoleType>("officer");
   const [badgeId, setBadgeId] = useState("OFFICER-DELHI-01");
-  const [password, setPassword] = useState("officer123");
+  const [password, setPassword] = useState("officer@SIH2026");
   const [selectedDistrict, setSelectedDistrict] = useState("DELHI");
   const [showPassword, setShowPassword] = useState(false);
 
   // Captcha state (default 8FK92 like in screenshot)
   const [captchaCode, setCaptchaCode] = useState("8FK92");
-  const [captchaInput, setCaptchaInput] = useState("8FK92");
+  const [captchaInput, setCaptchaInput] = useState("");
 
   const [errors, setErrors] = useState<{
     badgeId?: string;
@@ -118,11 +118,11 @@ export default function Login() {
     setErrors({});
     if (newRole === "officer") {
       setBadgeId("OFFICER-DELHI-01");
-      setPassword("officer123");
+      setPassword("officer@SIH2026");
       setSelectedDistrict("DELHI");
     } else {
-      setBadgeId("ADMIN-VIGIL-01");
-      setPassword("admin123");
+      setBadgeId("ADMIN-NEURAL-NOVA");
+      setPassword("admin@SIH2026");
       setSelectedDistrict("PAN-INDIA");
     }
   }
@@ -139,7 +139,7 @@ export default function Login() {
   function handleReloadCaptcha() {
     const newCode = generateCaptchaCode();
     setCaptchaCode(newCode);
-    setCaptchaInput(newCode);
+    setCaptchaInput("");
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -167,7 +167,7 @@ export default function Login() {
     setLoading(false);
 
     if (res.success) {
-      showToast("Identity verified via NIC DISHA Gateway.", "success");
+      showToast("Identity verified. Redirecting to portal.", "success");
       navigate(role === "admin" ? "/admin/dashboard" : "/dashboard");
     } else {
       setErrors({ form: res.error || "Authentication failed. Please verify credentials." });
@@ -272,13 +272,13 @@ export default function Login() {
               <IndianFlag className="w-9 h-6 sm:w-10 sm:h-7" />
             </div>
 
-            {/* NIC SECURE ACCESS badge */}
+            {/* Secure Portal badge */}
             <div className="text-center shrink-0">
               <div className="border border-[#0056b3] text-[#0056b3] bg-blue-50/60 rounded px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-bold tracking-wide shadow-2xs">
-                NIC SECURE ACCESS
+                SECURE PORTAL
               </div>
               <p className="text-[9px] sm:text-[10px] text-gray-500 font-medium mt-0.5">
-                DISHA Vigilance Portal
+                SIH26102 Neural Nova
               </p>
             </div>
           </div>
@@ -402,7 +402,7 @@ export default function Login() {
                   type="text"
                   value={badgeId}
                   onChange={(e) => setBadgeId(e.target.value)}
-                  placeholder={role === "admin" ? "ADMIN-VIGIL-01" : "OFFICER-DELHI-01"}
+                  placeholder={role === "admin" ? "ADMIN-NEURAL-NOVA" : "OFFICER-DELHI-01"}
                   className={`w-full px-3 py-2 text-sm font-mono border rounded focus:border-[#0b2545] focus:ring-1 focus:ring-[#0b2545] outline-none bg-white text-gray-900 shadow-2xs ${
                     errors.badgeId ? "border-red-400 bg-red-50/20" : "border-gray-300"
                   }`}
@@ -499,7 +499,7 @@ export default function Login() {
                 className="w-full bg-[#0b2545] hover:bg-[#071c36] text-white py-2.5 px-4 rounded font-semibold text-sm transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 mt-2"
               >
                 {loading ? (
-                  <span>Authenticating with NIC DISHA Gateway...</span>
+                  <span>Verifying credentials...</span>
                 ) : (
                   <>
                     <span>Sign In to Secure Portal</span>
@@ -547,7 +547,7 @@ export default function Login() {
         {/* Footer Security Badges */}
         <div className="mt-6 text-center text-gray-500 text-[11px] space-y-1">
           <p className="font-medium text-gray-600">
-            NIC Certified 256-bit TLS · National Portal Standard · Digital India Initiative
+            Encrypted session · Role-scoped access · Audit logging enabled
           </p>
           <p>
             Ministry of Statistics &amp; Programme Implementation (MoSPI), Government of India
